@@ -27,6 +27,7 @@ uv run auto-lending-bot run
 uv run auto-lending-bot status
 uv run auto-lending-bot cleanup
 uv run auto-lending-bot dashboard
+uv run auto-lending-bot smoke-exchange
 ```
 
 Phase one uses a mock exchange by default and runs in dry-run mode. It records bot runs,
@@ -52,6 +53,7 @@ Run CLI commands in the container:
 ```powershell
 docker compose run --rm auto-lending-bot auto-lending-bot status
 docker compose run --rm auto-lending-bot auto-lending-bot dashboard
+docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot smoke-exchange
 ```
 
 The compose setup mounts local `data/` and `reports/` folders into the container.

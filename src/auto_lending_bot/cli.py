@@ -50,6 +50,16 @@ def run_cli(argv: list[str] | None = None) -> int:
         print(f"Wrote dashboard: {output_path}")
         return 0
 
+    if args.command == "smoke-exchange":
+        try:
+            validate_run_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        print(_smoke_exchange(settings))
+        return 0
+
     if args.command == "run":
         try:
             validate_run_settings(settings)
@@ -80,6 +90,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("cleanup", help="Delete old market-rate rows.")
     subparsers.add_parser("dashboard", help="Write a local read-only HTML dashboard.")
     subparsers.add_parser("run", help="Run the lending bot.")
+    subparsers.add_parser("smoke-exchange", help="Read balances and lendbook without lending.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     return parser
 
@@ -122,3 +133,20 @@ def _format_status(settings: Settings) -> str:
         )
 
     return "\n".join(lines)
+
+
+def _smoke_exchange(settings: Settings) -> str:
+    exchange = create_exchange_client(settings)
+    balances = exchange.get_lending_balances()
+    orders = exchange.get_loan_orders(settings.smoke_test_currency)
+    best_rate = max((order.daily_rate for order in orders), default=0)
+
+    return "\n".join(
+        [
+            f"Exchange: {settings.exchange}",
+            f"Currency: {settings.smoke_test_currency.upper()}",
+            f"Lending balances: {len(balances)}",
+            f"Loan orders: {len(orders)}",
+            f"Best daily rate: {best_rate:.8f}",
+        ]
+    )

@@ -28,6 +28,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
         retry_attempts=3,
         retry_backoff_seconds=30,
         report_path="reports/dashboard.html",
+        smoke_test_currency="BTC",
         hide_coins=True,
         max_amount_to_lend=None,
         max_single_offer_amount=None,

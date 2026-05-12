@@ -25,6 +25,7 @@ class Settings:
     retry_attempts: int
     retry_backoff_seconds: int
     report_path: str
+    smoke_test_currency: str
     hide_coins: bool
     max_amount_to_lend: float | None
     max_single_offer_amount: float | None
@@ -56,6 +57,7 @@ def load_settings() -> Settings:
         retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
         retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),
         report_path=os.getenv("REPORT_PATH", "reports/dashboard.html"),
+        smoke_test_currency=os.getenv("SMOKE_TEST_CURRENCY", "BTC"),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),

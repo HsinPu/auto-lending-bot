@@ -1,4 +1,5 @@
 from auto_lending_bot.cli import run_cli
+from auto_lending_bot.domain.models import CurrencyBalance, LoanOrder
 
 
 def test_cli_init_db_creates_database(tmp_path, monkeypatch, capsys) -> None:
@@ -33,3 +34,34 @@ def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsy
 
     assert exit_code == 2
     assert "Safety check failed" in capsys.readouterr().err
+
+
+def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> None:
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: FakeExchange())
+
+    exit_code = run_cli(["smoke-exchange"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Exchange: mock" in output
+    assert "Lending balances: 1" in output
+    assert "Loan orders: 1" in output
+    assert "Best daily rate: 0.00008000" in output
+
+
+class FakeExchange:
+    def get_lending_balances(self):
+        return [CurrencyBalance(currency="BTC", amount=0.1)]
+
+    def get_loan_orders(self, currency: str):
+        return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]
+
+    def get_open_loan_offers(self):
+        return []
+
+    def create_loan_offer(self, offer):
+        raise AssertionError("smoke-exchange must not create offers")
+
+    def cancel_loan_offer(self, offer_id: str):
+        raise AssertionError("smoke-exchange must not cancel offers")

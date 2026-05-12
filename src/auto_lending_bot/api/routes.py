@@ -185,6 +185,7 @@ def create_api_router(settings: Settings) -> APIRouter:
             bot_runs=bot_runs,
             loan_offers=loan_offers,
             active_loans=active_loans,
+            open_offers=open_offers,
             market_recorder=MarketRecorder(market_rates),
             notifier=Notifier(settings=settings),
         )

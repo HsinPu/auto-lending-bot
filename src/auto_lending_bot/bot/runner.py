@@ -12,6 +12,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
+    OpenLoanOfferRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class BotRunner:
         bot_runs: BotRunRepository,
         loan_offers: LoanOfferRepository,
         active_loans: ActiveLoanRepository,
+        open_offers: OpenLoanOfferRepository,
         market_recorder: MarketRecorder,
         notifier: Notifier,
     ) -> None:
@@ -33,6 +35,7 @@ class BotRunner:
         self._bot_runs = bot_runs
         self._loan_offers = loan_offers
         self._active_loans = active_loans
+        self._open_offers = open_offers
         self._market_recorder = market_recorder
         self._notifier = notifier
 
@@ -72,6 +75,7 @@ class BotRunner:
 
         try:
             self._active_loans.replace_all(self._exchange.get_active_loans())
+            self._rebalance_open_offers()
             balances = self._exchange.get_lending_balances()
             for balance in balances:
                 orders = self._exchange.get_loan_orders(balance.currency)
@@ -142,6 +146,20 @@ class BotRunner:
             if offer.amount > self._settings.max_single_offer_amount:
                 msg = "Offer amount exceeds MAX_SINGLE_OFFER_AMOUNT."
                 raise ValueError(msg)
+
+    def _rebalance_open_offers(self) -> None:
+        if not self._settings.auto_rebalance_open_offers:
+            return
+
+        offers = self._exchange.get_open_loan_offers()
+        self._open_offers.replace_all(offers)
+        if self._settings.dry_run or not self._settings.auto_cancel_open_offers:
+            return
+
+        for offer in offers:
+            if offer.external_offer_id:
+                self._exchange.cancel_loan_offer(offer.external_offer_id)
+        self._open_offers.replace_all([])
 
         if self._settings.max_total_lend_amount is not None:
             if live_lend_amount + offer.amount > self._settings.max_total_lend_amount:

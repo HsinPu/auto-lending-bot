@@ -222,6 +222,7 @@ BTC_FRR_DELTA=0.00001
 ## Operations
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.
+- Set `AUTO_REBALANCE_OPEN_OFFERS=true` to sync open offers before each run. `AUTO_CANCEL_OPEN_OFFERS=true` additionally cancels them, but only when live mode is explicitly enabled.
 - Use `RETRY_ATTEMPTS` and `RETRY_BACKOFF_SECONDS` for transient failure retries.
 - Authentication failures are not retried; fix the key/secret or permissions before restarting.
 - On startup, interrupted `running` bot runs are marked as `failed`.

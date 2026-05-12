@@ -59,6 +59,8 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
+        auto_rebalance_open_offers=False,
+        auto_cancel_open_offers=False,
         dry_run=True,
         exchange="mock",
         http_timeout_seconds=30,

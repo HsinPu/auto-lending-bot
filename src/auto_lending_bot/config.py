@@ -19,6 +19,8 @@ class Settings:
     bitfinex_enable_live_offers: bool
     bot_label: str
     bot_sleep_seconds: int
+    auto_rebalance_open_offers: bool
+    auto_cancel_open_offers: bool
     dry_run: bool
     exchange: str
     http_timeout_seconds: int
@@ -64,6 +66,8 @@ def load_settings() -> Settings:
         bitfinex_enable_live_offers=_get_bool("BITFINEX_ENABLE_LIVE_OFFERS", default=False),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
+        auto_rebalance_open_offers=_get_bool("AUTO_REBALANCE_OPEN_OFFERS", default=False),
+        auto_cancel_open_offers=_get_bool("AUTO_CANCEL_OPEN_OFFERS", default=False),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),
         exchange=os.getenv("EXCHANGE", "mock"),
         http_timeout_seconds=_get_int("HTTP_TIMEOUT_SECONDS", default=30),

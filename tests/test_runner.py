@@ -2,6 +2,7 @@ import logging
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
+from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -12,6 +13,7 @@ from auto_lending_bot.persistence.repository import (
     BotRunRepository,
     LoanOfferRepository,
     MarketRateRepository,
+    OpenLoanOfferRepository,
 )
 
 
@@ -29,6 +31,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
         bot_runs=BotRunRepository(database_url),
         loan_offers=loan_offers,
         active_loans=active_loans,
+        open_offers=OpenLoanOfferRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -51,6 +54,7 @@ def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -74,6 +78,7 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -88,7 +93,36 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
     assert exchange.calls == 1
 
 
-def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
+def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    settings = _settings(database_url, auto_rebalance_open_offers=True, auto_cancel_open_offers=True)
+    exchange = MockExchangeClient()
+    exchange.create_loan_offer(LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2))
+    open_offers = OpenLoanOfferRepository(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=open_offers,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    runner.run_once()
+
+    assert open_offers.count() == 1
+
+
+def _settings(
+    database_url: str,
+    strategy_debug: bool = False,
+    auto_rebalance_open_offers: bool = False,
+    auto_cancel_open_offers: bool = False,
+) -> Settings:
     return Settings(
         allow_live_trading=False,
         api_key="",
@@ -96,6 +130,8 @@ def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
         bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
+        auto_rebalance_open_offers=auto_rebalance_open_offers,
+        auto_cancel_open_offers=auto_cancel_open_offers,
         dry_run=True,
         exchange="mock",
         http_timeout_seconds=30,

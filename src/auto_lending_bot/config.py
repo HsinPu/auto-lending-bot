@@ -28,6 +28,8 @@ class Settings:
     report_path: str
     smoke_test_currency: str
     strategy_debug: bool
+    telegram_bot_token: str
+    telegram_chat_id: str
     hide_coins: bool
     gap_mode: str
     gap_bottom: float
@@ -68,6 +70,8 @@ def load_settings() -> Settings:
         report_path=os.getenv("REPORT_PATH", "reports/dashboard.html"),
         smoke_test_currency=os.getenv("SMOKE_TEST_CURRENCY", "BTC"),
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         gap_mode=os.getenv("GAP_MODE", "off"),
         gap_bottom=_get_float("GAP_BOTTOM", default=0.0),

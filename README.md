@@ -145,6 +145,8 @@ Global settings:
 - `XDAYS`
 - `XDAY_SPREAD`
 - `STRATEGY_DEBUG`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
 
 Per-currency overrides use the currency symbol as a prefix:
 

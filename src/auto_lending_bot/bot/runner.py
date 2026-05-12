@@ -110,11 +110,17 @@ class BotRunner:
                                 status="created",
                                 external_offer_id=external_offer_id,
                             )
+                            self._notifier.info(
+                                f"Created {offer.currency} loan offer {external_offer_id}."
+                            )
                         except Exception as error:
                             self._loan_offers.update_status(
                                 loan_offer_id,
                                 status="failed",
                                 message=str(error),
+                            )
+                            self._notifier.error(
+                                f"Failed to create {offer.currency} loan offer: {error}"
                             )
                             raise
                         live_lend_amount += offer.amount

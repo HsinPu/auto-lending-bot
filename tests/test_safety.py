@@ -121,6 +121,8 @@ def _settings(
         report_path="reports/dashboard.html",
         smoke_test_currency="BTC",
         strategy_debug=False,
+        telegram_bot_token="",
+        telegram_chat_id="",
         hide_coins=True,
         gap_mode="off",
         gap_bottom=0,

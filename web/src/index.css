@@ -120,6 +120,104 @@ h1 {
   padding: 24px;
 }
 
+.settings-panel,
+.table-section {
+  margin-top: 20px;
+  border: 1px solid rgba(147, 197, 253, 0.16);
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.64);
+  overflow: hidden;
+}
+
+.settings-panel {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  padding: 24px;
+}
+
+.settings-panel h2,
+.section-heading h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 22px;
+}
+
+.settings-panel p,
+.section-heading p {
+  margin: 8px 0 0;
+  color: #93c5fd;
+}
+
+.settings-panel dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.settings-panel dl div {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.settings-panel dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.settings-panel dd {
+  margin: 6px 0 0;
+  color: #f8fafc;
+  word-break: break-word;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.16);
+}
+
+.section-heading span {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: #052e16;
+  background: #86efac;
+  white-space: nowrap;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+th,
+td {
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.12);
+  text-align: left;
+}
+
+th {
+  color: #bfdbfe;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td {
+  color: #e0f2fe;
+}
+
 .error-state {
   display: grid;
   gap: 8px;
@@ -133,6 +231,11 @@ h1 {
   }
 
   .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-panel,
+  .settings-panel dl {
     grid-template-columns: 1fr;
   }
 }

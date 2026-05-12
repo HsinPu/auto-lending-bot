@@ -1,5 +1,5 @@
 from auto_lending_bot.cli import run_cli
-from auto_lending_bot.domain.models import CurrencyBalance, LoanOrder
+from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
 
 
 def test_cli_init_db_creates_database(tmp_path, monkeypatch, capsys) -> None:
@@ -22,6 +22,7 @@ def test_cli_status_prints_counts(tmp_path, monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert "Exchange: mock" in output
     assert "Bot runs: 0" in output
+    assert "Open loan offers: 0" in output
     assert "Active loans: 0" in output
     assert "Lending history: 0" in output
     assert "Latest run: none" in output
@@ -37,6 +38,20 @@ def test_cli_sync_history_writes_lending_history(tmp_path, monkeypatch, capsys) 
     output = capsys.readouterr().out
     assert exit_code == 0
     assert "Synced 1 lending history row(s) for BTC." in output
+
+
+def test_cli_sync_open_offers_writes_snapshot(tmp_path, monkeypatch, capsys) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("EXCHANGE", "mock")
+    exchange = FakeExchange()
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: exchange)
+
+    exit_code = run_cli(["sync-open-offers"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synced 1 open loan offer row(s)." in output
 
 
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
@@ -72,7 +87,7 @@ class FakeExchange:
         return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]
 
     def get_open_loan_offers(self):
-        return []
+        return [LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)]
 
     def get_active_loans(self):
         return []

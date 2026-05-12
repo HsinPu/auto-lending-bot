@@ -71,6 +71,16 @@ CREATE TABLE IF NOT EXISTS lending_history (
     synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(external_entry_id, currency)
 );
+
+CREATE TABLE IF NOT EXISTS open_loan_offers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency TEXT NOT NULL,
+    amount REAL NOT NULL,
+    daily_rate REAL NOT NULL,
+    duration_days INTEGER NOT NULL,
+    external_offer_id TEXT,
+    captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

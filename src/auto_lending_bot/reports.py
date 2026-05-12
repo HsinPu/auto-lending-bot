@@ -9,6 +9,7 @@ from auto_lending_bot.persistence.repository import (
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketRateRepository,
+    OpenLoanOfferRepository,
 )
 
 
@@ -55,6 +56,7 @@ def _render_dashboard(settings: Settings) -> str:
     market_rates = MarketRateRepository(settings.database_url)
     active_loans = ActiveLoanRepository(settings.database_url)
     lending_history = LendingHistoryRepository(settings.database_url)
+    open_offers = OpenLoanOfferRepository(settings.database_url)
     generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     latest_run = bot_runs.latest()
     failed_offer_count = loan_offers.count_by_status("failed")
@@ -81,6 +83,7 @@ def _render_dashboard(settings: Settings) -> str:
   {_render_summary(settings, generated_at, latest_run, failed_offer_count)}
   <div class="metric">執行次數：{bot_runs.count()}</div>
   <div class="metric">貸出委託：{loan_offers.count()}</div>
+  <div class="metric">未成交委託：{open_offers.count()}</div>
   <div class="metric">目前放貸中：{active_loans.count()}</div>
   <div class="metric">收益紀錄：{lending_history.count()}</div>
   <div class="metric">市場利率紀錄：{market_rates.count()}</div>
@@ -90,6 +93,8 @@ def _render_dashboard(settings: Settings) -> str:
   {_render_table(bot_runs.recent(), ["id", "started_at", "finished_at", "status", "dry_run", "message"])}
   <h2>最近貸出委託</h2>
   {_render_table(loan_offers.recent(), ["id", "bot_run_id", "currency", "amount", "daily_rate", "duration_days", "status", "external_offer_id", "created_at"])}
+  <h2>未成交委託</h2>
+  {_render_table(open_offers.recent(), ["id", "currency", "amount", "daily_rate", "duration_days", "external_offer_id", "captured_at"])}
   <h2>目前放貸中</h2>
   {_render_table(active_loans.recent(), ["id", "currency", "amount", "daily_rate", "duration_days", "external_loan_id", "captured_at"])}
   <h2>最近收益紀錄</h2>

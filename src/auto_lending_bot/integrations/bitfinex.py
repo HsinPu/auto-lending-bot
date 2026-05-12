@@ -95,6 +95,7 @@ class BitfinexClient:
                     amount=amount,
                     daily_rate=rate,
                     duration_days=duration_days,
+                    external_offer_id=str(item.get("id", "")),
                 )
             )
 

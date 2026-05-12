@@ -357,3 +357,52 @@ class LendingHistoryRepository:
                 """
             ).fetchall()
             return [dict(row) for row in rows]
+
+
+class OpenLoanOfferRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def replace_all(self, offers: list[LoanOffer]) -> None:
+        with connect(self._database_url) as connection:
+            connection.execute("DELETE FROM open_loan_offers")
+            connection.executemany(
+                """
+                INSERT INTO open_loan_offers (
+                    currency,
+                    amount,
+                    daily_rate,
+                    duration_days,
+                    external_offer_id
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        offer.currency,
+                        offer.amount,
+                        offer.daily_rate,
+                        offer.duration_days,
+                        offer.external_offer_id,
+                    )
+                    for offer in offers
+                ],
+            )
+
+    def count(self) -> int:
+        with connect(self._database_url) as connection:
+            row = connection.execute("SELECT COUNT(*) AS count FROM open_loan_offers").fetchone()
+            return int(row["count"])
+
+    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, currency, amount, daily_rate, duration_days,
+                       external_offer_id, captured_at
+                FROM open_loan_offers
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]

@@ -93,6 +93,7 @@ def test_bitfinex_client_reads_open_loan_offers() -> None:
     assert offers[0].currency == "BTC"
     assert offers[0].amount == 0.5
     assert round(offers[0].daily_rate, 8) == 0.00008
+    assert offers[0].external_offer_id == ""
 
 
 def test_bitfinex_client_reads_active_loans() -> None:

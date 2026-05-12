@@ -14,6 +14,7 @@ from auto_lending_bot.persistence.repository import (
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketRateRepository,
+    OpenLoanOfferRepository,
 )
 from auto_lending_bot.reports import write_dashboard
 from auto_lending_bot.safety import SafetyError, validate_run_settings
@@ -68,6 +69,19 @@ def run_cli(argv: list[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "sync-open-offers":
+        try:
+            validate_run_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        initialize_database(settings.database_url)
+        offers = create_exchange_client(settings).get_open_loan_offers()
+        OpenLoanOfferRepository(settings.database_url).replace_all(offers)
+        print(f"Synced {len(offers)} open loan offer row(s).")
+        return 0
+
     if args.command == "smoke-exchange":
         try:
             validate_run_settings(settings)
@@ -111,6 +125,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("smoke-exchange", help="Read balances and lendbook without lending.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")
+    subparsers.add_parser("sync-open-offers", help="Sync open loan offers from the exchange.")
     return parser
 
 
@@ -132,6 +147,7 @@ def _format_status(settings: Settings) -> str:
     market_rates = MarketRateRepository(settings.database_url)
     active_loans = ActiveLoanRepository(settings.database_url)
     lending_history = LendingHistoryRepository(settings.database_url)
+    open_offers = OpenLoanOfferRepository(settings.database_url)
     latest_run = bot_runs.latest()
 
     lines = [
@@ -142,6 +158,7 @@ def _format_status(settings: Settings) -> str:
         f"Live trading allowed: {settings.allow_live_trading}",
         f"Bot runs: {bot_runs.count()}",
         f"Loan offers: {loan_offers.count()}",
+        f"Open loan offers: {open_offers.count()}",
         f"Active loans: {active_loans.count()}",
         f"Lending history: {lending_history.count()}",
         f"Market rates: {market_rates.count()}",

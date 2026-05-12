@@ -6,6 +6,7 @@ from auto_lending_bot.persistence.repository import (
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
+    OpenLoanOfferRepository,
 )
 
 
@@ -25,6 +26,7 @@ def test_cli_dashboard_writes_html_report(tmp_path, monkeypatch, capsys) -> None
     assert "最新執行狀態：尚無執行紀錄" in report_html
     assert "最近執行紀錄" in report_html
     assert "目前放貸中" in report_html
+    assert "未成交委託" in report_html
     assert "收益摘要" in report_html
     assert "目前沒有資料" in report_html
 
@@ -80,6 +82,17 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
             )
         ]
     )
+    OpenLoanOfferRepository(database_url).replace_all(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_offer_id="offer-1",
+            )
+        ]
+    )
 
     assert run_cli(["dashboard"]) == 0
 
@@ -89,6 +102,8 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
     assert "警示：目前有 1 筆失敗貸出委託" in report_html
     assert "目前放貸中：1" in report_html
     assert "loan-1" in report_html
+    assert "未成交委託：1" in report_html
+    assert "offer-1" in report_html
     assert "收益紀錄：1" in report_html
     assert "history-1" in report_html
     assert "累積收益" in report_html

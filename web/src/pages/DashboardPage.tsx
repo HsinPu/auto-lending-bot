@@ -5,6 +5,10 @@ import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
+import {
+  DisplaySettingsModal,
+  type DisplaySettings,
+} from '../components/DisplaySettingsModal'
 import { EarningsForecast } from '../components/EarningsForecast'
 import { MiniCharts } from '../components/MiniCharts'
 import { StatusCard } from '../components/StatusCard'
@@ -24,6 +28,7 @@ export function DashboardPage() {
   const queryClient = useQueryClient()
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
@@ -51,11 +56,20 @@ export function DashboardPage() {
         onRefresh={() => void refetch()}
       />
 
-      <main className="shell with-top-bar">
+      <main className={`shell with-top-bar ${displaySettings.compactLayout ? 'compact-layout' : ''}`}>
         <section className="console-intro">
-          <p className="eyebrow">Auto Lending Bot</p>
-          <h1>放貸監控中心</h1>
-          <p className="lede">read-only dashboard，所有資料都來自本地 API 與 SQLite 紀錄。</p>
+          <div>
+            <p className="eyebrow">Auto Lending Bot</p>
+            <h1>放貸監控中心</h1>
+            <p className="lede">read-only dashboard，所有資料都來自本地 API 與 SQLite 紀錄。</p>
+          </div>
+          <DisplaySettingsModal
+            settings={displaySettings}
+            onChange={(settings) => {
+              setDisplaySettings(settings)
+              localStorage.setItem(displaySettingsKey, JSON.stringify(settings))
+            }}
+          />
         </section>
 
       {isLoading ? <section className="status-skeleton">讀取 API 狀態中...</section> : null}
@@ -118,66 +132,89 @@ export function DashboardPage() {
             offers={data.offers}
           />
 
-          <DataTable<BotRun>
-            title="最近執行"
-            description="Bot run 狀態與訊息。"
-            rows={data.runs}
-            columns={[
-              { key: 'id', label: '編號' },
-              { key: 'status', label: '狀態' },
-              { key: 'dry_run', label: '模擬' },
-              { key: 'started_at', label: '開始時間' },
-              { key: 'finished_at', label: '結束時間' },
-              { key: 'message', label: '訊息' },
-            ]}
-          />
+          {displaySettings.showRawTables ? (
+            <>
+              <DataTable<BotRun>
+                title="最近執行"
+                description="Bot run 狀態與訊息。"
+                rows={data.runs}
+                columns={[
+                  { key: 'id', label: '編號' },
+                  { key: 'status', label: '狀態' },
+                  { key: 'dry_run', label: '模擬' },
+                  { key: 'started_at', label: '開始時間' },
+                  { key: 'finished_at', label: '結束時間' },
+                  { key: 'message', label: '訊息' },
+                ]}
+              />
 
-          <DataTable<LoanOffer>
-            title="貸出委託"
-            description="本地紀錄的 dry-run/live offer intent 與結果。"
-            rows={data.offers}
-            columns={offerColumns}
-          />
+              <DataTable<LoanOffer>
+                title="貸出委託"
+                description="本地紀錄的 dry-run/live offer intent 與結果。"
+                rows={data.offers}
+                columns={offerColumns}
+              />
 
-          <DataTable<LoanOffer>
-            title="交易所未成交委託"
-            description="由 sync-open-offers 取得的 read-only snapshot。"
-            rows={data.openOffers}
-            columns={openOfferColumns}
-          />
+              <DataTable<LoanOffer>
+                title="交易所未成交委託"
+                description="由 sync-open-offers 取得的 read-only snapshot。"
+                rows={data.openOffers}
+                columns={openOfferColumns}
+              />
 
-          <DataTable<ActiveLoan>
-            title="目前放貸中"
-            description="交易所 active loans snapshot。"
-            rows={data.activeLoans}
-            columns={activeLoanColumns}
-          />
+              <DataTable<ActiveLoan>
+                title="目前放貸中"
+                description="交易所 active loans snapshot。"
+                rows={data.activeLoans}
+                columns={activeLoanColumns}
+              />
 
-          <DataTable<EarningsSummary>
-            title="收益摘要"
-            description="依幣種彙總今日、昨日與累積收益。"
-            rows={data.earnings}
-            columns={earningsColumns}
-          />
+              <DataTable<EarningsSummary>
+                title="收益摘要"
+                description="依幣種彙總今日、昨日與累積收益。"
+                rows={data.earnings}
+                columns={earningsColumns}
+              />
 
-          <DataTable<LendingHistoryEntry>
-            title="收益明細"
-            description="最近同步的 lending history。"
-            rows={data.lendingHistory}
-            columns={historyColumns}
-          />
+              <DataTable<LendingHistoryEntry>
+                title="收益明細"
+                description="最近同步的 lending history。"
+                rows={data.lendingHistory}
+                columns={historyColumns}
+              />
 
-          <DataTable<MarketRate>
-            title="市場利率"
-            description="最近記錄的 lendbook rate snapshot。"
-            rows={data.marketRates}
-            columns={marketRateColumns}
-          />
+              <DataTable<MarketRate>
+                title="市場利率"
+                description="最近記錄的 lendbook rate snapshot。"
+                rows={data.marketRates}
+                columns={marketRateColumns}
+              />
+            </>
+          ) : null}
         </>
       ) : null}
       </main>
     </>
   )
+}
+
+const displaySettingsKey = 'auto-lending-bot.displaySettings'
+const defaultDisplaySettings: DisplaySettings = {
+  compactLayout: false,
+  showRawTables: true,
+}
+
+function loadDisplaySettings(): DisplaySettings {
+  const saved = localStorage.getItem(displaySettingsKey)
+  if (!saved) {
+    return defaultDisplaySettings
+  }
+
+  try {
+    return { ...defaultDisplaySettings, ...JSON.parse(saved) }
+  } catch {
+    return defaultDisplaySettings
+  }
 }
 
 function ErrorState({ message }: { message: string }) {

@@ -114,6 +114,10 @@ button {
 }
 
 .console-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
   padding: 26px 0 8px;
 }
 
@@ -166,6 +170,100 @@ h1 {
 
 .refresh-button.compact {
   padding: 8px 14px;
+}
+
+.secondary-button,
+.icon-button {
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #dbeafe;
+  background: rgba(15, 23, 42, 0.72);
+  cursor: pointer;
+}
+
+.icon-button {
+  padding: 8px 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.settings-modal {
+  width: min(560px, 100%);
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 26px;
+  padding: 24px;
+  background: #0f172a;
+  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.48);
+}
+
+.modal-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.modal-heading h2 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.modal-heading p {
+  margin: 8px 0 0;
+  color: #93c5fd;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.toggle-row + .toggle-row {
+  margin-top: 12px;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.toggle-row strong,
+.toggle-row small {
+  display: block;
+}
+
+.toggle-row strong {
+  color: #f8fafc;
+}
+
+.toggle-row small {
+  margin-top: 4px;
+  color: #93c5fd;
+  line-height: 1.5;
+}
+
+.compact-layout .status-card,
+.compact-layout .chart-card,
+.compact-layout .currency-card,
+.compact-layout .forecast-card,
+.compact-layout .settings-panel,
+.compact-layout th,
+.compact-layout td {
+  padding: 12px;
 }
 
 .status-grid {
@@ -585,6 +683,11 @@ td {
   .hero-panel {
     flex-direction: column;
     padding: 24px;
+  }
+
+  .console-intro,
+  .modal-heading {
+    flex-direction: column;
   }
 
   .status-grid {

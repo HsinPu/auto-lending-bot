@@ -140,6 +140,7 @@ def test_market_analysis_rate_repository_records_levels(tmp_path) -> None:
 
     assert changed_count == 2
     assert repository.recent(1)[0]["level"] == 1
+    assert repository.percentile_rate("BTC", 75) == 0.00009
 
 
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:

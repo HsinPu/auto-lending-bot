@@ -26,6 +26,8 @@ class Settings:
     http_timeout_seconds: int
     market_rate_retention_days: int
     market_analysis_levels: int
+    market_analysis_method: str
+    market_analysis_percentile: float
     max_loops: int
     retry_attempts: int
     retry_backoff_seconds: int
@@ -75,6 +77,8 @@ def load_settings() -> Settings:
         http_timeout_seconds=_get_int("HTTP_TIMEOUT_SECONDS", default=30),
         market_rate_retention_days=_get_int("MARKET_RATE_RETENTION_DAYS", default=30),
         market_analysis_levels=_get_int("MARKET_ANALYSIS_LEVELS", default=10),
+        market_analysis_method=os.getenv("MARKET_ANALYSIS_METHOD", "off").lower(),
+        market_analysis_percentile=_get_float("MARKET_ANALYSIS_PERCENTILE", default=75.0),
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
         retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
         retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),

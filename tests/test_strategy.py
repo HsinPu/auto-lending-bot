@@ -135,6 +135,18 @@ def test_strategy_uses_frr_as_effective_minimum() -> None:
     assert {offer.daily_rate for offer in decision.offers} == {0.00011}
 
 
+def test_strategy_uses_suggested_minimum_when_higher() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00012)],
+        strategy=_strategy(hide_coins=False),
+        suggested_min_daily_rate=0.0001,
+    )
+
+    assert decision.should_lend is True
+    assert {offer.daily_rate for offer in decision.offers} == {0.00012}
+
+
 def test_strategy_keeps_configured_minimum_when_frr_is_lower() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

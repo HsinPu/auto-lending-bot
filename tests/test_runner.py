@@ -2,7 +2,7 @@ import logging
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
-from auto_lending_bot.domain.models import LoanOffer
+from auto_lending_bot.domain.models import LoanOffer, LoanOrder
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -12,6 +12,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
@@ -32,6 +33,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
         loan_offers=loan_offers,
         active_loans=active_loans,
         open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -55,6 +57,7 @@ def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -79,6 +82,7 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -108,6 +112,7 @@ def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) ->
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=open_offers,
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -117,11 +122,43 @@ def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) ->
     assert open_offers.count() == 1
 
 
+def test_runner_uses_percentile_market_analysis_minimum(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    settings = _settings(database_url, market_analysis_method="percentile", hide_coins=False)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    market_analysis_rates.add_many(
+        [
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00012),
+        ]
+    )
+    loan_offers = LoanOfferRepository(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=loan_offers,
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    runner.run_once()
+
+    btc_offer = next(row for row in loan_offers.recent() if row["currency"] == "BTC")
+    assert btc_offer["daily_rate"] == 0.00012
+
+
 def _settings(
     database_url: str,
     strategy_debug: bool = False,
     auto_rebalance_open_offers: bool = False,
     auto_cancel_open_offers: bool = False,
+    market_analysis_method: str = "off",
+    hide_coins: bool = True,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -137,6 +174,8 @@ def _settings(
         http_timeout_seconds=30,
         market_rate_retention_days=30,
         market_analysis_levels=10,
+        market_analysis_method=market_analysis_method,
+        market_analysis_percentile=75,
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,
@@ -145,7 +184,7 @@ def _settings(
         strategy_debug=strategy_debug,
         telegram_bot_token="",
         telegram_chat_id="",
-        hide_coins=True,
+        hide_coins=hide_coins,
         gap_mode="off",
         gap_bottom=0,
         gap_top=0,

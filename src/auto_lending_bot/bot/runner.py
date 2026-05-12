@@ -12,6 +12,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     OpenLoanOfferRepository,
 )
 
@@ -27,6 +28,7 @@ class BotRunner:
         loan_offers: LoanOfferRepository,
         active_loans: ActiveLoanRepository,
         open_offers: OpenLoanOfferRepository,
+        market_analysis_rates: MarketAnalysisRateRepository,
         market_recorder: MarketRecorder,
         notifier: Notifier,
     ) -> None:
@@ -36,6 +38,7 @@ class BotRunner:
         self._loan_offers = loan_offers
         self._active_loans = active_loans
         self._open_offers = open_offers
+        self._market_analysis_rates = market_analysis_rates
         self._market_recorder = market_recorder
         self._notifier = notifier
 
@@ -88,6 +91,7 @@ class BotRunner:
                     strategy=strategy,
                     frr_daily_rate=frr_daily_rate,
                     btc_price=self._btc_price(balance.currency, strategy.gap_mode),
+                    suggested_min_daily_rate=self._suggested_min_daily_rate(balance.currency),
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
@@ -178,6 +182,15 @@ class BotRunner:
             return None
 
         return self._exchange.get_btc_price(currency)
+
+    def _suggested_min_daily_rate(self, currency: str) -> float | None:
+        if self._settings.market_analysis_method != "percentile":
+            return None
+
+        return self._market_analysis_rates.percentile_rate(
+            currency,
+            self._settings.market_analysis_percentile,
+        )
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
         best_rate = max((order.daily_rate for order in orders), default=0)

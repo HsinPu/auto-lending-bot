@@ -275,6 +275,25 @@ class MarketAnalysisRateRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def percentile_rate(self, currency: str, percentile: float) -> float | None:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT daily_rate
+                FROM market_analysis_rates
+                WHERE currency = ?
+                ORDER BY daily_rate
+                """,
+                (currency.upper(),),
+            ).fetchall()
+            rates = [float(row["daily_rate"]) for row in rows]
+            if not rates:
+                return None
+
+            bounded_percentile = min(max(percentile, 0), 100)
+            index = round((bounded_percentile / 100) * (len(rates) - 1))
+            return rates[index]
+
 
 class ActiveLoanRepository:
     def __init__(self, database_url: str) -> None:

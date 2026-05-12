@@ -32,8 +32,10 @@ def build_lending_decision(
     strategy: StrategyConfig,
     frr_daily_rate: float | None = None,
     btc_price: float | None = None,
+    suggested_min_daily_rate: float | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
+    strategy = _strategy_with_suggested_minimum(strategy, suggested_min_daily_rate)
     best_order = _best_order(order_book)
     if best_order is None:
         return LendingDecision(
@@ -209,6 +211,16 @@ def _strategy_with_frr_minimum(
         return strategy
 
     return replace(strategy, min_daily_rate=frr_min_daily_rate)
+
+
+def _strategy_with_suggested_minimum(
+    strategy: StrategyConfig,
+    suggested_min_daily_rate: float | None,
+) -> StrategyConfig:
+    if suggested_min_daily_rate is None or suggested_min_daily_rate <= strategy.min_daily_rate:
+        return strategy
+
+    return replace(strategy, min_daily_rate=suggested_min_daily_rate)
 
 
 def _duration_days(rate: float, strategy: StrategyConfig) -> int:

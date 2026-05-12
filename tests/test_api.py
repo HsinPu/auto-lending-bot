@@ -56,11 +56,38 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         "/api/lending-history",
         "/api/earnings",
         "/api/market-rates",
+        "/api/currency-details",
     ]
     for endpoint in endpoints:
         response = client.get(endpoint)
         assert response.status_code == 200
         assert len(response.json()) == 1
+
+
+def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    _seed_database(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/currency-details")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == [
+        {
+            "currency": "BTC",
+            "active_amount": 0.1,
+            "open_offer_amount": 0.1,
+            "average_daily_rate": 0.00008,
+            "latest_market_rate": 0.00008,
+            "total_earned": 0.0000085,
+            "active_loan_count": 1,
+            "open_offer_count": 1,
+        }
+    ]
 
 
 def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:

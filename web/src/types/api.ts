@@ -97,6 +97,17 @@ export type SettingsResponse = {
   strategy: Record<string, string | number | boolean | null>
 }
 
+export type CurrencyDetail = {
+  currency: string
+  active_amount: number
+  open_offer_amount: number
+  average_daily_rate: number
+  latest_market_rate: number
+  total_earned: number
+  active_loan_count: number
+  open_offer_count: number
+}
+
 export type DashboardData = {
   status: StatusResponse
   runs: BotRun[]
@@ -107,6 +118,7 @@ export type DashboardData = {
   earnings: EarningsSummary[]
   marketRates: MarketRate[]
   settings: SettingsResponse
+  currencyDetails: CurrencyDetail[]
 }
 
 export type SafeActionName =

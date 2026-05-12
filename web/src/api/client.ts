@@ -2,6 +2,7 @@ import type {
   ActiveLoan,
   BotRun,
   DashboardData,
+  CurrencyDetail,
   EarningsSummary,
   LendingHistoryEntry,
   LoanOffer,
@@ -29,6 +30,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     earnings,
     marketRates,
     settings,
+    currencyDetails,
   ] = await Promise.all([
     getJson<StatusResponse>('/api/status'),
     getJson<BotRun[]>('/api/runs'),
@@ -39,6 +41,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     getJson<EarningsSummary[]>('/api/earnings'),
     getJson<MarketRate[]>('/api/market-rates'),
     getJson<SettingsResponse>('/api/settings'),
+    getJson<CurrencyDetail[]>('/api/currency-details'),
   ])
 
   return {
@@ -51,6 +54,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     earnings,
     marketRates,
     settings,
+    currencyDetails,
   }
 }
 

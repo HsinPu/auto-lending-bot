@@ -215,7 +215,8 @@ h1 {
 
 .settings-panel,
 .table-section,
-.action-panel {
+.action-panel,
+.currency-overview {
   margin-top: 20px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 24px;
@@ -283,6 +284,70 @@ h1 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.currency-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+
+.currency-card {
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 20px;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.26);
+}
+
+.currency-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.currency-card-header strong {
+  color: #f8fafc;
+  font-size: 28px;
+}
+
+.currency-card-header span {
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #bbf7d0;
+  background: rgba(5, 46, 22, 0.48);
+  font-size: 12px;
+}
+
+.currency-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.currency-card dl div {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.currency-card dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.currency-card dd {
+  margin: 6px 0 0;
+  color: #e0f2fe;
+  font-weight: 700;
+}
+
+.empty-hint.padded {
+  margin: 0;
   padding: 0 24px 24px;
 }
 
@@ -484,7 +549,8 @@ td {
     grid-template-columns: 1fr;
   }
 
-  .chart-grid {
+  .chart-grid,
+  .currency-grid {
     grid-template-columns: 1fr;
   }
 }

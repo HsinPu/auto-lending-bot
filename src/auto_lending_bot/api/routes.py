@@ -87,6 +87,15 @@ def create_api_router(settings: Settings) -> APIRouter:
             "strategy": strategy.__dict__,
         }
 
+    @router.get("/currency-details")
+    def currency_details() -> list[dict[str, object]]:
+        return _currency_details(
+            active_loans=active_loans.recent(1000),
+            open_offer_rows=open_offers.recent(1000),
+            earnings_rows=lending_history.earnings_summary_by_currency(),
+            market_rate_rows=market_rates.recent(1000),
+        )
+
     @router.post("/actions/smoke-exchange")
     def smoke_exchange() -> dict[str, object]:
         _validate_safe_action_settings(settings)
@@ -170,3 +179,45 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _currency_details(
+    active_loans: list[dict[str, object]],
+    open_offer_rows: list[dict[str, object]],
+    earnings_rows: list[dict[str, object]],
+    market_rate_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    currencies = sorted(
+        {
+            *(str(row["currency"]) for row in active_loans),
+            *(str(row["currency"]) for row in open_offer_rows),
+            *(str(row["currency"]) for row in earnings_rows),
+            *(str(row["currency"]) for row in market_rate_rows),
+        }
+    )
+    details = []
+    for currency in currencies:
+        currency_active_loans = [row for row in active_loans if row["currency"] == currency]
+        currency_open_offers = [row for row in open_offer_rows if row["currency"] == currency]
+        latest_market_rate = next(
+            (row for row in market_rate_rows if row["currency"] == currency),
+            None,
+        )
+        earnings = next((row for row in earnings_rows if row["currency"] == currency), {})
+        active_amount = sum(float(row["amount"]) for row in currency_active_loans)
+        weighted_rate = sum(
+            float(row["amount"]) * float(row["daily_rate"]) for row in currency_active_loans
+        )
+        details.append(
+            {
+                "currency": currency,
+                "active_amount": active_amount,
+                "open_offer_amount": sum(float(row["amount"]) for row in currency_open_offers),
+                "average_daily_rate": weighted_rate / active_amount if active_amount else 0,
+                "latest_market_rate": latest_market_rate["daily_rate"] if latest_market_rate else 0,
+                "total_earned": earnings.get("total_earned", 0),
+                "active_loan_count": len(currency_active_loans),
+                "open_offer_count": len(currency_open_offers),
+            }
+        )
+    return details

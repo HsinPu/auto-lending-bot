@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
+import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
 import { MiniCharts } from '../components/MiniCharts'
 import { StatusCard } from '../components/StatusCard'
@@ -105,6 +106,8 @@ export function DashboardPage() {
               actionMutation.mutate({ action, confirmLive })
             }}
           />
+
+          <CurrencyOverview details={data.currencyDetails} />
 
           <MiniCharts
             earnings={data.earnings}

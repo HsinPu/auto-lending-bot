@@ -29,11 +29,3 @@ class MockExchangeClient:
 
     def cancel_loan_offer(self, offer_id: str) -> None:
         return None
-
-
-def create_exchange_client(exchange: str) -> MockExchangeClient:
-    if exchange != "mock":
-        msg = "Only the mock exchange is supported in phase one."
-        raise ValueError(msg)
-
-    return MockExchangeClient()

@@ -61,7 +61,6 @@ The compose setup mounts local `data/` and `reports/` folders into the container
 
 - `EXCHANGE=mock`: default safe mode; no external API calls and no real lending.
 - `EXCHANGE=bitfinex`: primary real-exchange path; supports read-only calls, dry-run strategy execution, and guarded live offer creation.
-- `EXCHANGE=poloniex`: secondary adapter support; keep behind the same safety checks.
 - `BOT_DRY_RUN=true`: default; records simulated offers locally only.
 - `BOT_DRY_RUN=false`: live mode; requires explicit safety limits and exchange-specific live flags.
 
@@ -173,7 +172,7 @@ src/auto_lending_bot/
 ├─ cli.py               # Console command implementation
 ├─ config.py            # Environment settings and per-currency strategy config
 ├─ domain/              # Models and lending strategy
-├─ integrations/        # Mock, Bitfinex, Poloniex, HTTP helpers
+├─ integrations/        # Mock, Bitfinex, HTTP helpers
 ├─ market/              # Market data recording
 ├─ notifications/       # Local notifier adapter
 ├─ persistence/         # SQLite schema and repositories

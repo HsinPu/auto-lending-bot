@@ -1,7 +1,5 @@
-import pytest
-
 from auto_lending_bot.domain.models import LoanOffer
-from auto_lending_bot.integrations.mock_exchange import MockExchangeClient, create_exchange_client
+from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 
 
 def test_mock_exchange_returns_balances() -> None:
@@ -20,8 +18,3 @@ def test_mock_exchange_records_created_offers() -> None:
 
     assert offer_id == "mock-1"
     assert exchange.get_open_loan_offers() == [offer]
-
-
-def test_create_exchange_client_rejects_non_mock_exchange() -> None:
-    with pytest.raises(ValueError, match="Only the mock exchange"):
-        create_exchange_client("poloniex")

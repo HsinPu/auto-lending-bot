@@ -21,45 +21,30 @@ def test_validate_run_settings_rejects_live_mode_without_explicit_allowance() ->
 def test_validate_run_settings_allows_explicit_live_mode() -> None:
     validate_run_settings(
         _settings(
-            exchange="poloniex",
+            exchange="bitfinex",
             dry_run=False,
             allow_live_trading=True,
             api_key="key",
             api_secret="secret",
+            bitfinex_enable_live_offers=True,
             max_single_offer_amount=0.1,
             max_total_lend_amount=1.0,
         )
     )
 
 
-def test_validate_run_settings_rejects_poloniex_without_credentials() -> None:
-    with pytest.raises(SafetyError, match="EXCHANGE_API_KEY"):
-        validate_run_settings(_settings(exchange="poloniex", dry_run=True, allow_live_trading=False))
-
-
 def test_validate_run_settings_rejects_live_mode_without_amount_limits() -> None:
     with pytest.raises(SafetyError, match="MAX_TOTAL_LEND_AMOUNT"):
         validate_run_settings(
             _settings(
-                exchange="poloniex",
+                exchange="bitfinex",
                 dry_run=False,
                 allow_live_trading=True,
                 api_key="key",
                 api_secret="secret",
+                bitfinex_enable_live_offers=True,
             )
         )
-
-
-def test_validate_run_settings_allows_poloniex_dry_run_with_credentials() -> None:
-    validate_run_settings(
-        _settings(
-            exchange="poloniex",
-            dry_run=True,
-            allow_live_trading=False,
-            api_key="key",
-            api_secret="secret",
-        )
-    )
 
 
 def test_validate_run_settings_rejects_bitfinex_without_credentials() -> None:

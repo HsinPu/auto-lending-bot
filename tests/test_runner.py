@@ -3,6 +3,7 @@ import logging
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.database import initialize_database
@@ -56,6 +57,31 @@ def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
     assert "best_daily_rate=0.00008000" in caplog.text
 
 
+def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    exchange = AuthFailingExchange()
+    settings = _settings(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    try:
+        runner.run()
+    except ExchangeAuthenticationError:
+        pass
+    else:
+        raise AssertionError("Expected ExchangeAuthenticationError")
+
+    assert exchange.calls == 1
+
+
 def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -86,3 +112,24 @@ def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
         database_url=database_url,
         log_level="INFO",
     )
+
+
+class AuthFailingExchange:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def get_lending_balances(self):
+        self.calls += 1
+        raise ExchangeAuthenticationError("invalid key")
+
+    def get_loan_orders(self, currency: str):
+        return []
+
+    def get_open_loan_offers(self):
+        return []
+
+    def create_loan_offer(self, offer):
+        return ""
+
+    def cancel_loan_offer(self, offer_id: str):
+        return None

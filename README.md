@@ -176,10 +176,14 @@ updates the same row to `created` with the exchange offer id after success.
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.
 - Use `RETRY_ATTEMPTS` and `RETRY_BACKOFF_SECONDS` to control transient failure retries.
+- Authentication failures are not retried; fix the key/secret or permissions before restarting.
 - On startup, interrupted `running` bot runs are marked as `failed`.
 - Use `auto-lending-bot cleanup` to delete old market-rate rows based on
   `MARKET_RATE_RETENTION_DAYS`.
 - On Windows, `scripts/dev.ps1` runs sync, tests, and lint once `uv` is installed.
+
+For long-running Bitfinex dry-runs in Docker, set `BOT_MAX_LOOPS=0`, keep
+`BOT_DRY_RUN=true`, and pass credentials with `--env-file .env`.
 
 ## Dashboard
 

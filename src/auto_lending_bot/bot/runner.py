@@ -4,6 +4,7 @@ import time
 from auto_lending_bot.config import Settings, strategy_config_for
 from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.domain.strategy import build_lending_decision
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
@@ -46,6 +47,9 @@ class BotRunner:
             try:
                 self.run_once()
                 return
+            except ExchangeAuthenticationError:
+                logger.exception("Authentication failed; not retrying bot run.")
+                raise
             except Exception:
                 if attempt >= self._settings.retry_attempts:
                     raise

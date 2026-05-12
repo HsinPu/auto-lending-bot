@@ -74,6 +74,20 @@ class BotRunRepository:
 
             return dict(row)
 
+    def fail_running(self, message: str) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                UPDATE bot_runs
+                SET finished_at = CURRENT_TIMESTAMP,
+                    status = 'failed',
+                    message = ?
+                WHERE status = 'running'
+                """,
+                (message,),
+            )
+            return int(cursor.rowcount)
+
 
 class LoanOfferRepository:
     def __init__(self, database_url: str) -> None:
@@ -149,3 +163,14 @@ class MarketRateRepository:
         with connect(self._database_url) as connection:
             row = connection.execute("SELECT COUNT(*) AS count FROM market_rates").fetchone()
             return int(row["count"])
+
+    def delete_older_than_days(self, days: int) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM market_rates
+                WHERE captured_at < datetime('now', ?)
+                """,
+                (f"-{days} days",),
+            )
+            return int(cursor.rowcount)

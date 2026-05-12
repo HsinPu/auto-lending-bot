@@ -25,6 +25,7 @@ Copy-Item .env.example .env
 uv run auto-lending-bot init-db
 uv run auto-lending-bot run
 uv run auto-lending-bot status
+uv run auto-lending-bot cleanup
 ```
 
 Phase one uses a mock exchange by default and runs in dry-run mode. It records bot runs,
@@ -125,3 +126,12 @@ MAX_SINGLE_OFFER_AMOUNT=0.1
 
 When live mode is enabled, the bot records an `intent` row before creating an offer and
 updates the same row to `created` with the exchange offer id after success.
+
+## Operations
+
+- Set `BOT_MAX_LOOPS=0` for continuous execution.
+- Use `RETRY_ATTEMPTS` and `RETRY_BACKOFF_SECONDS` to control transient failure retries.
+- On startup, interrupted `running` bot runs are marked as `failed`.
+- Use `auto-lending-bot cleanup` to delete old market-rate rows based on
+  `MARKET_RATE_RETENTION_DAYS`.
+- On Windows, `scripts/dev.ps1` runs sync, tests, and lint once `uv` is installed.

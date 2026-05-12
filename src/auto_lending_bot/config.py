@@ -20,7 +20,10 @@ class Settings:
     dry_run: bool
     exchange: str
     http_timeout_seconds: int
+    market_rate_retention_days: int
     max_loops: int
+    retry_attempts: int
+    retry_backoff_seconds: int
     hide_coins: bool
     max_amount_to_lend: float | None
     max_single_offer_amount: float | None
@@ -47,7 +50,10 @@ def load_settings() -> Settings:
         dry_run=_get_bool("BOT_DRY_RUN", default=True),
         exchange=os.getenv("EXCHANGE", "mock"),
         http_timeout_seconds=_get_int("HTTP_TIMEOUT_SECONDS", default=30),
+        market_rate_retention_days=_get_int("MARKET_RATE_RETENTION_DAYS", default=30),
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
+        retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
+        retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),

@@ -35,6 +35,14 @@ def run_cli(argv: list[str] | None = None) -> int:
         print(_format_status(settings))
         return 0
 
+    if args.command == "cleanup":
+        initialize_database(settings.database_url)
+        deleted_count = MarketRateRepository(settings.database_url).delete_older_than_days(
+            settings.market_rate_retention_days
+        )
+        print(f"Deleted {deleted_count} old market rate row(s).")
+        return 0
+
     if args.command == "run":
         try:
             validate_run_settings(settings)
@@ -44,6 +52,11 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         configure_logging(settings.log_level)
         initialize_database(settings.database_url)
+        recovered_count = BotRunRepository(settings.database_url).fail_running(
+            "Recovered interrupted run before startup."
+        )
+        if recovered_count:
+            print(f"Recovered {recovered_count} interrupted run(s).")
         if not settings.dry_run:
             print("WARNING: live lending is enabled. Real loan offers may be created.")
         _create_runner(settings).run()
@@ -57,6 +70,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="auto-lending-bot")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("init-db", help="Initialize the SQLite database.")
+    subparsers.add_parser("cleanup", help="Delete old market-rate rows.")
     subparsers.add_parser("run", help="Run the lending bot.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     return parser

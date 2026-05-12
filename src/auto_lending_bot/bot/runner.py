@@ -31,12 +31,29 @@ class BotRunner:
 
     def run(self) -> None:
         loops_completed = 0
-        while self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
-            self.run_once()
-            loops_completed += 1
+        try:
+            while self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
+                self._run_once_with_retry()
+                loops_completed += 1
 
-            if self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
-                time.sleep(self._settings.bot_sleep_seconds)
+                if self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
+                    time.sleep(self._settings.bot_sleep_seconds)
+        except KeyboardInterrupt:
+            logger.info("Shutdown requested; stopping bot runner.")
+
+    def _run_once_with_retry(self) -> None:
+        for attempt in range(1, self._settings.retry_attempts + 1):
+            try:
+                self.run_once()
+                return
+            except Exception:
+                if attempt >= self._settings.retry_attempts:
+                    raise
+                logger.exception(
+                    "Bot run failed; retrying in %s seconds.",
+                    self._settings.retry_backoff_seconds,
+                )
+                time.sleep(self._settings.retry_backoff_seconds)
 
     def run_once(self) -> None:
         bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run)

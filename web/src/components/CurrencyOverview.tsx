@@ -6,7 +6,7 @@ type CurrencyOverviewProps = {
 
 export function CurrencyOverview({ details }: CurrencyOverviewProps) {
   return (
-    <section className="currency-overview">
+    <section className="currency-overview" id="coins">
       <div className="section-heading compact">
         <div>
           <h2>幣種明細總覽</h2>

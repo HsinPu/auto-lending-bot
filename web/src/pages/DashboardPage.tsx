@@ -6,6 +6,7 @@ import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
+import { DashboardNav } from '../components/DashboardNav'
 import {
   DisplaySettingsModal,
   type DisplaySettings,
@@ -74,12 +75,14 @@ export function DashboardPage() {
           />
         </section>
 
+        <DashboardNav showRawTables={displaySettings.showRawTables} />
+
       {isLoading ? <section className="status-skeleton">讀取 API 狀態中...</section> : null}
       {error ? <ErrorState message={(error as Error).message} /> : null}
 
       {data ? (
         <>
-          <section className="status-grid" aria-label="Bot status summary">
+          <section className="status-grid" id="status" aria-label="Bot status summary">
             <StatusCard label="交易所" value={data.status.exchange} />
             <StatusCard
               label="執行模式"
@@ -145,6 +148,7 @@ export function DashboardPage() {
 
           {displaySettings.showRawTables ? (
             <>
+              <div className="raw-data-anchor" id="raw-data" />
               <DataTable<BotRun>
                 title="最近執行"
                 description="Bot run 狀態與訊息。"

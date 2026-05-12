@@ -17,7 +17,7 @@ export function EarningsForecast({ details }: EarningsForecastProps) {
     .filter((row) => row.yearly > 0)
 
   return (
-    <section className="forecast-panel">
+    <section className="forecast-panel" id="forecast">
       <div className="section-heading compact">
         <div>
           <h2>收益時間推估</h2>

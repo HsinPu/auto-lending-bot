@@ -44,7 +44,7 @@ export function ActionPanel({
   onRunAction,
 }: ActionPanelProps) {
   return (
-    <section className="action-panel">
+    <section className="action-panel" id="actions">
       <div className="section-heading compact">
         <div>
           <h2>安全操作</h2>

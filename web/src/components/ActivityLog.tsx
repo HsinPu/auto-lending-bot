@@ -19,7 +19,7 @@ export function ActivityLog({ runs, offers, latestResult, latestError }: Activit
   const items = buildActivityItems({ runs, offers, latestResult, latestError })
 
   return (
-    <section className="activity-panel">
+    <section className="activity-panel" id="logs">
       <div className="section-heading compact">
         <div>
           <h2>活動紀錄</h2>

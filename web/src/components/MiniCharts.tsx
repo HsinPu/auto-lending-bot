@@ -12,7 +12,7 @@ export function MiniCharts({ earnings, marketRates, offers }: MiniChartsProps) {
   const offerStatuses = countByStatus(offers)
 
   return (
-    <section className="chart-grid" aria-label="Visual summaries">
+    <section className="chart-grid" id="charts" aria-label="Visual summaries">
       <article className="chart-card">
         <h2>收益分布</h2>
         <p>依幣種比較累積收益。</p>

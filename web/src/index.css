@@ -18,6 +18,10 @@ body {
     #07111f;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 button {
   font: inherit;
 }
@@ -180,6 +184,48 @@ h1 {
   color: #dbeafe;
   background: rgba(15, 23, 42, 0.72);
   cursor: pointer;
+}
+
+.dashboard-nav {
+  position: sticky;
+  z-index: 10;
+  top: 74px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px;
+  border: 1px solid rgba(147, 197, 253, 0.16);
+  border-radius: 999px;
+  background: rgba(7, 17, 31, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-nav a {
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.dashboard-nav a:hover {
+  color: #052e16;
+  background: #86efac;
+}
+
+#status,
+#actions,
+#coins,
+#forecast,
+#charts,
+#profits,
+#logs,
+#raw-data {
+  scroll-margin-top: 150px;
+}
+
+.raw-data-anchor {
+  height: 1px;
 }
 
 .icon-button {
@@ -767,6 +813,11 @@ td {
 
   .status-strip {
     justify-content: flex-start;
+  }
+
+  .dashboard-nav {
+    top: 160px;
+    border-radius: 22px;
   }
 
   .shell.with-top-bar {

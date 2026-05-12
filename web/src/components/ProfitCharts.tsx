@@ -16,7 +16,7 @@ export function ProfitCharts({ history }: ProfitChartsProps) {
   const maxCumulative = Math.max(...points.map((point) => point.cumulative), 0)
 
   return (
-    <section className="profit-panel">
+    <section className="profit-panel" id="profits">
       <div className="section-heading compact">
         <div>
           <h2>收益圖表</h2>

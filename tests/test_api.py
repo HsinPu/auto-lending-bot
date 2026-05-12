@@ -1,0 +1,173 @@
+from fastapi.testclient import TestClient
+
+from auto_lending_bot.api.app import create_app
+from auto_lending_bot.config import Settings
+from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
+from auto_lending_bot.persistence.database import initialize_database
+from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
+    BotRunRepository,
+    LendingHistoryRepository,
+    LoanOfferRepository,
+    MarketRateRepository,
+    OpenLoanOfferRepository,
+)
+
+
+def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    _seed_database(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["label"] == "Auto Lending Bot"
+    assert body["exchange"] == "mock"
+    assert body["dry_run"] is True
+    assert body["counts"] == {
+        "bot_runs": 1,
+        "loan_offers": 1,
+        "open_loan_offers": 1,
+        "active_loans": 1,
+        "lending_history": 1,
+        "market_rates": 1,
+    }
+    assert body["latest_run"]["status"] == "completed"
+
+
+def test_api_read_only_resource_endpoints(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    _seed_database(database_url)
+
+    client = TestClient(create_app(settings))
+
+    endpoints = [
+        "/api/runs",
+        "/api/offers",
+        "/api/open-offers",
+        "/api/active-loans",
+        "/api/lending-history",
+        "/api/earnings",
+        "/api/market-rates",
+    ]
+    for endpoint in endpoints:
+        response = client.get(endpoint)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+
+def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["smoke_test_currency"] == "BTC"
+    assert body["strategy"]["min_daily_rate"] == 0.00005
+    assert body["strategy"]["spread_lend"] == 3
+
+
+def _seed_database(database_url: str) -> None:
+    bot_runs = BotRunRepository(database_url)
+    bot_run_id = bot_runs.start(dry_run=True)
+    bot_runs.finish(bot_run_id, status="completed", message="ok")
+
+    LoanOfferRepository(database_url).add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2),
+        status="dry_run",
+        dry_run=True,
+    )
+    MarketRateRepository(database_url).add(
+        LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008)
+    )
+    ActiveLoanRepository(database_url).replace_all(
+        [
+            ActiveLoan(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_loan_id="loan-1",
+            )
+        ]
+    )
+    LendingHistoryRepository(database_url).upsert_many(
+        [
+            LendingHistoryEntry(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                interest=0.00001,
+                fee=-0.0000015,
+                earned=0.0000085,
+                opened_at="2026-01-01 00:00:00",
+                closed_at="2026-01-02 00:00:00",
+                external_entry_id="history-1",
+            )
+        ]
+    )
+    OpenLoanOfferRepository(database_url).replace_all(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_offer_id="offer-1",
+            )
+        ]
+    )
+
+
+def _settings(database_url: str) -> Settings:
+    return Settings(
+        allow_live_trading=False,
+        api_key="",
+        api_secret="",
+        bitfinex_enable_live_offers=False,
+        bot_label="Auto Lending Bot",
+        bot_sleep_seconds=60,
+        dry_run=True,
+        exchange="mock",
+        http_timeout_seconds=30,
+        market_rate_retention_days=30,
+        max_loops=1,
+        retry_attempts=3,
+        retry_backoff_seconds=30,
+        smoke_test_currency="BTC",
+        strategy_debug=False,
+        telegram_bot_token="",
+        telegram_chat_id="",
+        hide_coins=True,
+        gap_mode="off",
+        gap_bottom=0,
+        gap_top=0,
+        xday_threshold=0,
+        xdays=2,
+        xday_spread=0,
+        frr_as_min=False,
+        frr_delta=0,
+        max_amount_to_lend=None,
+        max_single_offer_amount=None,
+        max_total_lend_amount=None,
+        min_daily_rate=0.00005,
+        max_daily_rate=0.05,
+        min_loan_size=0.01,
+        max_percent_to_lend=100,
+        spread_lend=3,
+        database_url=database_url,
+        log_level="INFO",
+    )

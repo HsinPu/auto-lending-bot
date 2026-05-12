@@ -1,6 +1,9 @@
 import argparse
 import sys
 
+import uvicorn
+
+from auto_lending_bot.api.app import create_app
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, load_settings, sqlite_path_from_url
 from auto_lending_bot.integrations.factory import create_exchange_client
@@ -85,6 +88,15 @@ def run_cli(argv: list[str] | None = None) -> int:
         print(_smoke_exchange(settings))
         return 0
 
+    if args.command == "serve-api":
+        uvicorn.run(
+            create_app(settings),
+            host=args.host,
+            port=args.port,
+            log_level=settings.log_level.lower(),
+        )
+        return 0
+
     if args.command == "run":
         try:
             validate_run_settings(settings)
@@ -114,6 +126,9 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("init-db", help="Initialize the SQLite database.")
     subparsers.add_parser("cleanup", help="Delete old market-rate rows.")
     subparsers.add_parser("run", help="Run the lending bot.")
+    serve_api_parser = subparsers.add_parser("serve-api", help="Run the read-only HTTP API.")
+    serve_api_parser.add_argument("--host", default="127.0.0.1", help="API bind host.")
+    serve_api_parser.add_argument("--port", type=int, default=8000, help="API bind port.")
     subparsers.add_parser("smoke-exchange", help="Read balances and lendbook without lending.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")

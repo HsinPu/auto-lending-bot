@@ -22,6 +22,7 @@ uv run auto-lending-bot init-db
 uv run auto-lending-bot smoke-exchange
 uv run auto-lending-bot run
 uv run auto-lending-bot status
+uv run auto-lending-bot serve-api
 uv run auto-lending-bot sync-history
 uv run auto-lending-bot sync-open-offers
 uv run auto-lending-bot cleanup
@@ -52,6 +53,7 @@ Run CLI commands in the container:
 
 ```powershell
 docker compose run --rm auto-lending-bot auto-lending-bot status
+docker compose run --rm auto-lending-bot auto-lending-bot serve-api --host 0.0.0.0
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot smoke-exchange
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-history
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-open-offers
@@ -125,6 +127,26 @@ The bot records an `intent` row before creating an offer, updates it to `created
 
 See `docs/pre-live-safety-checklist.md` before any live Bitfinex test.
 
+## Read-Only API
+
+Start the local API for the frontend:
+
+```powershell
+uv run auto-lending-bot serve-api --host 127.0.0.1 --port 8000
+```
+
+Current read-only endpoints:
+
+- `GET /api/status`
+- `GET /api/runs`
+- `GET /api/offers`
+- `GET /api/open-offers`
+- `GET /api/active-loans`
+- `GET /api/lending-history`
+- `GET /api/earnings`
+- `GET /api/market-rates`
+- `GET /api/settings`
+
 ## Strategy Settings
 
 Global settings:
@@ -182,6 +204,7 @@ BTC_FRR_DELTA=0.00001
 src/auto_lending_bot/
 ├─ bot/                 # Runner, retry/backoff, dry-run/live offer records
 ├─ cli.py               # Console command implementation
+├─ api/                 # Read-only HTTP API for frontend clients
 ├─ config.py            # Environment settings and per-currency strategy config
 ├─ domain/              # Models and lending strategy
 ├─ integrations/        # Mock, Bitfinex, HTTP helpers

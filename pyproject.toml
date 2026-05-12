@@ -5,7 +5,9 @@ description = "A Python starter project for an auto lending bot."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.115.0",
     "python-dotenv>=1.0.1",
+    "uvicorn>=0.32.0",
 ]
 
 [project.scripts]
@@ -13,6 +15,7 @@ auto-lending-bot = "auto_lending_bot.cli:main"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.0",
     "pytest>=8.3.0",
     "ruff>=0.8.0",
 ]

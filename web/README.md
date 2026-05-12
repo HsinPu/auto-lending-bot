@@ -1,4 +1,35 @@
-# React + TypeScript + Vite
+# Auto Lending Bot Web
+
+React + TypeScript frontend for the local read-only Auto Lending Bot API.
+
+## Local Development
+
+Start the Python API from the repository root:
+
+```powershell
+uv run auto-lending-bot serve-api
+```
+
+Start the frontend:
+
+```powershell
+npm install
+npm run dev
+```
+
+The Vite dev server proxies `/api` to `http://127.0.0.1:8000` by default. Override with `VITE_API_PROXY_TARGET` when running in Docker.
+
+## Docker Development
+
+From the repository root:
+
+```powershell
+docker compose up --build api web
+```
+
+Open `http://localhost:5173`.
+
+## Template Notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

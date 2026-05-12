@@ -8,3 +8,32 @@ services:
       BOT_MAX_LOOPS: "1"
     volumes:
       - ./data:/app/data
+
+  api:
+    build: .
+    command: ["auto-lending-bot", "serve-api", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      BOT_DRY_RUN: "true"
+      EXCHANGE: mock
+      DATABASE_URL: sqlite:////app/data/auto_lending_bot.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+
+  web:
+    image: node:24-alpine
+    working_dir: /app/web
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/app/web
+      - web-node-modules:/app/web/node_modules
+    depends_on:
+      - api
+
+volumes:
+  web-node-modules:

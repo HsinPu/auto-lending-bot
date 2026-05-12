@@ -57,6 +57,14 @@ Build and run once in safe mock dry-run mode:
 docker compose up --build
 ```
 
+Run the read-only API and React frontend together:
+
+```powershell
+docker compose up --build api web
+```
+
+Then open `http://localhost:5173`. The frontend proxies `/api` requests to the API service.
+
 Run CLI commands in the container:
 
 ```powershell

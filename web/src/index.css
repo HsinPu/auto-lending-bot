@@ -121,7 +121,8 @@ h1 {
 }
 
 .settings-panel,
-.table-section {
+.table-section,
+.action-panel {
   margin-top: 20px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 24px;
@@ -181,6 +182,66 @@ h1 {
   border-bottom: 1px solid rgba(147, 197, 253, 0.16);
 }
 
+.section-heading.compact {
+  border-bottom: none;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+
+.action-button {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(134, 239, 172, 0.22);
+  border-radius: 18px;
+  padding: 16px;
+  color: #dbeafe;
+  background: rgba(2, 6, 23, 0.26);
+  text-align: left;
+  cursor: pointer;
+}
+
+.action-button:hover:not(:disabled) {
+  border-color: rgba(134, 239, 172, 0.58);
+}
+
+.action-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.action-button strong {
+  color: #f8fafc;
+}
+
+.action-button span {
+  color: #93c5fd;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.action-result,
+.action-error {
+  margin: 0 24px 24px;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.action-result {
+  overflow-x: auto;
+  color: #bbf7d0;
+  background: rgba(5, 46, 22, 0.45);
+}
+
+.action-error {
+  color: #fecdd3;
+  background: rgba(76, 5, 25, 0.45);
+}
+
 .section-heading span {
   align-self: flex-start;
   border-radius: 999px;
@@ -236,6 +297,10 @@ td {
 
   .settings-panel,
   .settings-panel dl {
+    grid-template-columns: 1fr;
+  }
+
+  .action-grid {
     grid-template-columns: 1fr;
   }
 }

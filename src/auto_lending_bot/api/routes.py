@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from auto_lending_bot.config import Settings, sqlite_path_from_url, strategy_config_for
+from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
@@ -9,6 +10,7 @@ from auto_lending_bot.persistence.repository import (
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
+from auto_lending_bot.safety import SafetyError, validate_run_settings
 
 
 def create_api_router(settings: Settings) -> APIRouter:
@@ -82,4 +84,60 @@ def create_api_router(settings: Settings) -> APIRouter:
             "strategy": strategy.__dict__,
         }
 
+    @router.post("/actions/smoke-exchange")
+    def smoke_exchange() -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        exchange = create_exchange_client(settings)
+        balances = exchange.get_lending_balances()
+        orders = exchange.get_loan_orders(settings.smoke_test_currency)
+        best_rate = max((order.daily_rate for order in orders), default=0)
+        return {
+            "action": "smoke-exchange",
+            "ok": True,
+            "exchange": settings.exchange,
+            "currency": settings.smoke_test_currency.upper(),
+            "lending_balances": len(balances),
+            "loan_orders": len(orders),
+            "best_daily_rate": best_rate,
+        }
+
+    @router.post("/actions/sync-history")
+    def sync_history() -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
+        changed_count = lending_history.upsert_many(entries)
+        return {
+            "action": "sync-history",
+            "ok": True,
+            "currency": settings.smoke_test_currency.upper(),
+            "changed_count": changed_count,
+        }
+
+    @router.post("/actions/sync-open-offers")
+    def sync_open_offers() -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        offers = create_exchange_client(settings).get_open_loan_offers()
+        open_offers.replace_all(offers)
+        return {
+            "action": "sync-open-offers",
+            "ok": True,
+            "changed_count": len(offers),
+        }
+
+    @router.post("/actions/cleanup")
+    def cleanup() -> dict[str, object]:
+        deleted_count = market_rates.delete_older_than_days(settings.market_rate_retention_days)
+        return {
+            "action": "cleanup",
+            "ok": True,
+            "deleted_count": deleted_count,
+        }
+
     return router
+
+
+def _validate_safe_action_settings(settings: Settings) -> None:
+    try:
+        validate_run_settings(settings)
+    except SafetyError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error

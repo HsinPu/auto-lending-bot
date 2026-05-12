@@ -6,6 +6,8 @@ import type {
   LendingHistoryEntry,
   LoanOffer,
   MarketRate,
+  SafeActionName,
+  SafeActionResponse,
   SettingsResponse,
   StatusResponse,
 } from '../types/api'
@@ -52,10 +54,24 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 }
 
+export async function runSafeAction(action: SafeActionName): Promise<SafeActionResponse> {
+  return postJson<SafeActionResponse>(`/api/actions/${action}`)
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`)
   if (!response.ok) {
     throw new Error(`API request failed with ${response.status}`)
+  }
+
+  return response.json() as Promise<T>
+}
+
+async function postJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST' })
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null)
+    throw new Error(detail?.detail ?? `API request failed with ${response.status}`)
   }
 
   return response.json() as Promise<T>

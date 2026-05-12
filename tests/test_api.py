@@ -78,6 +78,42 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     assert body["strategy"]["spread_lend"] == 3
 
 
+def test_api_safe_actions_update_local_state(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    smoke_response = client.post("/api/actions/smoke-exchange")
+    assert smoke_response.status_code == 200
+    assert smoke_response.json()["action"] == "smoke-exchange"
+    assert smoke_response.json()["loan_orders"] == 1
+
+    history_response = client.post("/api/actions/sync-history")
+    assert history_response.status_code == 200
+    assert history_response.json()["changed_count"] == 1
+
+    open_offers_response = client.post("/api/actions/sync-open-offers")
+    assert open_offers_response.status_code == 200
+    assert open_offers_response.json()["changed_count"] == 0
+
+    cleanup_response = client.post("/api/actions/cleanup")
+    assert cleanup_response.status_code == 200
+    assert cleanup_response.json()["deleted_count"] == 0
+
+
+def test_api_safe_action_returns_safety_error(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url, dry_run=False, allow_live_trading=False)
+
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/smoke-exchange")
+
+    assert response.status_code == 400
+    assert "BOT_DRY_RUN=false requires ALLOW_LIVE_TRADING=true" in response.json()["detail"]
+
+
 def _seed_database(database_url: str) -> None:
     bot_runs = BotRunRepository(database_url)
     bot_run_id = bot_runs.start(dry_run=True)
@@ -132,15 +168,19 @@ def _seed_database(database_url: str) -> None:
     )
 
 
-def _settings(database_url: str) -> Settings:
+def _settings(
+    database_url: str,
+    dry_run: bool = True,
+    allow_live_trading: bool = False,
+) -> Settings:
     return Settings(
-        allow_live_trading=False,
+        allow_live_trading=allow_live_trading,
         api_key="",
         api_secret="",
         bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
-        dry_run=True,
+        dry_run=dry_run,
         exchange="mock",
         http_timeout_seconds=30,
         market_rate_retention_days=30,

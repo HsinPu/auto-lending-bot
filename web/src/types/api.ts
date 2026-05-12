@@ -108,3 +108,11 @@ export type DashboardData = {
   marketRates: MarketRate[]
   settings: SettingsResponse
 }
+
+export type SafeActionName = 'smoke-exchange' | 'sync-history' | 'sync-open-offers' | 'cleanup'
+
+export type SafeActionResponse = {
+  action: SafeActionName
+  ok: boolean
+  [key: string]: string | number | boolean
+}

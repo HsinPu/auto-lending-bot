@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 
-import { getDashboardData } from '../api/client'
+import { getDashboardData, runSafeAction } from '../api/client'
+import { ActionPanel } from '../components/ActionPanel'
 import { DataTable } from '../components/DataTable'
 import { StatusCard } from '../components/StatusCard'
 import type {
@@ -10,12 +12,29 @@ import type {
   LendingHistoryEntry,
   LoanOffer,
   MarketRate,
+  SafeActionName,
+  SafeActionResponse,
 } from '../types/api'
 
 export function DashboardPage() {
+  const queryClient = useQueryClient()
+  const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
+  const [latestError, setLatestError] = useState<string | null>(null)
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
+  })
+  const actionMutation = useMutation({
+    mutationFn: runSafeAction,
+    onSuccess: async (result) => {
+      setLatestResult(result)
+      setLatestError(null)
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (mutationError) => {
+      setLatestResult(null)
+      setLatestError((mutationError as Error).message)
+    },
   })
 
   return (
@@ -66,6 +85,13 @@ export function DashboardPage() {
               ))}
             </dl>
           </section>
+
+          <ActionPanel
+            isPending={actionMutation.isPending}
+            latestResult={latestResult}
+            latestError={latestError}
+            onRunAction={(action: SafeActionName) => actionMutation.mutate(action)}
+          />
 
           <DataTable<BotRun>
             title="最近執行"

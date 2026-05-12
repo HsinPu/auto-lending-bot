@@ -100,6 +100,7 @@ Global strategy settings can be configured through environment variables:
 - `MAX_AMOUNT_TO_LEND`
 - `HIDE_COINS`
 - `SPREAD_LEND`
+- `STRATEGY_DEBUG`
 
 Per-currency overrides use the currency symbol as a prefix, for example:
 
@@ -109,6 +110,10 @@ BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_HIDE_COINS=true
 ```
+
+For Bitfinex calibration, run with `BOT_DRY_RUN=true` and `STRATEGY_DEBUG=true` first.
+The debug log prints balance, observed best daily rate, configured min/max rates, skip
+reason, and generated offer count.
 
 ## Exchange Adapter Roadmap
 

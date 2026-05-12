@@ -65,13 +65,16 @@ class BotRunner:
             for balance in balances:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._market_recorder.record_orders(orders)
+                strategy = strategy_config_for(self._settings, balance.currency)
                 decision = build_lending_decision(
                     balance=balance,
                     order_book=orders,
-                    strategy=strategy_config_for(self._settings, balance.currency),
+                    strategy=strategy,
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
+                if self._settings.strategy_debug:
+                    self._log_strategy_debug(balance, orders, strategy, decision)
                 for offer in decision.offers:
                     if self._settings.dry_run:
                         status = "dry_run"
@@ -116,3 +119,17 @@ class BotRunner:
             if live_lend_amount + offer.amount > self._settings.max_total_lend_amount:
                 msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)
+
+    def _log_strategy_debug(self, balance, orders, strategy, decision) -> None:
+        best_rate = max((order.daily_rate for order in orders), default=0)
+        logger.info(
+            "strategy_debug currency=%s balance=%s best_daily_rate=%.8f "
+            "min_daily_rate=%.8f max_daily_rate=%.8f offers=%s reason=%s",
+            balance.currency,
+            balance.amount,
+            best_rate,
+            strategy.min_daily_rate,
+            strategy.max_daily_rate,
+            len(decision.offers),
+            decision.reason,
+        )

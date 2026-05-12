@@ -33,6 +33,7 @@ def _settings(exchange: str) -> Settings:
         retry_backoff_seconds=30,
         report_path="reports/dashboard.html",
         smoke_test_currency="BTC",
+        strategy_debug=False,
         hide_coins=True,
         max_amount_to_lend=None,
         max_single_offer_amount=None,

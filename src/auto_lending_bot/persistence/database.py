@@ -1,0 +1,71 @@
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from auto_lending_bot.config import sqlite_path_from_url
+
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS loan_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    applicant_name TEXT NOT NULL,
+    requested_amount INTEGER NOT NULL,
+    annual_income INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bot_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at TEXT,
+    status TEXT NOT NULL,
+    dry_run INTEGER NOT NULL,
+    message TEXT
+);
+
+CREATE TABLE IF NOT EXISTS loan_offers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bot_run_id INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    amount REAL NOT NULL,
+    daily_rate REAL NOT NULL,
+    duration_days INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    dry_run INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
+);
+
+CREATE TABLE IF NOT EXISTS market_rates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency TEXT NOT NULL,
+    daily_rate REAL NOT NULL,
+    available_amount REAL NOT NULL,
+    captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+
+def initialize_database(database_url: str) -> None:
+    database_path = sqlite_path_from_url(database_url)
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(database_path) as connection:
+        connection.executescript(SCHEMA)
+
+
+@contextmanager
+def connect(database_url: str) -> Iterator[sqlite3.Connection]:
+    database_path = sqlite_path_from_url(database_url)
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+    try:
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()

@@ -82,20 +82,19 @@ def test_validate_run_settings_rejects_bitfinex_live_mode_without_live_flag() ->
         )
 
 
-def test_validate_run_settings_rejects_bitfinex_live_mode_until_implemented() -> None:
-    with pytest.raises(SafetyError, match="not implemented"):
-        validate_run_settings(
-            _settings(
-                exchange="bitfinex",
-                dry_run=False,
-                allow_live_trading=True,
-                api_key="key",
-                api_secret="secret",
-                bitfinex_enable_live_offers=True,
-                max_single_offer_amount=0.1,
-                max_total_lend_amount=1.0,
-            )
+def test_validate_run_settings_allows_bitfinex_live_mode_with_all_guards() -> None:
+    validate_run_settings(
+        _settings(
+            exchange="bitfinex",
+            dry_run=False,
+            allow_live_trading=True,
+            api_key="key",
+            api_secret="secret",
+            bitfinex_enable_live_offers=True,
+            max_single_offer_amount=0.1,
+            max_total_lend_amount=1.0,
         )
+    )
 
 
 def test_validate_run_settings_allows_bitfinex_dry_run_with_credentials() -> None:

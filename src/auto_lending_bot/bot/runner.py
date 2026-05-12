@@ -92,12 +92,20 @@ class BotRunner:
                             status="intent",
                             dry_run=self._settings.dry_run,
                         )
-                        external_offer_id = self._exchange.create_loan_offer(offer)
-                        self._loan_offers.update_status(
-                            loan_offer_id,
-                            status="created",
-                            external_offer_id=external_offer_id,
-                        )
+                        try:
+                            external_offer_id = self._exchange.create_loan_offer(offer)
+                            self._loan_offers.update_status(
+                                loan_offer_id,
+                                status="created",
+                                external_offer_id=external_offer_id,
+                            )
+                        except Exception as error:
+                            self._loan_offers.update_status(
+                                loan_offer_id,
+                                status="failed",
+                                message=str(error),
+                            )
+                            raise
                         live_lend_amount += offer.amount
                     created_offers += 1
 

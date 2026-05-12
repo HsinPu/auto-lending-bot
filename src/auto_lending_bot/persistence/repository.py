@@ -118,8 +118,9 @@ class LoanOfferRepository:
                     duration_days,
                     status,
                     dry_run,
-                    external_offer_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    external_offer_id,
+                    message
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     bot_run_id,
@@ -130,6 +131,7 @@ class LoanOfferRepository:
                     status,
                     int(dry_run),
                     None,
+                    "",
                 ),
             )
             return int(cursor.lastrowid)
@@ -139,16 +141,18 @@ class LoanOfferRepository:
         loan_offer_id: int,
         status: str,
         external_offer_id: str | None = None,
+        message: str = "",
     ) -> None:
         with connect(self._database_url) as connection:
             connection.execute(
                 """
                 UPDATE loan_offers
                 SET status = ?,
-                    external_offer_id = ?
+                    external_offer_id = ?,
+                    message = ?
                 WHERE id = ?
                 """,
-                (status, external_offer_id, loan_offer_id),
+                (status, external_offer_id, message, loan_offer_id),
             )
 
     def count(self) -> int:
@@ -161,7 +165,7 @@ class LoanOfferRepository:
             rows = connection.execute(
                 """
                 SELECT id, bot_run_id, currency, amount, daily_rate, duration_days,
-                       status, dry_run, external_offer_id, created_at
+                       status, dry_run, external_offer_id, message, created_at
                 FROM loan_offers
                 ORDER BY id DESC
                 LIMIT ?

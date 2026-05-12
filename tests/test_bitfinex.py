@@ -1,5 +1,6 @@
 import pytest
 
+from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.bitfinex import BitfinexClient, parse_json_response
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.errors import ExchangeRequestError
@@ -102,6 +103,30 @@ def test_bitfinex_client_skips_invalid_open_loan_offers() -> None:
     )
 
     assert client.get_open_loan_offers() == []
+
+
+def test_bitfinex_client_creates_loan_offer() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"id": 123}'),
+    )
+
+    offer_id = client.create_loan_offer(
+        LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)
+    )
+
+    assert offer_id == "123"
+
+
+def test_bitfinex_client_cancels_loan_offer() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"id": 123}'),
+    )
+
+    client.cancel_loan_offer("123")
 
 
 def test_bitfinex_client_raises_exchange_error_for_api_message() -> None:

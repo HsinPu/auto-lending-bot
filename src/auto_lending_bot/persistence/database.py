@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS loan_offers (
     status TEXT NOT NULL,
     dry_run INTEGER NOT NULL,
     external_offer_id TEXT,
+    message TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
 );
@@ -59,6 +60,7 @@ def initialize_database(database_url: str) -> None:
         _ensure_column(connection, "bot_runs", "finished_at", "TEXT")
         _ensure_column(connection, "bot_runs", "message", "TEXT")
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
+        _ensure_column(connection, "loan_offers", "message", "TEXT")
 
 
 def _ensure_column(

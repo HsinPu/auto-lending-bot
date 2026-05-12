@@ -35,6 +35,3 @@ def validate_run_settings(settings: Settings) -> None:
         if settings.exchange == "bitfinex" and not settings.bitfinex_enable_live_offers:
             msg = "EXCHANGE=bitfinex live mode requires BITFINEX_ENABLE_LIVE_OFFERS=true."
             raise SafetyError(msg)
-        if settings.exchange == "bitfinex":
-            msg = "Bitfinex live offer creation is gated but not implemented yet."
-            raise SafetyError(msg)

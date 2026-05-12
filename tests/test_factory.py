@@ -39,6 +39,8 @@ def _settings(exchange: str) -> Settings:
         xday_threshold=0,
         xdays=2,
         xday_spread=0,
+        frr_as_min=False,
+        frr_delta=0,
         max_amount_to_lend=None,
         max_single_offer_amount=None,
         max_total_lend_amount=None,

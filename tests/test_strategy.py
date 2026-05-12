@@ -78,6 +78,30 @@ def test_strategy_uses_min_rate_when_hide_coins_is_disabled() -> None:
     assert {offer.daily_rate for offer in decision.offers} == {0.00005}
 
 
+def test_strategy_uses_frr_as_effective_minimum() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008)],
+        strategy=_strategy(hide_coins=False, frr_as_min=True, frr_delta=0.00001),
+        frr_daily_rate=0.0001,
+    )
+
+    assert decision.should_lend is True
+    assert {offer.daily_rate for offer in decision.offers} == {0.00011}
+
+
+def test_strategy_keeps_configured_minimum_when_frr_is_lower() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00004)],
+        strategy=_strategy(hide_coins=False, frr_as_min=True),
+        frr_daily_rate=0.00003,
+    )
+
+    assert decision.should_lend is True
+    assert {offer.daily_rate for offer in decision.offers} == {0.00005}
+
+
 def test_strategy_spreads_rates_by_raw_gap_depth() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=3.0),
@@ -136,6 +160,8 @@ def _strategy(
     xday_threshold: float = 0,
     xdays: int = 2,
     xday_spread: float = 0,
+    frr_as_min: bool = False,
+    frr_delta: float = 0,
     max_percent_to_lend: float = 100,
     max_amount_to_lend: float | None = None,
     hide_coins: bool = True,
@@ -151,6 +177,8 @@ def _strategy(
         xday_threshold=xday_threshold,
         xdays=xdays,
         xday_spread=xday_spread,
+        frr_as_min=frr_as_min,
+        frr_delta=frr_delta,
         max_percent_to_lend=max_percent_to_lend,
         max_amount_to_lend=max_amount_to_lend,
         hide_coins=hide_coins,

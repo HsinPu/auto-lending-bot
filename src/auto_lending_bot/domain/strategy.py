@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import replace
 
 from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
 
@@ -15,6 +16,8 @@ class StrategyConfig:
     xday_threshold: float
     xdays: int
     xday_spread: float
+    frr_as_min: bool
+    frr_delta: float
     max_percent_to_lend: float
     max_amount_to_lend: float | None
     hide_coins: bool
@@ -24,7 +27,9 @@ def build_lending_decision(
     balance: CurrencyBalance,
     order_book: list[LoanOrder],
     strategy: StrategyConfig,
+    frr_daily_rate: float | None = None,
 ) -> LendingDecision:
+    strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     lendable_amount = _lendable_amount(balance.amount, strategy)
     if lendable_amount < strategy.min_loan_size:
         return LendingDecision(
@@ -144,6 +149,20 @@ def _gap_rate(
 
 def _clamp_rate(rate: float, strategy: StrategyConfig) -> float:
     return round(min(max(rate, strategy.min_daily_rate), strategy.max_daily_rate), 10)
+
+
+def _strategy_with_frr_minimum(
+    strategy: StrategyConfig,
+    frr_daily_rate: float | None,
+) -> StrategyConfig:
+    if not strategy.frr_as_min or frr_daily_rate is None:
+        return strategy
+
+    frr_min_daily_rate = frr_daily_rate + strategy.frr_delta
+    if frr_min_daily_rate <= strategy.min_daily_rate:
+        return strategy
+
+    return replace(strategy, min_daily_rate=frr_min_daily_rate)
 
 
 def _duration_days(rate: float, strategy: StrategyConfig) -> int:

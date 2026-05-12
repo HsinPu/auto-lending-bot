@@ -77,15 +77,17 @@ class BotRunner:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._market_recorder.record_orders(orders)
                 strategy = strategy_config_for(self._settings, balance.currency)
+                frr_daily_rate = self._frr_daily_rate(balance.currency, strategy.frr_as_min)
                 decision = build_lending_decision(
                     balance=balance,
                     order_book=orders,
                     strategy=strategy,
+                    frr_daily_rate=frr_daily_rate,
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
                 if self._settings.strategy_debug:
-                    self._log_strategy_debug(balance, orders, strategy, decision)
+                    self._log_strategy_debug(balance, orders, strategy, decision, frr_daily_rate)
                 for offer in decision.offers:
                     if self._settings.dry_run:
                         status = "dry_run"
@@ -145,16 +147,23 @@ class BotRunner:
                 msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)
 
-    def _log_strategy_debug(self, balance, orders, strategy, decision) -> None:
+    def _frr_daily_rate(self, currency: str, frr_as_min: bool) -> float | None:
+        if not frr_as_min:
+            return None
+
+        return self._exchange.get_frr_rate(currency)
+
+    def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
         best_rate = max((order.daily_rate for order in orders), default=0)
         logger.info(
             "strategy_debug currency=%s balance=%s best_daily_rate=%.8f "
-            "min_daily_rate=%.8f max_daily_rate=%.8f offers=%s reason=%s",
+            "min_daily_rate=%.8f max_daily_rate=%.8f frr_daily_rate=%s offers=%s reason=%s",
             balance.currency,
             balance.amount,
             best_rate,
             strategy.min_daily_rate,
             strategy.max_daily_rate,
+            f"{frr_daily_rate:.8f}" if frr_daily_rate is not None else "none",
             len(decision.offers),
             decision.reason,
         )

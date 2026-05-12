@@ -26,6 +26,14 @@ class MockExchangeClient:
         }
         return order_books.get(currency, [])
 
+    def get_frr_rate(self, currency: str) -> float | None:
+        frr_rates = {
+            "BTC": 0.00007,
+            "ETH": 0.00005,
+            "USDT": 0.00003,
+        }
+        return frr_rates.get(currency.upper())
+
     def get_open_loan_offers(self) -> list[LoanOffer]:
         return list(self._created_offers)
 

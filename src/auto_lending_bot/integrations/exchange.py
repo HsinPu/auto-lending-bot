@@ -16,6 +16,9 @@ class ExchangeClient(Protocol):
     def get_loan_orders(self, currency: str) -> list[LoanOrder]:
         pass
 
+    def get_frr_rate(self, currency: str) -> float | None:
+        pass
+
     def get_open_loan_offers(self) -> list[LoanOffer]:
         pass
 

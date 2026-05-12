@@ -72,6 +72,17 @@ class BitfinexClient:
 
         return orders
 
+    def get_frr_rate(self, currency: str) -> float | None:
+        response = self._public_query(f"/v2/tickers?symbols=f{currency.upper()}")
+        if not isinstance(response, list) or not response:
+            return None
+
+        ticker = response[0]
+        if not isinstance(ticker, list) or len(ticker) < 2:
+            return None
+
+        return _optional_float(ticker[1])
+
     def get_open_loan_offers(self) -> list[LoanOffer]:
         response = self._private_query("/v1/offers", {})
         if not isinstance(response, list):
@@ -206,7 +217,7 @@ class BitfinexClient:
             "X-BFX-SIGNATURE": signature,
         }
 
-    def _public_query(self, path: str) -> dict[str, object]:
+    def _public_query(self, path: str) -> object:
         response = self._http_client.request(
             method="GET",
             url=f"https://api.bitfinex.com{path}",
@@ -271,5 +282,5 @@ def _raise_for_api_error(response: object):
     return response
 
 
-def parse_json_response(body: str) -> dict[str, object]:
+def parse_json_response(body: str) -> object:
     return json.loads(body)

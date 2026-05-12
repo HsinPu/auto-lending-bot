@@ -37,6 +37,8 @@ class Settings:
     xday_threshold: float
     xdays: int
     xday_spread: float
+    frr_as_min: bool
+    frr_delta: float
     max_amount_to_lend: float | None
     max_single_offer_amount: float | None
     max_total_lend_amount: float | None
@@ -79,6 +81,8 @@ def load_settings() -> Settings:
         xday_threshold=_get_float("XDAY_THRESHOLD", default=0.0),
         xdays=_get_int("XDAYS", default=2),
         xday_spread=_get_float("XDAY_SPREAD", default=0.0),
+        frr_as_min=_get_bool("FRR_AS_MIN", default=False),
+        frr_delta=_get_float("FRR_DELTA", default=0.0),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
@@ -137,6 +141,8 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         xday_threshold=_get_float(f"{prefix}_XDAY_THRESHOLD", settings.xday_threshold),
         xdays=_get_int(f"{prefix}_XDAYS", settings.xdays),
         xday_spread=_get_float(f"{prefix}_XDAY_SPREAD", settings.xday_spread),
+        frr_as_min=_get_bool(f"{prefix}_FRR_AS_MIN", settings.frr_as_min),
+        frr_delta=_get_float(f"{prefix}_FRR_DELTA", settings.frr_delta),
         max_percent_to_lend=_get_float(
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),

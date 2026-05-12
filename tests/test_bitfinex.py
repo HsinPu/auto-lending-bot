@@ -67,6 +67,26 @@ def test_bitfinex_client_reads_loan_orders() -> None:
     assert round(orders[0].daily_rate, 8) == 0.00008
 
 
+def test_bitfinex_client_reads_frr_rate() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[["fBTC",0.00011]]'),
+    )
+
+    assert client.get_frr_rate("BTC") == 0.00011
+
+
+def test_bitfinex_client_returns_none_for_invalid_frr_rate() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[["fBTC","bad"]]'),
+    )
+
+    assert client.get_frr_rate("BTC") is None
+
+
 def test_bitfinex_client_skips_invalid_loan_orders() -> None:
     client = BitfinexClient(
         api_key="key",

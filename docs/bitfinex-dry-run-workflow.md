@@ -84,7 +84,11 @@ MAX_DAILY_RATE=0.05
 BTC_MIN_DAILY_RATE=0.00008
 BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_AMOUNT_TO_LEND=0.1
+BTC_FRR_AS_MIN=true
+BTC_FRR_DELTA=0.00001
 ```
+
+Use `FRR_AS_MIN=true` only after the smoke test succeeds. It makes the bot fetch the Bitfinex flash return rate and use `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate.
 
 Run another single dry-run cycle after each change. Keep `BOT_MAX_LOOPS=1` while calibrating.
 

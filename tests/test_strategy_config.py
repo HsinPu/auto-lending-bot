@@ -9,6 +9,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("GAP_TOP", "50")
     monkeypatch.setenv("XDAY_THRESHOLD", "0.001")
     monkeypatch.setenv("XDAYS", "30")
+    monkeypatch.setenv("FRR_AS_MIN", "true")
+    monkeypatch.setenv("FRR_DELTA", "0.00001")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -20,6 +22,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.gap_top == 50
     assert strategy.xday_threshold == 0.001
     assert strategy.xdays == 30
+    assert strategy.frr_as_min is True
+    assert strategy.frr_delta == 0.00001
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
@@ -30,6 +34,8 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("BTC_GAP_MODE", "relative")
     monkeypatch.setenv("BTC_GAP_BOTTOM", "20")
     monkeypatch.setenv("BTC_XDAYS", "45")
+    monkeypatch.setenv("BTC_FRR_AS_MIN", "true")
+    monkeypatch.setenv("BTC_FRR_DELTA", "0.00002")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -40,3 +46,5 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.gap_mode == "relative"
     assert strategy.gap_bottom == 20
     assert strategy.xdays == 45
+    assert strategy.frr_as_min is True
+    assert strategy.frr_delta == 0.00002

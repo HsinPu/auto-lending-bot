@@ -144,6 +144,8 @@ Global settings:
 - `XDAY_THRESHOLD`
 - `XDAYS`
 - `XDAY_SPREAD`
+- `FRR_AS_MIN`
+- `FRR_DELTA`
 - `STRATEGY_DEBUG`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
@@ -161,7 +163,11 @@ BTC_GAP_TOP=100
 BTC_XDAY_THRESHOLD=0.001
 BTC_XDAYS=30
 BTC_XDAY_SPREAD=2
+BTC_FRR_AS_MIN=true
+BTC_FRR_DELTA=0.00001
 ```
+
+`FRR_AS_MIN=true` is Bitfinex-only strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
 
 ## Operations
 

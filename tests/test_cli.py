@@ -23,7 +23,20 @@ def test_cli_status_prints_counts(tmp_path, monkeypatch, capsys) -> None:
     assert "Exchange: mock" in output
     assert "Bot runs: 0" in output
     assert "Active loans: 0" in output
+    assert "Lending history: 0" in output
     assert "Latest run: none" in output
+
+
+def test_cli_sync_history_writes_lending_history(tmp_path, monkeypatch, capsys) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("EXCHANGE", "mock")
+
+    exit_code = run_cli(["sync-history"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synced 1 lending history row(s) for BTC." in output
 
 
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
@@ -62,6 +75,9 @@ class FakeExchange:
         return []
 
     def get_active_loans(self):
+        return []
+
+    def get_lending_history(self, currency: str, limit: int = 500):
         return []
 
     def create_loan_offer(self, offer):

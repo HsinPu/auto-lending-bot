@@ -114,6 +114,35 @@ def test_bitfinex_client_reads_active_loans() -> None:
     assert active_loans[0].external_loan_id == "123"
 
 
+def test_bitfinex_client_reads_lending_history() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"id":123,"currency":"btc","amount":"0.000085",'
+            '"timestamp":"1704067200","description":"Margin Funding Payment"}]'
+        ),
+    )
+
+    entries = client.get_lending_history("BTC")
+
+    assert len(entries) == 1
+    assert entries[0].currency == "BTC"
+    assert entries[0].earned == 0.000085
+    assert entries[0].external_entry_id == "123"
+    assert entries[0].closed_at == "2024-01-01 00:00:00"
+
+
+def test_bitfinex_client_ignores_non_funding_history() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[{"amount":"1","description":"Exchange Wallet Deposit"}]'),
+    )
+
+    assert client.get_lending_history("BTC") == []
+
+
 def test_bitfinex_client_skips_invalid_active_loans() -> None:
     client = BitfinexClient(
         api_key="key",

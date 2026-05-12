@@ -55,6 +55,22 @@ CREATE TABLE IF NOT EXISTS active_loans (
     external_loan_id TEXT,
     captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS lending_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_entry_id TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    amount REAL NOT NULL,
+    daily_rate REAL NOT NULL,
+    duration_days REAL NOT NULL,
+    interest REAL NOT NULL,
+    fee REAL NOT NULL,
+    earned REAL NOT NULL,
+    opened_at TEXT,
+    closed_at TEXT,
+    synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(external_entry_id, currency)
+);
 """
 
 

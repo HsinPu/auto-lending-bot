@@ -11,6 +11,7 @@ from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    LendingHistoryRepository,
     LoanOfferRepository,
     MarketRateRepository,
 )
@@ -49,6 +50,22 @@ def run_cli(argv: list[str] | None = None) -> int:
         initialize_database(settings.database_url)
         output_path = write_dashboard(settings)
         print(f"Wrote dashboard: {output_path}")
+        return 0
+
+    if args.command == "sync-history":
+        try:
+            validate_run_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        initialize_database(settings.database_url)
+        entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
+        changed_count = LendingHistoryRepository(settings.database_url).upsert_many(entries)
+        print(
+            f"Synced {changed_count} lending history row(s) "
+            f"for {settings.smoke_test_currency.upper()}."
+        )
         return 0
 
     if args.command == "smoke-exchange":
@@ -93,6 +110,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("run", help="Run the lending bot.")
     subparsers.add_parser("smoke-exchange", help="Read balances and lendbook without lending.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
+    subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")
     return parser
 
 
@@ -113,6 +131,7 @@ def _format_status(settings: Settings) -> str:
     loan_offers = LoanOfferRepository(settings.database_url)
     market_rates = MarketRateRepository(settings.database_url)
     active_loans = ActiveLoanRepository(settings.database_url)
+    lending_history = LendingHistoryRepository(settings.database_url)
     latest_run = bot_runs.latest()
 
     lines = [
@@ -124,6 +143,7 @@ def _format_status(settings: Settings) -> str:
         f"Bot runs: {bot_runs.count()}",
         f"Loan offers: {loan_offers.count()}",
         f"Active loans: {active_loans.count()}",
+        f"Lending history: {lending_history.count()}",
         f"Market rates: {market_rates.count()}",
     ]
 

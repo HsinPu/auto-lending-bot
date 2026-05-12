@@ -2,8 +2,15 @@ import base64
 import hashlib
 import hmac
 import json
+from datetime import UTC, datetime
 
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import (
+    ActiveLoan,
+    CurrencyBalance,
+    LendingHistoryEntry,
+    LoanOffer,
+    LoanOrder,
+)
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.errors import ExchangeRequestError
 from auto_lending_bot.integrations.http import HttpClient
@@ -123,6 +130,49 @@ class BitfinexClient:
 
         return active_loans
 
+    def get_lending_history(self, currency: str, limit: int = 500) -> list[LendingHistoryEntry]:
+        response = self._private_query(
+            "/v1/history",
+            {
+                "currency": currency.upper(),
+                "wallet": "deposit",
+                "limit": limit,
+            },
+        )
+        if not isinstance(response, list):
+            return []
+
+        entries = []
+        for item in response:
+            if not isinstance(item, dict):
+                continue
+            if "Margin Funding Payment" not in str(item.get("description", "")):
+                continue
+
+            earned = _optional_float(item.get("amount"))
+            if earned is None:
+                continue
+
+            interest = earned / 0.85
+            fee = earned - interest
+            timestamp = _format_bitfinex_timestamp(item.get("timestamp"))
+            entries.append(
+                LendingHistoryEntry(
+                    currency=currency.upper(),
+                    amount=0.0,
+                    daily_rate=0.0,
+                    duration_days=0.0,
+                    interest=interest,
+                    fee=fee,
+                    earned=earned,
+                    opened_at=timestamp,
+                    closed_at=timestamp,
+                    external_entry_id=str(item.get("id", item.get("timestamp", ""))),
+                )
+            )
+
+        return entries
+
     def create_loan_offer(self, offer: LoanOffer) -> str:
         response = self._private_query(
             "/v1/offer/new",
@@ -203,6 +253,14 @@ def _optional_bitfinex_rate_to_daily_rate(rate: object) -> float | None:
         return None
 
     return raw_rate / 36500
+
+
+def _format_bitfinex_timestamp(value: object) -> str:
+    raw_timestamp = _optional_float(value)
+    if raw_timestamp is None:
+        return ""
+
+    return datetime.fromtimestamp(raw_timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _raise_for_api_error(response: object):

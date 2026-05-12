@@ -68,6 +68,12 @@ Open `reports/dashboard.html` and confirm:
 - simulated loan offers match the expected currency, amount, rate, and duration
 - no failed offer warning appears
 
+Optionally sync recent lending history for `SMOKE_TEST_CURRENCY`:
+
+```powershell
+docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-history
+```
+
 ## 5. Iterate Strategy Settings
 
 Tune global or per-currency settings in `.env`:

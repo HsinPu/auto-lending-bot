@@ -1,4 +1,10 @@
-from auto_lending_bot.domain.models import ActiveLoan, LoanApplication, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import (
+    ActiveLoan,
+    LendingHistoryEntry,
+    LoanApplication,
+    LoanOffer,
+    LoanOrder,
+)
 from auto_lending_bot.persistence.database import connect
 
 
@@ -270,6 +276,65 @@ class ActiveLoanRepository:
                        external_loan_id, captured_at
                 FROM active_loans
                 ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+
+class LendingHistoryRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def upsert_many(self, entries: list[LendingHistoryEntry]) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.executemany(
+                """
+                INSERT OR REPLACE INTO lending_history (
+                    external_entry_id,
+                    currency,
+                    amount,
+                    daily_rate,
+                    duration_days,
+                    interest,
+                    fee,
+                    earned,
+                    opened_at,
+                    closed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        entry.external_entry_id,
+                        entry.currency,
+                        entry.amount,
+                        entry.daily_rate,
+                        entry.duration_days,
+                        entry.interest,
+                        entry.fee,
+                        entry.earned,
+                        entry.opened_at,
+                        entry.closed_at,
+                    )
+                    for entry in entries
+                ],
+            )
+            return int(cursor.rowcount)
+
+    def count(self) -> int:
+        with connect(self._database_url) as connection:
+            row = connection.execute("SELECT COUNT(*) AS count FROM lending_history").fetchone()
+            return int(row["count"])
+
+    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, external_entry_id, currency, amount, daily_rate, duration_days,
+                       interest, fee, earned, opened_at, closed_at, synced_at
+                FROM lending_history
+                ORDER BY closed_at DESC, id DESC
                 LIMIT ?
                 """,
                 (limit,),

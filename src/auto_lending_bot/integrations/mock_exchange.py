@@ -1,4 +1,10 @@
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import (
+    ActiveLoan,
+    CurrencyBalance,
+    LendingHistoryEntry,
+    LoanOffer,
+    LoanOrder,
+)
 
 
 class MockExchangeClient:
@@ -33,6 +39,22 @@ class MockExchangeClient:
                 external_loan_id="mock-active-1",
             )
         ]
+
+    def get_lending_history(self, currency: str, limit: int = 500) -> list[LendingHistoryEntry]:
+        return [
+            LendingHistoryEntry(
+                currency=currency.upper(),
+                amount=0.05,
+                daily_rate=0.00008,
+                duration_days=2,
+                interest=0.00001,
+                fee=-0.0000015,
+                earned=0.0000085,
+                opened_at="2026-01-01 00:00:00",
+                closed_at="2026-01-02 00:00:00",
+                external_entry_id="mock-history-1",
+            )
+        ][:limit]
 
     def create_loan_offer(self, offer: LoanOffer) -> str:
         self._created_offers.append(offer)

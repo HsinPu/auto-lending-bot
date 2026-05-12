@@ -1,8 +1,9 @@
-from auto_lending_bot.domain.models import ActiveLoan, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    LendingHistoryRepository,
     LoanOfferRepository,
     MarketRateRepository,
 )
@@ -16,6 +17,7 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     loan_offers = LoanOfferRepository(database_url)
     market_rates = MarketRateRepository(database_url)
     active_loans = ActiveLoanRepository(database_url)
+    lending_history = LendingHistoryRepository(database_url)
 
     bot_run_id = bot_runs.start(dry_run=True)
     loan_offers.add(
@@ -36,12 +38,14 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
             )
         ]
     )
+    lending_history.upsert_many([_history_entry("history-1")])
     bot_runs.finish(bot_run_id, status="completed", message="ok")
 
     assert bot_runs.count() == 1
     assert loan_offers.count() == 1
     assert market_rates.count() == 1
     assert active_loans.count() == 1
+    assert lending_history.count() == 1
 
 
 def test_active_loan_repository_replaces_snapshot(tmp_path) -> None:
@@ -65,6 +69,18 @@ def test_active_loan_repository_replaces_snapshot(tmp_path) -> None:
     assert active_loans.count() == 0
 
 
+def test_lending_history_repository_upserts_entries(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    lending_history = LendingHistoryRepository(database_url)
+
+    assert lending_history.upsert_many([_history_entry("history-1")]) == 1
+    assert lending_history.upsert_many([_history_entry("history-1")]) == 1
+
+    assert lending_history.count() == 1
+    assert lending_history.recent()[0]["external_entry_id"] == "history-1"
+
+
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -74,3 +90,18 @@ def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:
 
     assert bot_runs.fail_running("recovered") == 1
     assert bot_runs.latest()["status"] == "failed"
+
+
+def _history_entry(external_entry_id: str) -> LendingHistoryEntry:
+    return LendingHistoryEntry(
+        currency="BTC",
+        amount=0.05,
+        daily_rate=0.00008,
+        duration_days=2,
+        interest=0.00001,
+        fee=-0.0000015,
+        earned=0.0000085,
+        opened_at="2026-01-01 00:00:00",
+        closed_at="2026-01-02 00:00:00",
+        external_entry_id=external_entry_id,
+    )

@@ -23,6 +23,7 @@ uv run auto-lending-bot smoke-exchange
 uv run auto-lending-bot run
 uv run auto-lending-bot status
 uv run auto-lending-bot dashboard
+uv run auto-lending-bot sync-history
 uv run auto-lending-bot cleanup
 ```
 
@@ -53,6 +54,7 @@ Run CLI commands in the container:
 docker compose run --rm auto-lending-bot auto-lending-bot status
 docker compose run --rm auto-lending-bot auto-lending-bot dashboard
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot smoke-exchange
+docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-history
 ```
 
 The compose setup mounts local `data/` and `reports/` folders into the container.

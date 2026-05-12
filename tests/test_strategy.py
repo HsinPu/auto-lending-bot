@@ -105,6 +105,26 @@ def test_strategy_spreads_rates_by_relative_gap_depth() -> None:
     assert [offer.daily_rate for offer in decision.offers] == [0.00005, 0.00008]
 
 
+def test_strategy_uses_long_duration_above_xday_threshold() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.001)],
+        strategy=_strategy(xday_threshold=0.001, xdays=30),
+    )
+
+    assert {offer.duration_days for offer in decision.offers} == {30}
+
+
+def test_strategy_linearly_increases_duration_with_xday_spread() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00075)],
+        strategy=_strategy(xday_threshold=0.001, xdays=30, xday_spread=2),
+    )
+
+    assert {offer.duration_days for offer in decision.offers} == {16}
+
+
 def _strategy(
     min_daily_rate: float = 0.00005,
     max_daily_rate: float = 0.05,
@@ -113,6 +133,9 @@ def _strategy(
     gap_mode: str = "off",
     gap_bottom: float = 0,
     gap_top: float = 0,
+    xday_threshold: float = 0,
+    xdays: int = 2,
+    xday_spread: float = 0,
     max_percent_to_lend: float = 100,
     max_amount_to_lend: float | None = None,
     hide_coins: bool = True,
@@ -125,6 +148,9 @@ def _strategy(
         gap_mode=gap_mode,
         gap_bottom=gap_bottom,
         gap_top=gap_top,
+        xday_threshold=xday_threshold,
+        xdays=xdays,
+        xday_spread=xday_spread,
         max_percent_to_lend=max_percent_to_lend,
         max_amount_to_lend=max_amount_to_lend,
         hide_coins=hide_coins,

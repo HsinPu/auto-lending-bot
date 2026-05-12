@@ -32,6 +32,9 @@ class Settings:
     gap_mode: str
     gap_bottom: float
     gap_top: float
+    xday_threshold: float
+    xdays: int
+    xday_spread: float
     max_amount_to_lend: float | None
     max_single_offer_amount: float | None
     max_total_lend_amount: float | None
@@ -69,6 +72,9 @@ def load_settings() -> Settings:
         gap_mode=os.getenv("GAP_MODE", "off"),
         gap_bottom=_get_float("GAP_BOTTOM", default=0.0),
         gap_top=_get_float("GAP_TOP", default=0.0),
+        xday_threshold=_get_float("XDAY_THRESHOLD", default=0.0),
+        xdays=_get_int("XDAYS", default=2),
+        xday_spread=_get_float("XDAY_SPREAD", default=0.0),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
@@ -124,6 +130,9 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         gap_mode=os.getenv(f"{prefix}_GAP_MODE", settings.gap_mode),
         gap_bottom=_get_float(f"{prefix}_GAP_BOTTOM", settings.gap_bottom),
         gap_top=_get_float(f"{prefix}_GAP_TOP", settings.gap_top),
+        xday_threshold=_get_float(f"{prefix}_XDAY_THRESHOLD", settings.xday_threshold),
+        xdays=_get_int(f"{prefix}_XDAYS", settings.xdays),
+        xday_spread=_get_float(f"{prefix}_XDAY_SPREAD", settings.xday_spread),
         max_percent_to_lend=_get_float(
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),

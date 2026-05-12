@@ -7,6 +7,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("GAP_MODE", "raw")
     monkeypatch.setenv("GAP_BOTTOM", "10")
     monkeypatch.setenv("GAP_TOP", "50")
+    monkeypatch.setenv("XDAY_THRESHOLD", "0.001")
+    monkeypatch.setenv("XDAYS", "30")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -16,6 +18,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.gap_mode == "raw"
     assert strategy.gap_bottom == 10
     assert strategy.gap_top == 50
+    assert strategy.xday_threshold == 0.001
+    assert strategy.xdays == 30
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
@@ -25,6 +29,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("BTC_HIDE_COINS", "false")
     monkeypatch.setenv("BTC_GAP_MODE", "relative")
     monkeypatch.setenv("BTC_GAP_BOTTOM", "20")
+    monkeypatch.setenv("BTC_XDAYS", "45")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -34,3 +39,4 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.hide_coins is False
     assert strategy.gap_mode == "relative"
     assert strategy.gap_bottom == 20
+    assert strategy.xdays == 45

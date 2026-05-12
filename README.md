@@ -139,6 +139,9 @@ Global settings:
 - `GAP_MODE`
 - `GAP_BOTTOM`
 - `GAP_TOP`
+- `XDAY_THRESHOLD`
+- `XDAYS`
+- `XDAY_SPREAD`
 - `STRATEGY_DEBUG`
 
 Per-currency overrides use the currency symbol as a prefix:
@@ -151,6 +154,9 @@ BTC_HIDE_COINS=true
 BTC_GAP_MODE=raw
 BTC_GAP_BOTTOM=20
 BTC_GAP_TOP=100
+BTC_XDAY_THRESHOLD=0.001
+BTC_XDAYS=30
+BTC_XDAY_SPREAD=2
 ```
 
 ## Operations

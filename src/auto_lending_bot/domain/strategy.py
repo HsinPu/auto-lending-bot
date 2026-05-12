@@ -12,6 +12,9 @@ class StrategyConfig:
     gap_mode: str
     gap_bottom: float
     gap_top: float
+    xday_threshold: float
+    xdays: int
+    xday_spread: float
     max_percent_to_lend: float
     max_amount_to_lend: float | None
     hide_coins: bool
@@ -53,7 +56,7 @@ def build_lending_decision(
             currency=balance.currency,
             amount=amount,
             daily_rate=rate,
-            duration_days=2,
+            duration_days=_duration_days(rate, strategy),
         )
         for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
@@ -141,3 +144,22 @@ def _gap_rate(
 
 def _clamp_rate(rate: float, strategy: StrategyConfig) -> float:
     return round(min(max(rate, strategy.min_daily_rate), strategy.max_daily_rate), 10)
+
+
+def _duration_days(rate: float, strategy: StrategyConfig) -> int:
+    if strategy.xday_threshold <= 0:
+        return 2
+
+    max_days = min(max(strategy.xdays, 2), 120)
+    if rate >= strategy.xday_threshold:
+        return max_days
+
+    if strategy.xday_spread <= 0:
+        return 2
+
+    threshold_min = strategy.xday_threshold / strategy.xday_spread
+    if rate <= threshold_min:
+        return 2
+
+    slope = (max_days - 2) / (strategy.xday_threshold - threshold_min)
+    return min(max(round(slope * (rate - threshold_min) + 2), 2), max_days)

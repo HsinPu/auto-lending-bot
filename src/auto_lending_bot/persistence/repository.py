@@ -88,6 +88,19 @@ class BotRunRepository:
             )
             return int(cursor.rowcount)
 
+    def recent(self, limit: int = 10) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, started_at, finished_at, status, dry_run, message
+                FROM bot_runs
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
 
 class LoanOfferRepository:
     def __init__(self, database_url: str) -> None:
@@ -143,6 +156,20 @@ class LoanOfferRepository:
             row = connection.execute("SELECT COUNT(*) AS count FROM loan_offers").fetchone()
             return int(row["count"])
 
+    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, bot_run_id, currency, amount, daily_rate, duration_days,
+                       status, dry_run, external_offer_id, created_at
+                FROM loan_offers
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
 
 class MarketRateRepository:
     def __init__(self, database_url: str) -> None:
@@ -174,3 +201,16 @@ class MarketRateRepository:
                 (f"-{days} days",),
             )
             return int(cursor.rowcount)
+
+    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, currency, daily_rate, available_amount, captured_at
+                FROM market_rates
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]

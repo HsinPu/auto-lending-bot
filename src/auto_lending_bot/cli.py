@@ -13,6 +13,7 @@ from auto_lending_bot.persistence.repository import (
     LoanOfferRepository,
     MarketRateRepository,
 )
+from auto_lending_bot.reports import write_dashboard
 from auto_lending_bot.safety import SafetyError, validate_run_settings
 
 
@@ -43,6 +44,12 @@ def run_cli(argv: list[str] | None = None) -> int:
         print(f"Deleted {deleted_count} old market rate row(s).")
         return 0
 
+    if args.command == "dashboard":
+        initialize_database(settings.database_url)
+        output_path = write_dashboard(settings)
+        print(f"Wrote dashboard: {output_path}")
+        return 0
+
     if args.command == "run":
         try:
             validate_run_settings(settings)
@@ -71,6 +78,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("init-db", help="Initialize the SQLite database.")
     subparsers.add_parser("cleanup", help="Delete old market-rate rows.")
+    subparsers.add_parser("dashboard", help="Write a local read-only HTML dashboard.")
     subparsers.add_parser("run", help="Run the lending bot.")
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     return parser

@@ -84,6 +84,7 @@ def _settings(
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,
+        report_path="reports/dashboard.html",
         hide_coins=True,
         max_amount_to_lend=None,
         max_single_offer_amount=max_single_offer_amount,

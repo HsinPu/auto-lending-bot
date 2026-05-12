@@ -26,6 +26,7 @@ uv run auto-lending-bot init-db
 uv run auto-lending-bot run
 uv run auto-lending-bot status
 uv run auto-lending-bot cleanup
+uv run auto-lending-bot dashboard
 ```
 
 Phase one uses a mock exchange by default and runs in dry-run mode. It records bot runs,
@@ -135,3 +136,13 @@ updates the same row to `created` with the exchange offer id after success.
 - Use `auto-lending-bot cleanup` to delete old market-rate rows based on
   `MARKET_RATE_RETENTION_DAYS`.
 - On Windows, `scripts/dev.ps1` runs sync, tests, and lint once `uv` is installed.
+
+## Dashboard
+
+Generate a local read-only HTML dashboard:
+
+```powershell
+uv run auto-lending-bot dashboard
+```
+
+The output path defaults to `reports/dashboard.html` and can be changed with `REPORT_PATH`.

@@ -60,11 +60,11 @@ export function DashboardPage() {
       />
 
       <main className={`shell with-top-bar ${displaySettings.compactLayout ? 'compact-layout' : ''}`}>
-        <section className="console-intro">
+        <section className="console-intro mika-intro">
           <div>
-            <p className="eyebrow">Auto Lending Bot</p>
-            <h1>放貸監控中心</h1>
-            <p className="lede">read-only dashboard，所有資料都來自本地 API 與 SQLite 紀錄。</p>
+            <p className="eyebrow">Lending Console</p>
+            <h1>{data?.status.label ?? 'Auto Lending Bot'}</h1>
+            <p className="lede">狀態、幣種明細、Log 與安全操作集中在同一個監控版面。</p>
           </div>
           <DisplaySettingsModal
             settings={displaySettings}
@@ -82,72 +82,80 @@ export function DashboardPage() {
 
       {data ? (
         <>
-          <section className="status-grid" id="status" aria-label="Bot status summary">
-            <StatusCard label="交易所" value={data.status.exchange} />
-            <StatusCard
-              label="執行模式"
-              value={data.status.dry_run ? '模擬模式' : 'Live 模式'}
-              tone={data.status.dry_run ? 'safe' : 'danger'}
-            />
-            <StatusCard label="Bot runs" value={data.status.counts.bot_runs} />
-            <StatusCard label="貸出委託" value={data.status.counts.loan_offers} />
-            <StatusCard label="目前放貸中" value={data.status.counts.active_loans} />
-            <StatusCard label="收益紀錄" value={data.status.counts.lending_history} />
-          </section>
+          <div className="mika-console-layout">
+            <div className="mika-main-column">
+              <section className="status-grid" id="status" aria-label="Bot status summary">
+                <StatusCard label="交易所" value={data.status.exchange} />
+                <StatusCard
+                  label="執行模式"
+                  value={data.status.dry_run ? '模擬模式' : 'Live 模式'}
+                  tone={data.status.dry_run ? 'safe' : 'danger'}
+                />
+                <StatusCard label="Bot runs" value={data.status.counts.bot_runs} />
+                <StatusCard label="貸出委託" value={data.status.counts.loan_offers} />
+                <StatusCard label="目前放貸中" value={data.status.counts.active_loans} />
+                <StatusCard label="收益紀錄" value={data.status.counts.lending_history} />
+              </section>
 
-          <section className="settings-panel">
-            <div>
-              <h2>策略設定預覽</h2>
-              <p>
-                {data.settings.smoke_test_currency} | strategy debug:{' '}
-                {data.settings.strategy_debug ? 'on' : 'off'}
-              </p>
+              <CurrencyOverview details={data.currencyDetails} />
+
+              <ActivityLog
+                runs={data.runs}
+                offers={data.offers}
+                latestResult={latestResult}
+                latestError={latestError}
+              />
             </div>
-            <dl>
-              {Object.entries(data.settings.strategy).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{String(value)}</dd>
+
+            <aside className="mika-side-column" aria-label="Console controls">
+              <section className="settings-panel">
+                <div>
+                  <h2>策略設定預覽</h2>
+                  <p>
+                    {data.settings.smoke_test_currency} | strategy debug:{' '}
+                    {data.settings.strategy_debug ? 'on' : 'off'}
+                  </p>
                 </div>
-              ))}
-            </dl>
+                <dl>
+                  {Object.entries(data.settings.strategy).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{key}</dt>
+                      <dd>{String(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+
+              <ActionPanel
+                dryRun={data.status.dry_run}
+                isPending={actionMutation.isPending}
+                latestResult={latestResult}
+                latestError={latestError}
+                onRunAction={(action: SafeActionName) => {
+                  const confirmLive = action === 'run-once' && !data.status.dry_run
+                  if (confirmLive && !window.confirm('Live 模式會觸發真實 run。確定要繼續？')) {
+                    return
+                  }
+                  actionMutation.mutate({ action, confirmLive })
+                }}
+              />
+
+              <EarningsForecast details={data.currencyDetails} />
+            </aside>
+          </div>
+
+          <section className="mika-chart-row" aria-label="Dashboard charts">
+            <MiniCharts
+              earnings={data.earnings}
+              marketRates={data.marketRates}
+              offers={data.offers}
+            />
+
+            <ProfitCharts history={data.lendingHistory} />
           </section>
-
-          <ActionPanel
-            dryRun={data.status.dry_run}
-            isPending={actionMutation.isPending}
-            latestResult={latestResult}
-            latestError={latestError}
-            onRunAction={(action: SafeActionName) => {
-              const confirmLive = action === 'run-once' && !data.status.dry_run
-              if (confirmLive && !window.confirm('Live 模式會觸發真實 run。確定要繼續？')) {
-                return
-              }
-              actionMutation.mutate({ action, confirmLive })
-            }}
-          />
-
-          <CurrencyOverview details={data.currencyDetails} />
-
-          <EarningsForecast details={data.currencyDetails} />
-
-          <MiniCharts
-            earnings={data.earnings}
-            marketRates={data.marketRates}
-            offers={data.offers}
-          />
-
-          <ProfitCharts history={data.lendingHistory} />
-
-          <ActivityLog
-            runs={data.runs}
-            offers={data.offers}
-            latestResult={latestResult}
-            latestError={latestError}
-          />
 
           {displaySettings.showRawTables ? (
-            <>
+            <section className="raw-data-stack" aria-label="Raw API data">
               <div className="raw-data-anchor" id="raw-data" />
               <DataTable<BotRun>
                 title="最近執行"
@@ -204,7 +212,7 @@ export function DashboardPage() {
                 rows={data.marketRates}
                 columns={marketRateColumns}
               />
-            </>
+            </section>
           ) : null}
         </>
       ) : null}

@@ -53,6 +53,11 @@ def initialize_database(database_url: str) -> None:
 
     with sqlite3.connect(database_path) as connection:
         connection.executescript(SCHEMA)
+        _ensure_column(connection, "bot_runs", "started_at", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(connection, "bot_runs", "status", "TEXT NOT NULL DEFAULT 'unknown'")
+        _ensure_column(connection, "bot_runs", "dry_run", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(connection, "bot_runs", "finished_at", "TEXT")
+        _ensure_column(connection, "bot_runs", "message", "TEXT")
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
 
 

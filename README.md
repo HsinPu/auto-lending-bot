@@ -39,6 +39,23 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Docker
+
+Build and run the bot once in safe mock dry-run mode:
+
+```powershell
+docker compose up --build
+```
+
+Run CLI commands in the container:
+
+```powershell
+docker compose run --rm auto-lending-bot auto-lending-bot status
+docker compose run --rm auto-lending-bot auto-lending-bot dashboard
+```
+
+The compose setup mounts local `data/` and `reports/` folders into the container.
+
 ## Project Structure
 
 ```text

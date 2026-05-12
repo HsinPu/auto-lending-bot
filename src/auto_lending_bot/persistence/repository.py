@@ -33,10 +33,10 @@ class BotRunRepository:
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO bot_runs (status, dry_run)
-                VALUES (?, ?)
+                INSERT INTO bot_runs (status, dry_run, message)
+                VALUES (?, ?, ?)
                 """,
-                ("running", int(dry_run)),
+                ("running", int(dry_run), ""),
             )
             return int(cursor.lastrowid)
 

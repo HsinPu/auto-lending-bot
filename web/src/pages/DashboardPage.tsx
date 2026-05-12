@@ -6,6 +6,7 @@ import { ActionPanel } from '../components/ActionPanel'
 import { DataTable } from '../components/DataTable'
 import { MiniCharts } from '../components/MiniCharts'
 import { StatusCard } from '../components/StatusCard'
+import { TopStatusBar } from '../components/TopStatusBar'
 import type {
   ActiveLoan,
   BotRun,
@@ -40,17 +41,20 @@ export function DashboardPage() {
   })
 
   return (
-    <main className="shell">
-      <section className="hero-panel">
-        <div>
+    <>
+      <TopStatusBar
+        status={data?.status ?? null}
+        isFetching={isFetching}
+        lastRefreshed={data ? new Date() : null}
+        onRefresh={() => void refetch()}
+      />
+
+      <main className="shell with-top-bar">
+        <section className="console-intro">
           <p className="eyebrow">Auto Lending Bot</p>
           <h1>放貸監控中心</h1>
           <p className="lede">read-only dashboard，所有資料都來自本地 API 與 SQLite 紀錄。</p>
-        </div>
-        <button type="button" className="refresh-button" onClick={() => void refetch()}>
-          {isFetching ? '更新中...' : '重新整理'}
-        </button>
-      </section>
+        </section>
 
       {isLoading ? <section className="status-skeleton">讀取 API 狀態中...</section> : null}
       {error ? <ErrorState message={(error as Error).message} /> : null}
@@ -165,7 +169,8 @@ export function DashboardPage() {
           />
         </>
       ) : null}
-    </main>
+      </main>
+    </>
   )
 }
 

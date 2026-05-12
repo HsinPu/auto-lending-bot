@@ -26,6 +26,8 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
         max_loops=1,
         hide_coins=True,
         max_amount_to_lend=None,
+        max_single_offer_amount=None,
+        max_total_lend_amount=None,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
         min_loan_size=0.01,

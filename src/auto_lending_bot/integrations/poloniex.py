@@ -79,10 +79,20 @@ class PoloniexClient:
         return offers
 
     def create_loan_offer(self, offer: LoanOffer) -> str:
-        raise NotImplementedError("Live Poloniex lending is planned for phase six.")
+        response = self._private_query(
+            command="createLoanOffer",
+            payload={
+                "currency": offer.currency,
+                "amount": str(offer.amount),
+                "duration": str(offer.duration_days),
+                "autoRenew": "0",
+                "lendingRate": str(offer.daily_rate),
+            },
+        )
+        return str(response.get("orderID", response.get("orderNumber", "")))
 
     def cancel_loan_offer(self, offer_id: str) -> None:
-        raise NotImplementedError("Live Poloniex lending is planned for phase six.")
+        self._private_query(command="cancelLoanOffer", payload={"orderNumber": offer_id})
 
     def build_signed_headers(self, payload: dict[str, str]) -> dict[str, str]:
         body = _encode_payload(payload)

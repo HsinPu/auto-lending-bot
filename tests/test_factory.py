@@ -25,6 +25,8 @@ def _settings(exchange: str) -> Settings:
         max_loops=1,
         hide_coins=True,
         max_amount_to_lend=None,
+        max_single_offer_amount=None,
+        max_total_lend_amount=None,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
         min_loan_size=0.01,

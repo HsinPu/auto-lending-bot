@@ -110,3 +110,18 @@ BOT_DRY_RUN=true
 ```
 
 Use API keys without withdrawal permissions.
+
+## Live Lending Beta
+
+Live lending is guarded by explicit settings and is intended for small tests only:
+
+```env
+EXCHANGE=poloniex
+BOT_DRY_RUN=false
+ALLOW_LIVE_TRADING=true
+MAX_TOTAL_LEND_AMOUNT=1
+MAX_SINGLE_OFFER_AMOUNT=0.1
+```
+
+When live mode is enabled, the bot records an `intent` row before creating an offer and
+updates the same row to `created` with the exchange offer id after success.

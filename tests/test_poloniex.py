@@ -1,5 +1,6 @@
 import pytest
 
+from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.http import HttpResponse
 from auto_lending_bot.integrations.poloniex import PoloniexClient, parse_json_response
@@ -62,6 +63,20 @@ def test_poloniex_client_reads_open_loan_offers() -> None:
     assert len(offers) == 1
     assert offers[0].currency == "BTC"
     assert offers[0].amount == 0.5
+
+
+def test_poloniex_client_creates_loan_offer() -> None:
+    client = PoloniexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"orderID": "123"}'),
+    )
+
+    offer_id = client.create_loan_offer(
+        LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)
+    )
+
+    assert offer_id == "123"
 
 
 def test_parse_json_response() -> None:

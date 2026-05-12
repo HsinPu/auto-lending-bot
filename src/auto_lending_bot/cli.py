@@ -44,6 +44,8 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         configure_logging(settings.log_level)
         initialize_database(settings.database_url)
+        if not settings.dry_run:
+            print("WARNING: live lending is enabled. Real loan offers may be created.")
         _create_runner(settings).run()
         return 0
 

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS loan_offers (
     duration_days INTEGER NOT NULL,
     status TEXT NOT NULL,
     dry_run INTEGER NOT NULL,
+    external_offer_id TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
 );
@@ -52,6 +53,20 @@ def initialize_database(database_url: str) -> None:
 
     with sqlite3.connect(database_path) as connection:
         connection.executescript(SCHEMA)
+        _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_type: str,
+) -> None:
+    columns = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    if any(column[1] == column_name for column in columns):
+        return
+
+    connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
 
 
 @contextmanager

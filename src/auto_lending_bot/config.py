@@ -23,6 +23,8 @@ class Settings:
     max_loops: int
     hide_coins: bool
     max_amount_to_lend: float | None
+    max_single_offer_amount: float | None
+    max_total_lend_amount: float | None
     min_daily_rate: float
     max_daily_rate: float
     min_loan_size: float
@@ -48,6 +50,8 @@ def load_settings() -> Settings:
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
+        max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
+        max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
         min_daily_rate=_get_float("MIN_DAILY_RATE", default=0.00005),
         max_daily_rate=_get_float("MAX_DAILY_RATE", default=0.05),
         min_loan_size=_get_float("MIN_LOAN_SIZE", default=0.01),

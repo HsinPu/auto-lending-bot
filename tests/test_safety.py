@@ -19,7 +19,17 @@ def test_validate_run_settings_rejects_live_mode_without_explicit_allowance() ->
 
 
 def test_validate_run_settings_allows_explicit_live_mode() -> None:
-    validate_run_settings(_settings(exchange="mock", dry_run=False, allow_live_trading=True))
+    validate_run_settings(
+        _settings(
+            exchange="poloniex",
+            dry_run=False,
+            allow_live_trading=True,
+            api_key="key",
+            api_secret="secret",
+            max_single_offer_amount=0.1,
+            max_total_lend_amount=1.0,
+        )
+    )
 
 
 def test_validate_run_settings_rejects_poloniex_without_credentials() -> None:
@@ -27,8 +37,8 @@ def test_validate_run_settings_rejects_poloniex_without_credentials() -> None:
         validate_run_settings(_settings(exchange="poloniex", dry_run=True, allow_live_trading=False))
 
 
-def test_validate_run_settings_rejects_poloniex_live_mode() -> None:
-    with pytest.raises(SafetyError, match="read-only"):
+def test_validate_run_settings_rejects_live_mode_without_amount_limits() -> None:
+    with pytest.raises(SafetyError, match="MAX_TOTAL_LEND_AMOUNT"):
         validate_run_settings(
             _settings(
                 exchange="poloniex",
@@ -58,6 +68,8 @@ def _settings(
     allow_live_trading: bool,
     api_key: str = "",
     api_secret: str = "",
+    max_single_offer_amount: float | None = None,
+    max_total_lend_amount: float | None = None,
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
@@ -71,6 +83,8 @@ def _settings(
         max_loops=1,
         hide_coins=True,
         max_amount_to_lend=None,
+        max_single_offer_amount=max_single_offer_amount,
+        max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
         min_loan_size=0.01,

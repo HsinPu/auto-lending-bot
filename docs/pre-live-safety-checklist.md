@@ -31,10 +31,10 @@ Run at least one single-loop dry-run:
 
 ```powershell
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot run
-docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot dashboard
+docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot status
 ```
 
-Confirm in `reports/dashboard.html`:
+Confirm in `status` and the SQLite records:
 
 - mode is `模擬模式`
 - latest run is successful
@@ -80,7 +80,7 @@ Immediately check:
 
 - command output includes the live lending warning
 - Bitfinex shows only the expected small offer
-- local dashboard shows `Live 模式`
+- local records show live mode
 - latest run is successful or the failed warning explains what happened
 - local offer row has `created` plus an exchange offer id, or `failed` plus an error message
 
@@ -90,7 +90,7 @@ Stop and return to dry-run if any of these happen:
 
 - generated amount is larger than expected
 - generated rate is implausible
-- dashboard shows failed offers
+- local offer records show failed offers
 - Bitfinex shows an unexpected offer
 - authentication or permission errors appear
 - you need to change strategy settings

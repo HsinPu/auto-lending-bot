@@ -10,7 +10,7 @@ COPY src ./src
 
 RUN pip install --no-cache-dir .
 
-RUN mkdir -p /app/data /app/reports
+RUN mkdir -p /app/data
 
 
 CMD ["auto-lending-bot", "run"]

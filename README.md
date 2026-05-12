@@ -1,6 +1,6 @@
 # auto-lending-bot
 
-Python lending bot with safe mock execution, Bitfinex-first read-only/dry-run workflows, guarded live lending, SQLite records, Docker runtime, and a local Traditional Chinese dashboard.
+Python lending bot with safe mock execution, Bitfinex-first read-only/dry-run workflows, guarded live lending, SQLite records, and Docker runtime.
 
 ## Requirements
 
@@ -22,7 +22,6 @@ uv run auto-lending-bot init-db
 uv run auto-lending-bot smoke-exchange
 uv run auto-lending-bot run
 uv run auto-lending-bot status
-uv run auto-lending-bot dashboard
 uv run auto-lending-bot sync-history
 uv run auto-lending-bot sync-open-offers
 uv run auto-lending-bot cleanup
@@ -53,13 +52,12 @@ Run CLI commands in the container:
 
 ```powershell
 docker compose run --rm auto-lending-bot auto-lending-bot status
-docker compose run --rm auto-lending-bot auto-lending-bot dashboard
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot smoke-exchange
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-history
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot sync-open-offers
 ```
 
-The compose setup mounts local `data/` and `reports/` folders into the container.
+The compose setup mounts the local `data/` folder into the container.
 
 ## Current Modes
 
@@ -103,7 +101,7 @@ BOT_MAX_LOOPS=1
 
 ```powershell
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot run
-docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot dashboard
+docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot status
 ```
 
 `STRATEGY_DEBUG=true` prints balance, observed best daily rate, configured min/max rates, skip reason, and generated offer count.
@@ -178,16 +176,6 @@ BTC_FRR_DELTA=0.00001
 - Use `auto-lending-bot cleanup` to delete old market-rate rows based on `MARKET_RATE_RETENTION_DAYS`.
 - `scripts/dev.ps1` runs `uv sync`, tests, and ruff once `uv` is installed.
 
-## Dashboard
-
-Generate a local read-only Traditional Chinese dashboard:
-
-```powershell
-uv run auto-lending-bot dashboard
-```
-
-The output path defaults to `reports/dashboard.html` and can be changed with `REPORT_PATH`.
-
 ## Project Structure
 
 ```text
@@ -199,6 +187,5 @@ src/auto_lending_bot/
 ├─ integrations/        # Mock, Bitfinex, HTTP helpers
 ├─ market/              # Market data recording
 ├─ notifications/       # Local notifier adapter
-├─ persistence/         # SQLite schema and repositories
-└─ reports.py           # Local HTML dashboard
+└─ persistence/         # SQLite schema and repositories
 ```

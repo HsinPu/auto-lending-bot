@@ -25,7 +25,6 @@ class Settings:
     max_loops: int
     retry_attempts: int
     retry_backoff_seconds: int
-    report_path: str
     smoke_test_currency: str
     strategy_debug: bool
     telegram_bot_token: str
@@ -69,7 +68,6 @@ def load_settings() -> Settings:
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
         retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
         retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),
-        report_path=os.getenv("REPORT_PATH", "reports/dashboard.html"),
         smoke_test_currency=os.getenv("SMOKE_TEST_CURRENCY", "BTC"),
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),

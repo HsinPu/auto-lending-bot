@@ -58,10 +58,9 @@ With `STRATEGY_DEBUG=true`, inspect the log for each currency:
 
 ```powershell
 docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot status
-docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot dashboard
 ```
 
-Open `reports/dashboard.html` and confirm:
+Confirm the `status` output and SQLite records show:
 
 - mode is `模擬模式`
 - latest run completed successfully

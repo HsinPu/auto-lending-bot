@@ -103,7 +103,6 @@ def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,
-        report_path="reports/dashboard.html",
         smoke_test_currency="BTC",
         strategy_debug=strategy_debug,
         telegram_bot_token="",

@@ -1,4 +1,5 @@
 from auto_lending_bot.config import Settings
+from auto_lending_bot.integrations.bitfinex import BitfinexClient
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.integrations.poloniex import PoloniexClient
@@ -10,6 +11,10 @@ def test_create_exchange_client_returns_mock_client() -> None:
 
 def test_create_exchange_client_returns_poloniex_client() -> None:
     assert isinstance(create_exchange_client(_settings("poloniex")), PoloniexClient)
+
+
+def test_create_exchange_client_returns_bitfinex_client() -> None:
+    assert isinstance(create_exchange_client(_settings("bitfinex")), BitfinexClient)
 
 
 def _settings(exchange: str) -> Settings:

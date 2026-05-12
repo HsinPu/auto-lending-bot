@@ -6,8 +6,8 @@ class SafetyError(ValueError):
 
 
 def validate_run_settings(settings: Settings) -> None:
-    if settings.exchange not in {"mock", "poloniex"}:
-        msg = "Only EXCHANGE=mock or EXCHANGE=poloniex are supported."
+    if settings.exchange not in {"mock", "poloniex", "bitfinex"}:
+        msg = "Only EXCHANGE=mock, EXCHANGE=poloniex, or EXCHANGE=bitfinex are supported."
         raise SafetyError(msg)
 
     if not settings.dry_run and not settings.allow_live_trading:
@@ -16,6 +16,14 @@ def validate_run_settings(settings: Settings) -> None:
 
     if settings.exchange == "poloniex" and (not settings.api_key or not settings.api_secret):
         msg = "EXCHANGE=poloniex requires EXCHANGE_API_KEY and EXCHANGE_API_SECRET."
+        raise SafetyError(msg)
+
+    if settings.exchange == "bitfinex" and (not settings.api_key or not settings.api_secret):
+        msg = "EXCHANGE=bitfinex requires EXCHANGE_API_KEY and EXCHANGE_API_SECRET."
+        raise SafetyError(msg)
+
+    if settings.exchange == "bitfinex" and not settings.dry_run:
+        msg = "EXCHANGE=bitfinex is read-only for now and requires BOT_DRY_RUN=true."
         raise SafetyError(msg)
 
     if not settings.dry_run:

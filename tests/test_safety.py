@@ -9,8 +9,8 @@ def test_validate_run_settings_allows_mock_dry_run() -> None:
 
 
 def test_validate_run_settings_rejects_non_mock_exchange() -> None:
-    with pytest.raises(SafetyError, match="Only EXCHANGE=mock or EXCHANGE=poloniex"):
-        validate_run_settings(_settings(exchange="bitfinex", dry_run=True, allow_live_trading=False))
+    with pytest.raises(SafetyError, match="Only EXCHANGE=mock"):
+        validate_run_settings(_settings(exchange="kraken", dry_run=True, allow_live_trading=False))
 
 
 def test_validate_run_settings_rejects_live_mode_without_explicit_allowance() -> None:
@@ -54,6 +54,38 @@ def test_validate_run_settings_allows_poloniex_dry_run_with_credentials() -> Non
     validate_run_settings(
         _settings(
             exchange="poloniex",
+            dry_run=True,
+            allow_live_trading=False,
+            api_key="key",
+            api_secret="secret",
+        )
+    )
+
+
+def test_validate_run_settings_rejects_bitfinex_without_credentials() -> None:
+    with pytest.raises(SafetyError, match="EXCHANGE_API_KEY"):
+        validate_run_settings(_settings(exchange="bitfinex", dry_run=True, allow_live_trading=False))
+
+
+def test_validate_run_settings_rejects_bitfinex_live_mode() -> None:
+    with pytest.raises(SafetyError, match="read-only"):
+        validate_run_settings(
+            _settings(
+                exchange="bitfinex",
+                dry_run=False,
+                allow_live_trading=True,
+                api_key="key",
+                api_secret="secret",
+                max_single_offer_amount=0.1,
+                max_total_lend_amount=1.0,
+            )
+        )
+
+
+def test_validate_run_settings_allows_bitfinex_dry_run_with_credentials() -> None:
+    validate_run_settings(
+        _settings(
+            exchange="bitfinex",
             dry_run=True,
             allow_live_trading=False,
             api_key="key",

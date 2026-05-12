@@ -118,8 +118,17 @@ building blocks for future real exchanges:
 - retry wrapper for rate-limit responses
 - Poloniex signing skeleton
 
-Phase five adds read-only Poloniex calls for balances, loan orders, and open loan offers.
-The runner still requires `BOT_DRY_RUN=true` for `EXCHANGE=poloniex`.
+Read-only exchange calls are available for Bitfinex and Poloniex balances, loan orders,
+and open loan offers. Bitfinex is read-only for now and requires `BOT_DRY_RUN=true`.
+
+```env
+EXCHANGE=bitfinex
+EXCHANGE_API_KEY=your-key
+EXCHANGE_API_SECRET=your-secret
+BOT_DRY_RUN=true
+```
+
+Poloniex can also be used in dry-run mode:
 
 ```env
 EXCHANGE=poloniex

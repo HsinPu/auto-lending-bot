@@ -1,0 +1,89 @@
+import pytest
+
+from auto_lending_bot.integrations.bitfinex import BitfinexClient, parse_json_response
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.http import HttpResponse
+
+
+def test_bitfinex_client_requires_credentials() -> None:
+    with pytest.raises(ExchangeAuthenticationError):
+        BitfinexClient(api_key="", api_secret="", http_client=FakeHttpClient())
+
+
+def test_bitfinex_client_builds_signed_headers() -> None:
+    client = BitfinexClient(api_key="key", api_secret="secret", http_client=FakeHttpClient())
+
+    headers = client.build_signed_headers({"request": "/v1/balances"})
+
+    assert headers["X-BFX-APIKEY"] == "key"
+    assert len(headers["X-BFX-PAYLOAD"]) > 0
+    assert len(headers["X-BFX-SIGNATURE"]) == 96
+
+
+def test_bitfinex_client_reads_lending_balances() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"type":"deposit","currency":"btc","available":"0.25"},'
+            '{"type":"exchange","currency":"eth","available":"2.0"}]'
+        ),
+    )
+
+    balances = client.get_lending_balances()
+
+    assert len(balances) == 1
+    assert balances[0].currency == "BTC"
+    assert balances[0].amount == 0.25
+
+
+def test_bitfinex_client_reads_loan_orders() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"asks":[{"amount":"1.5","rate":"2.92"}]}'),
+    )
+
+    orders = client.get_loan_orders("BTC")
+
+    assert len(orders) == 1
+    assert orders[0].currency == "BTC"
+    assert orders[0].amount == 1.5
+    assert round(orders[0].daily_rate, 8) == 0.00008
+
+
+def test_bitfinex_client_reads_open_loan_offers() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"direction":"lend","currency":"btc","remaining_amount":"0.5",'
+            '"amount":"1.0","rate":"2.92","period":"2"}]'
+        ),
+    )
+
+    offers = client.get_open_loan_offers()
+
+    assert len(offers) == 1
+    assert offers[0].currency == "BTC"
+    assert offers[0].amount == 0.5
+    assert round(offers[0].daily_rate, 8) == 0.00008
+
+
+def test_parse_json_response() -> None:
+    assert parse_json_response('{"ok": true}') == {"ok": True}
+
+
+class FakeHttpClient:
+    def __init__(self, body: str = "{}") -> None:
+        self._body = body
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: str | None = None,
+        timeout_seconds: int = 30,
+    ) -> HttpResponse:
+        return HttpResponse(status_code=200, body=self._body)

@@ -2,6 +2,7 @@ import pytest
 
 from auto_lending_bot.integrations.bitfinex import BitfinexClient, parse_json_response
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.errors import ExchangeRequestError
 from auto_lending_bot.integrations.http import HttpResponse
 
 
@@ -37,6 +38,19 @@ def test_bitfinex_client_reads_lending_balances() -> None:
     assert balances[0].amount == 0.25
 
 
+def test_bitfinex_client_skips_invalid_lending_balances() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"type":"deposit","currency":"btc","available":"bad"},'
+            '{"type":"deposit","currency":"eth","available":"0"}]'
+        ),
+    )
+
+    assert client.get_lending_balances() == []
+
+
 def test_bitfinex_client_reads_loan_orders() -> None:
     client = BitfinexClient(
         api_key="key",
@@ -50,6 +64,16 @@ def test_bitfinex_client_reads_loan_orders() -> None:
     assert orders[0].currency == "BTC"
     assert orders[0].amount == 1.5
     assert round(orders[0].daily_rate, 8) == 0.00008
+
+
+def test_bitfinex_client_skips_invalid_loan_orders() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"asks":[{"amount":"bad","rate":"2.92"},{}]}'),
+    )
+
+    assert client.get_loan_orders("BTC") == []
 
 
 def test_bitfinex_client_reads_open_loan_offers() -> None:
@@ -68,6 +92,27 @@ def test_bitfinex_client_reads_open_loan_offers() -> None:
     assert offers[0].currency == "BTC"
     assert offers[0].amount == 0.5
     assert round(offers[0].daily_rate, 8) == 0.00008
+
+
+def test_bitfinex_client_skips_invalid_open_loan_offers() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[{"direction":"lend","currency":"btc","amount":"bad"}]'),
+    )
+
+    assert client.get_open_loan_offers() == []
+
+
+def test_bitfinex_client_raises_exchange_error_for_api_message() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"message":"invalid api key"}'),
+    )
+
+    with pytest.raises(ExchangeRequestError, match="invalid api key"):
+        client.get_lending_balances()
 
 
 def test_parse_json_response() -> None:

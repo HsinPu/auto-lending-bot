@@ -136,6 +136,33 @@ def create_api_router(settings: Settings) -> APIRouter:
             "changed_count": len(offers),
         }
 
+    @router.post("/actions/cancel-open-offers")
+    def cancel_open_offers(payload: dict[str, bool] | None = None) -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        if not settings.dry_run and not (payload or {}).get("confirm_live", False):
+            raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
+
+        exchange = create_exchange_client(settings)
+        offers = exchange.get_open_loan_offers()
+        if settings.dry_run:
+            return {
+                "action": "cancel-open-offers",
+                "ok": True,
+                "dry_run": True,
+                "would_cancel_count": len(offers),
+                "canceled_count": 0,
+            }
+
+        canceled_count = _cancel_open_offers(exchange, offers)
+        open_offers.replace_all([])
+        return {
+            "action": "cancel-open-offers",
+            "ok": True,
+            "dry_run": False,
+            "would_cancel_count": len(offers),
+            "canceled_count": canceled_count,
+        }
+
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
         deleted_count = market_rates.delete_older_than_days(settings.market_rate_retention_days)
@@ -179,6 +206,17 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _cancel_open_offers(exchange, offers: list[object]) -> int:
+    canceled_count = 0
+    for offer in offers:
+        external_offer_id = getattr(offer, "external_offer_id", None)
+        if not external_offer_id:
+            continue
+        exchange.cancel_loan_offer(str(external_offer_id))
+        canceled_count += 1
+    return canceled_count
 
 
 def _currency_details(

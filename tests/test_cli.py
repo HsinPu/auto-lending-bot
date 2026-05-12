@@ -54,6 +54,20 @@ def test_cli_sync_open_offers_writes_snapshot(tmp_path, monkeypatch, capsys) -> 
     assert "Synced 1 open loan offer row(s)." in output
 
 
+def test_cli_cancel_open_offers_dry_run_does_not_cancel(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("EXCHANGE", "mock")
+    exchange = FakeExchange()
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: exchange)
+
+    exit_code = run_cli(["cancel-open-offers"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Dry run: would cancel 1 open loan offer(s)." in output
+    assert exchange.canceled_offer_ids == []
+
+
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("BOT_DRY_RUN", "false")
@@ -80,6 +94,9 @@ def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> Non
 
 
 class FakeExchange:
+    def __init__(self) -> None:
+        self.canceled_offer_ids = []
+
     def get_lending_balances(self):
         return [CurrencyBalance(currency="BTC", amount=0.1)]
 
@@ -87,7 +104,15 @@ class FakeExchange:
         return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]
 
     def get_open_loan_offers(self):
-        return [LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)]
+        return [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_offer_id="offer-1",
+            )
+        ]
 
     def get_active_loans(self):
         return []
@@ -99,4 +124,4 @@ class FakeExchange:
         raise AssertionError("smoke-exchange must not create offers")
 
     def cancel_loan_offer(self, offer_id: str):
-        raise AssertionError("smoke-exchange must not cancel offers")
+        self.canceled_offer_ids.append(offer_id)

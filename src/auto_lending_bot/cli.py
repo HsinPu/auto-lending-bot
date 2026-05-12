@@ -6,6 +6,7 @@ import uvicorn
 from auto_lending_bot.api.app import create_app
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, load_settings, sqlite_path_from_url
+from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -78,6 +79,29 @@ def run_cli(argv: list[str] | None = None) -> int:
         print(f"Synced {len(offers)} open loan offer row(s).")
         return 0
 
+    if args.command == "cancel-open-offers":
+        try:
+            validate_run_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        if not settings.dry_run and not args.confirm_live:
+            print("Live cancel requires --confirm-live.", file=sys.stderr)
+            return 2
+
+        initialize_database(settings.database_url)
+        exchange = create_exchange_client(settings)
+        offers = exchange.get_open_loan_offers()
+        if settings.dry_run:
+            print(f"Dry run: would cancel {len(offers)} open loan offer(s).")
+            return 0
+
+        canceled_count = _cancel_open_offers(exchange, offers)
+        OpenLoanOfferRepository(settings.database_url).replace_all([])
+        print(f"Canceled {canceled_count} open loan offer(s).")
+        return 0
+
     if args.command == "smoke-exchange":
         try:
             validate_run_settings(settings)
@@ -133,7 +157,25 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")
     subparsers.add_parser("sync-open-offers", help="Sync open loan offers from the exchange.")
+    cancel_parser = subparsers.add_parser(
+        "cancel-open-offers", help="Cancel open loan offers after safety confirmation."
+    )
+    cancel_parser.add_argument(
+        "--confirm-live",
+        action="store_true",
+        help="Required when BOT_DRY_RUN=false because real exchange offers will be canceled.",
+    )
     return parser
+
+
+def _cancel_open_offers(exchange, offers: list[LoanOffer]) -> int:
+    canceled_count = 0
+    for offer in offers:
+        if not offer.external_offer_id:
+            continue
+        exchange.cancel_loan_offer(offer.external_offer_id)
+        canceled_count += 1
+    return canceled_count
 
 
 def _create_runner(settings: Settings) -> BotRunner:

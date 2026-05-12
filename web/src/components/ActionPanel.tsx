@@ -25,6 +25,11 @@ const actions: Array<{ action: SafeActionName; label: string; description: strin
     description: '同步交易所未成交委託快照。',
   },
   {
+    action: 'cancel-open-offers',
+    label: 'Cancel Open Offers',
+    description: '取消未成交委託；Live 模式需要二次確認。',
+  },
+  {
     action: 'cleanup',
     label: 'Cleanup',
     description: '清理過期市場利率紀錄。',
@@ -49,7 +54,7 @@ export function ActionPanel({
         <div>
           <h2>安全操作</h2>
           <p>
-            sync/cleanup 不會建立或取消 live offer；Run Once 會遵守後端 safety guard。
+            sync/cleanup 不會建立 live offer；Cancel 與 Run Once 會遵守後端 safety guard。
             目前模式：{dryRun ? '模擬模式' : 'Live 模式'}。
           </p>
         </div>

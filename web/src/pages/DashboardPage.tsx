@@ -132,8 +132,8 @@ export function DashboardPage() {
                 latestResult={latestResult}
                 latestError={latestError}
                 onRunAction={(action: SafeActionName) => {
-                  const confirmLive = action === 'run-once' && !data.status.dry_run
-                  if (confirmLive && !window.confirm('Live 模式會觸發真實 run。確定要繼續？')) {
+                  const confirmLive = ['run-once', 'cancel-open-offers'].includes(action) && !data.status.dry_run
+                  if (confirmLive && !window.confirm('Live 模式會執行真實交易所操作。確定要繼續？')) {
                     return
                   }
                   actionMutation.mutate({ action, confirmLive })

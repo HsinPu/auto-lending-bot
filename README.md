@@ -162,6 +162,7 @@ Current read-only endpoints:
 - `GET /api/earnings`
 - `GET /api/market-rates`
 - `GET /api/settings`
+- `POST /api/actions/cancel-open-offers`
 
 ## Strategy Settings
 

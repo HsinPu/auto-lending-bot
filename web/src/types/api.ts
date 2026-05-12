@@ -125,6 +125,7 @@ export type SafeActionName =
   | 'smoke-exchange'
   | 'sync-history'
   | 'sync-open-offers'
+  | 'cancel-open-offers'
   | 'cleanup'
   | 'run-once'
 

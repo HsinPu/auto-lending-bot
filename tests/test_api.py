@@ -124,6 +124,11 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     assert open_offers_response.status_code == 200
     assert open_offers_response.json()["changed_count"] == 0
 
+    cancel_response = client.post("/api/actions/cancel-open-offers")
+    assert cancel_response.status_code == 200
+    assert cancel_response.json()["would_cancel_count"] == 0
+    assert cancel_response.json()["canceled_count"] == 0
+
     cleanup_response = client.post("/api/actions/cleanup")
     assert cleanup_response.status_code == 200
     assert cleanup_response.json()["deleted_count"] == 0
@@ -177,6 +182,28 @@ def test_api_run_once_requires_live_confirmation(tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Live run requires confirm_live=true."
+
+
+def test_api_cancel_open_offers_requires_live_confirmation(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(
+        database_url,
+        exchange="bitfinex",
+        api_key="key",
+        api_secret="secret",
+        dry_run=False,
+        allow_live_trading=True,
+        bitfinex_enable_live_offers=True,
+        max_total_lend_amount=1,
+        max_single_offer_amount=1,
+    )
+
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/cancel-open-offers")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Live cancel requires confirm_live=true."
 
 
 def _seed_database(database_url: str) -> None:

@@ -188,7 +188,6 @@ class LoanOfferRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
-
 class MarketRateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
@@ -338,5 +337,23 @@ class LendingHistoryRepository:
                 LIMIT ?
                 """,
                 (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def earnings_summary_by_currency(self) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    currency,
+                    COALESCE(SUM(CASE WHEN date(closed_at) = date('now') THEN earned END), 0)
+                        AS today_earned,
+                    COALESCE(SUM(CASE WHEN date(closed_at) = date('now', '-1 day') THEN earned END), 0)
+                        AS yesterday_earned,
+                    COALESCE(SUM(earned), 0) AS total_earned
+                FROM lending_history
+                GROUP BY currency
+                ORDER BY currency
+                """
             ).fetchall()
             return [dict(row) for row in rows]

@@ -1,8 +1,10 @@
 from auto_lending_bot.cli import run_cli
 from auto_lending_bot.domain.models import ActiveLoan, LoanOffer
+from auto_lending_bot.domain.models import LendingHistoryEntry
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    LendingHistoryRepository,
     LoanOfferRepository,
 )
 
@@ -23,6 +25,7 @@ def test_cli_dashboard_writes_html_report(tmp_path, monkeypatch, capsys) -> None
     assert "最新執行狀態：尚無執行紀錄" in report_html
     assert "最近執行紀錄" in report_html
     assert "目前放貸中" in report_html
+    assert "收益摘要" in report_html
     assert "目前沒有資料" in report_html
 
 
@@ -61,6 +64,22 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
             )
         ]
     )
+    LendingHistoryRepository(database_url).upsert_many(
+        [
+            LendingHistoryEntry(
+                currency="BTC",
+                amount=0.05,
+                daily_rate=0.00008,
+                duration_days=2,
+                interest=0.00001,
+                fee=-0.0000015,
+                earned=0.0000085,
+                opened_at="2026-01-01 00:00:00",
+                closed_at="2026-01-02 00:00:00",
+                external_entry_id="history-1",
+            )
+        ]
+    )
 
     assert run_cli(["dashboard"]) == 0
 
@@ -70,3 +89,6 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
     assert "警示：目前有 1 筆失敗貸出委託" in report_html
     assert "目前放貸中：1" in report_html
     assert "loan-1" in report_html
+    assert "收益紀錄：1" in report_html
+    assert "history-1" in report_html
+    assert "累積收益" in report_html

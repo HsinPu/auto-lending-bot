@@ -79,6 +79,7 @@ def test_lending_history_repository_upserts_entries(tmp_path) -> None:
 
     assert lending_history.count() == 1
     assert lending_history.recent()[0]["external_entry_id"] == "history-1"
+    assert lending_history.earnings_summary_by_currency()[0]["total_earned"] == 0.0000085
 
 
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:

@@ -5,6 +5,7 @@ import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
+import { EarningsForecast } from '../components/EarningsForecast'
 import { MiniCharts } from '../components/MiniCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
@@ -108,6 +109,8 @@ export function DashboardPage() {
           />
 
           <CurrencyOverview details={data.currencyDetails} />
+
+          <EarningsForecast details={data.currencyDetails} />
 
           <MiniCharts
             earnings={data.earnings}

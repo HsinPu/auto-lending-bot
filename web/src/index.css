@@ -216,7 +216,8 @@ h1 {
 .settings-panel,
 .table-section,
 .action-panel,
-.currency-overview {
+.currency-overview,
+.forecast-panel {
   margin-top: 20px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 24px;
@@ -349,6 +350,56 @@ h1 {
 .empty-hint.padded {
   margin: 0;
   padding: 0 24px 24px;
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+
+.forecast-card {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(134, 239, 172, 0.16);
+  border-radius: 20px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(5, 46, 22, 0.36), rgba(2, 6, 23, 0.26));
+}
+
+.forecast-card strong {
+  color: #86efac;
+  font-size: 30px;
+}
+
+.forecast-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.forecast-metrics div {
+  min-width: 0;
+}
+
+.forecast-metrics span,
+.forecast-metrics b {
+  display: block;
+}
+
+.forecast-metrics span {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.forecast-metrics b {
+  margin-top: 6px;
+  color: #f8fafc;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .action-button {
@@ -550,7 +601,13 @@ td {
   }
 
   .chart-grid,
-  .currency-grid {
+  .currency-grid,
+  .forecast-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-card,
+  .forecast-metrics {
     grid-template-columns: 1fr;
   }
 }

@@ -192,6 +192,7 @@ Per-currency overrides use the currency symbol as a prefix:
 
 ```env
 BTC_MIN_DAILY_RATE=0.00008
+BTC_MIN_LOAN_SIZE=0.02
 BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_TO_LEND=0.1
 BTC_MAX_TO_LEND_RATE=0.00008

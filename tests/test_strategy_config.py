@@ -33,6 +33,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("MIN_DAILY_RATE", "0.00007")
     monkeypatch.setenv("BTC_MIN_DAILY_RATE", "0.00009")
+    monkeypatch.setenv("BTC_MIN_LOAN_SIZE", "0.02")
     monkeypatch.setenv("BTC_MAX_AMOUNT_TO_LEND", "0.25")
     monkeypatch.setenv("BTC_MAX_TO_LEND_RATE", "0.00011")
     monkeypatch.setenv("BTC_HIDE_COINS", "false")
@@ -46,6 +47,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     strategy = strategy_config_for(settings, "BTC")
 
     assert strategy.min_daily_rate == 0.00009
+    assert strategy.min_loan_size == 0.02
     assert strategy.max_amount_to_lend == 0.25
     assert strategy.max_to_lend_rate == 0.00011
     assert strategy.hide_coins is False

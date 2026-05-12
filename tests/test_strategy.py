@@ -87,6 +87,29 @@ def test_strategy_limits_lendable_amount_by_max_amount() -> None:
     assert sum(offer.amount for offer in decision.offers) == 2.0
 
 
+def test_strategy_does_not_create_split_offers_below_min_loan_size() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=0.02999999),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001)],
+        strategy=_strategy(min_loan_size=0.01, spread_lend=3),
+    )
+
+    assert decision.should_lend is True
+    assert len(decision.offers) == 2
+    assert all(offer.amount >= 0.01 for offer in decision.offers)
+
+
+def test_strategy_uses_currency_specific_min_loan_size() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=0.015),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001)],
+        strategy=_strategy(min_loan_size=0.02),
+    )
+
+    assert decision.should_lend is False
+    assert decision.reason == "Available balance is below the minimum loan size."
+
+
 def test_strategy_uses_min_rate_when_hide_coins_is_disabled() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

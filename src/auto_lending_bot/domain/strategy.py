@@ -55,7 +55,7 @@ def build_lending_decision(
         )
 
     split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
-    offer_amounts = _split_amount(lendable_amount, split_count)
+    offer_amounts = _split_amount(lendable_amount, split_count, strategy.min_loan_size)
     offer_rates = _offer_rates(order_book, strategy, lendable_amount, split_count)
     offers = [
         LoanOffer(
@@ -108,7 +108,10 @@ def _split_count(amount: float, min_loan_size: float, spread_lend: int) -> int:
     return max(min(requested_count, affordable_count), 1)
 
 
-def _split_amount(amount: float, split_count: int) -> list[float]:
+def _split_amount(amount: float, split_count: int, min_loan_size: float) -> list[float]:
+    while split_count > 1 and round(amount / split_count, 8) < min_loan_size:
+        split_count -= 1
+
     base_amount = round(amount / split_count, 8)
     amounts = [base_amount for _ in range(split_count)]
     remainder = round(amount - sum(amounts), 8)

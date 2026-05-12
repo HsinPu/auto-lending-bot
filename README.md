@@ -122,6 +122,8 @@ MAX_SINGLE_OFFER_AMOUNT=0.1
 
 The bot records an `intent` row before creating an offer, updates it to `created` with the exchange offer id on success, and marks it `failed` with an error message on failure.
 
+See `docs/pre-live-safety-checklist.md` before any live Bitfinex test.
+
 ## Strategy Settings
 
 Global settings:

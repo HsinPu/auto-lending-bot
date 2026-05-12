@@ -83,6 +83,21 @@ class BitfinexClient:
 
         return _optional_float(ticker[1])
 
+    def get_btc_price(self, currency: str) -> float | None:
+        currency = currency.upper()
+        if currency == "BTC":
+            return 1.0
+
+        direct_price = self._ticker_last_price(f"t{currency}BTC")
+        if direct_price is not None:
+            return direct_price
+
+        inverse_price = self._ticker_last_price(f"tBTC{currency}")
+        if inverse_price is None or inverse_price <= 0:
+            return None
+
+        return 1 / inverse_price
+
     def get_open_loan_offers(self) -> list[LoanOffer]:
         response = self._private_query("/v1/offers", {})
         if not isinstance(response, list):
@@ -234,6 +249,17 @@ class BitfinexClient:
             timeout_seconds=self._timeout_seconds,
         )
         return _raise_for_api_error(json.loads(response.body))
+
+    def _ticker_last_price(self, symbol: str) -> float | None:
+        try:
+            response = self._public_query(f"/v2/ticker/{symbol}")
+        except ExchangeRequestError:
+            return None
+
+        if not isinstance(response, list) or len(response) < 7:
+            return None
+
+        return _optional_float(response[6])
 
 
 def _encode_payload(payload: dict[str, object]) -> str:

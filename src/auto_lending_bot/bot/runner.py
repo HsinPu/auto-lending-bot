@@ -83,6 +83,7 @@ class BotRunner:
                     order_book=orders,
                     strategy=strategy,
                     frr_daily_rate=frr_daily_rate,
+                    btc_price=self._btc_price(balance.currency, strategy.gap_mode),
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
@@ -152,6 +153,13 @@ class BotRunner:
             return None
 
         return self._exchange.get_frr_rate(currency)
+
+    def _btc_price(self, currency: str, gap_mode: str) -> float | None:
+        normalized_gap_mode = gap_mode.lower().replace("-", "_")
+        if normalized_gap_mode not in {"raw_btc", "rawbtc"}:
+            return None
+
+        return self._exchange.get_btc_price(currency)
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
         best_rate = max((order.daily_rate for order in orders), default=0)

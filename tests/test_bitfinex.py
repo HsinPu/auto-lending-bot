@@ -87,6 +87,26 @@ def test_bitfinex_client_returns_none_for_invalid_frr_rate() -> None:
     assert client.get_frr_rate("BTC") is None
 
 
+def test_bitfinex_client_reads_direct_btc_price() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[0,0,0,0,0,0,0.05]'),
+    )
+
+    assert client.get_btc_price("ETH") == 0.05
+
+
+def test_bitfinex_client_reads_inverse_btc_price() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClientSequence(['{"message":"not found"}', '[0,0,0,0,0,0,50000]']),
+    )
+
+    assert client.get_btc_price("USD") == 0.00002
+
+
 def test_bitfinex_client_skips_invalid_loan_orders() -> None:
     client = BitfinexClient(
         api_key="key",
@@ -236,3 +256,21 @@ class FakeHttpClient:
         timeout_seconds: int = 30,
     ) -> HttpResponse:
         return HttpResponse(status_code=200, body=self._body)
+
+
+class FakeHttpClientSequence:
+    def __init__(self, bodies: list[str]) -> None:
+        self._bodies = bodies
+        self._index = 0
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: str | None = None,
+        timeout_seconds: int = 30,
+    ) -> HttpResponse:
+        body = self._bodies[self._index]
+        self._index += 1
+        return HttpResponse(status_code=200, body=body)

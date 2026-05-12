@@ -174,6 +174,21 @@ def test_strategy_spreads_rates_by_relative_gap_depth() -> None:
     assert [offer.daily_rate for offer in decision.offers] == [0.00005, 0.00008]
 
 
+def test_strategy_spreads_rates_by_raw_btc_gap_depth() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="ETH", amount=3.0),
+        order_book=[
+            LoanOrder(currency="ETH", amount=1.0, daily_rate=0.00005),
+            LoanOrder(currency="ETH", amount=1.0, daily_rate=0.00007),
+            LoanOrder(currency="ETH", amount=1.0, daily_rate=0.00009),
+        ],
+        strategy=_strategy(gap_mode="raw_btc", gap_bottom=1, gap_top=1.5),
+        btc_price=0.5,
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.00007, 0.00008, 0.00009]
+
+
 def test_strategy_uses_long_duration_above_xday_threshold() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

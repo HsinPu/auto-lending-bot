@@ -31,6 +31,7 @@ def build_lending_decision(
     order_book: list[LoanOrder],
     strategy: StrategyConfig,
     frr_daily_rate: float | None = None,
+    btc_price: float | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     best_order = _best_order(order_book)
@@ -65,7 +66,7 @@ def build_lending_decision(
 
     split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
     offer_amounts = _split_amount(lendable_amount, split_count, strategy.min_loan_size)
-    offer_rates = _offer_rates(order_book, strategy, lendable_amount, split_count)
+    offer_rates = _offer_rates(order_book, strategy, lendable_amount, split_count, btc_price)
     offers = [
         LoanOffer(
             currency=balance.currency,
@@ -133,15 +134,20 @@ def _offer_rates(
     strategy: StrategyConfig,
     lendable_amount: float,
     split_count: int,
+    btc_price: float | None,
 ) -> list[float]:
-    gap_mode = strategy.gap_mode.lower()
-    if gap_mode not in {"raw", "relative"}:
+    gap_mode = strategy.gap_mode.lower().replace("-", "_")
+    if gap_mode == "rawbtc":
+        gap_mode = "raw_btc"
+    if gap_mode not in {"raw", "relative", "raw_btc"}:
         best_order = _best_order(order_book)
         rate = _clamp_rate(best_order.daily_rate if best_order else 0, strategy)
         return [rate for _ in range(split_count)]
 
-    bottom_rate = _gap_rate(order_book, strategy.gap_bottom, lendable_amount, gap_mode, strategy)
-    top_rate = _gap_rate(order_book, strategy.gap_top, lendable_amount, gap_mode, strategy)
+    bottom_rate = _gap_rate(
+        order_book, strategy.gap_bottom, lendable_amount, gap_mode, strategy, btc_price
+    )
+    top_rate = _gap_rate(order_book, strategy.gap_top, lendable_amount, gap_mode, strategy, btc_price)
     if split_count == 1:
         return [_clamp_rate(bottom_rate, strategy)]
 
@@ -155,12 +161,13 @@ def _gap_rate(
     lendable_amount: float,
     gap_mode: str,
     strategy: StrategyConfig,
+    btc_price: float | None,
 ) -> float:
     sorted_orders = sorted(order_book, key=lambda order: order.daily_rate)
     if not sorted_orders:
         return strategy.min_daily_rate
 
-    target_depth = gap if gap_mode == "raw" else lendable_amount * gap / 100
+    target_depth = _target_gap_depth(gap, lendable_amount, gap_mode, btc_price)
     if target_depth <= 0:
         return sorted_orders[0].daily_rate
 
@@ -171,6 +178,19 @@ def _gap_rate(
             return order.daily_rate
 
     return strategy.max_daily_rate
+
+
+def _target_gap_depth(
+    gap: float,
+    lendable_amount: float,
+    gap_mode: str,
+    btc_price: float | None,
+) -> float:
+    if gap_mode == "relative":
+        return lendable_amount * gap / 100
+    if gap_mode == "raw_btc" and btc_price is not None and btc_price > 0:
+        return gap / btc_price
+    return gap
 
 
 def _clamp_rate(rate: float, strategy: StrategyConfig) -> float:

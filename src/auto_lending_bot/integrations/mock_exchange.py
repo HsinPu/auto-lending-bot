@@ -34,6 +34,14 @@ class MockExchangeClient:
         }
         return frr_rates.get(currency.upper())
 
+    def get_btc_price(self, currency: str) -> float | None:
+        btc_prices = {
+            "BTC": 1.0,
+            "ETH": 0.05,
+            "USDT": 0.00002,
+        }
+        return btc_prices.get(currency.upper())
+
     def get_open_loan_offers(self) -> list[LoanOffer]:
         return list(self._created_offers)
 

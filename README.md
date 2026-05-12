@@ -85,6 +85,8 @@ docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot smoke-
 
 Check that the command reports lending balance count, loan order count, and a plausible best daily rate.
 
+See `docs/bitfinex-smoke-checklist.md` for the full pre-dry-run checklist.
+
 ## Bitfinex Dry Run
 
 After smoke test succeeds, run the strategy without placing real offers:

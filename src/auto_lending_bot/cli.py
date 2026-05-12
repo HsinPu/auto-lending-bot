@@ -9,6 +9,7 @@ from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
     MarketRateRepository,
@@ -101,6 +102,7 @@ def _create_runner(settings: Settings) -> BotRunner:
         exchange=create_exchange_client(settings),
         bot_runs=BotRunRepository(settings.database_url),
         loan_offers=LoanOfferRepository(settings.database_url),
+        active_loans=ActiveLoanRepository(settings.database_url),
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
         notifier=Notifier(),
     )
@@ -110,6 +112,7 @@ def _format_status(settings: Settings) -> str:
     bot_runs = BotRunRepository(settings.database_url)
     loan_offers = LoanOfferRepository(settings.database_url)
     market_rates = MarketRateRepository(settings.database_url)
+    active_loans = ActiveLoanRepository(settings.database_url)
     latest_run = bot_runs.latest()
 
     lines = [
@@ -120,6 +123,7 @@ def _format_status(settings: Settings) -> str:
         f"Live trading allowed: {settings.allow_live_trading}",
         f"Bot runs: {bot_runs.count()}",
         f"Loan offers: {loan_offers.count()}",
+        f"Active loans: {active_loans.count()}",
         f"Market rates: {market_rates.count()}",
     ]
 

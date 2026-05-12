@@ -45,6 +45,16 @@ CREATE TABLE IF NOT EXISTS market_rates (
     available_amount REAL NOT NULL,
     captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS active_loans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency TEXT NOT NULL,
+    amount REAL NOT NULL,
+    daily_rate REAL NOT NULL,
+    duration_days INTEGER NOT NULL,
+    external_loan_id TEXT,
+    captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

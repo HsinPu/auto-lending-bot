@@ -1,6 +1,10 @@
 from auto_lending_bot.cli import run_cli
-from auto_lending_bot.domain.models import LoanOffer
-from auto_lending_bot.persistence.repository import BotRunRepository, LoanOfferRepository
+from auto_lending_bot.domain.models import ActiveLoan, LoanOffer
+from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
+    BotRunRepository,
+    LoanOfferRepository,
+)
 
 
 def test_cli_dashboard_writes_html_report(tmp_path, monkeypatch, capsys) -> None:
@@ -18,6 +22,7 @@ def test_cli_dashboard_writes_html_report(tmp_path, monkeypatch, capsys) -> None
     assert "模式：<span class=\"badge\">模擬模式</span>" in report_html
     assert "最新執行狀態：尚無執行紀錄" in report_html
     assert "最近執行紀錄" in report_html
+    assert "目前放貸中" in report_html
     assert "目前沒有資料" in report_html
 
 
@@ -45,6 +50,17 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
         "failed",
         message="test failure",
     )
+    ActiveLoanRepository(database_url).replace_all(
+        [
+            ActiveLoan(
+                currency="BTC",
+                amount=0.05,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_loan_id="loan-1",
+            )
+        ]
+    )
 
     assert run_cli(["dashboard"]) == 0
 
@@ -52,3 +68,5 @@ def test_cli_dashboard_highlights_latest_run_and_failed_offers(
     assert "模式：<span class=\"badge live\">Live 模式</span>" in report_html
     assert f"最新執行狀態：#{bot_run_id} completed（模擬模式：否）" in report_html
     assert "警示：目前有 1 筆失敗貸出委託" in report_html
+    assert "目前放貸中：1" in report_html
+    assert "loan-1" in report_html

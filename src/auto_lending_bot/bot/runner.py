@@ -8,7 +8,11 @@ from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
-from auto_lending_bot.persistence.repository import BotRunRepository, LoanOfferRepository
+from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
+    BotRunRepository,
+    LoanOfferRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,7 @@ class BotRunner:
         exchange: ExchangeClient,
         bot_runs: BotRunRepository,
         loan_offers: LoanOfferRepository,
+        active_loans: ActiveLoanRepository,
         market_recorder: MarketRecorder,
         notifier: Notifier,
     ) -> None:
@@ -27,6 +32,7 @@ class BotRunner:
         self._exchange = exchange
         self._bot_runs = bot_runs
         self._loan_offers = loan_offers
+        self._active_loans = active_loans
         self._market_recorder = market_recorder
         self._notifier = notifier
 
@@ -65,6 +71,7 @@ class BotRunner:
         live_lend_amount = 0.0
 
         try:
+            self._active_loans.replace_all(self._exchange.get_active_loans())
             balances = self._exchange.get_lending_balances()
             for balance in balances:
                 orders = self._exchange.get_loan_orders(balance.currency)

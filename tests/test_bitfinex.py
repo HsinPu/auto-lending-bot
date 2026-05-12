@@ -95,6 +95,35 @@ def test_bitfinex_client_reads_open_loan_offers() -> None:
     assert round(offers[0].daily_rate, 8) == 0.00008
 
 
+def test_bitfinex_client_reads_active_loans() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"id":123,"currency":"btc","amount":"0.5","rate":"2.92","period":"2"}]'
+        ),
+    )
+
+    active_loans = client.get_active_loans()
+
+    assert len(active_loans) == 1
+    assert active_loans[0].currency == "BTC"
+    assert active_loans[0].amount == 0.5
+    assert round(active_loans[0].daily_rate, 8) == 0.00008
+    assert active_loans[0].duration_days == 2
+    assert active_loans[0].external_loan_id == "123"
+
+
+def test_bitfinex_client_skips_invalid_active_loans() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[{"currency":"btc","amount":"bad","rate":"2.92"}]'),
+    )
+
+    assert client.get_active_loans() == []
+
+
 def test_bitfinex_client_skips_invalid_open_loan_offers() -> None:
     client = BitfinexClient(
         api_key="key",

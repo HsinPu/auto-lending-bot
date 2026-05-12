@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 
-from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.errors import ExchangeRequestError
 from auto_lending_bot.integrations.http import HttpClient
@@ -92,6 +92,36 @@ class BitfinexClient:
             )
 
         return offers
+
+    def get_active_loans(self) -> list[ActiveLoan]:
+        response = self._private_query("/v1/credits", {})
+        if not isinstance(response, list):
+            return []
+
+        active_loans = []
+        for item in response:
+            if not isinstance(item, dict):
+                continue
+
+            amount = _optional_float(item.get("amount"))
+            rate = _optional_bitfinex_rate_to_daily_rate(item.get("rate"))
+            duration_days = _optional_int(item.get("period", item.get("duration", 2)))
+            currency = item.get("currency")
+            external_loan_id = item.get("id")
+            if amount is None or rate is None or duration_days is None or not currency:
+                continue
+
+            active_loans.append(
+                ActiveLoan(
+                    currency=str(currency).upper(),
+                    amount=amount,
+                    daily_rate=rate,
+                    duration_days=duration_days,
+                    external_loan_id=str(external_loan_id or ""),
+                )
+            )
+
+        return active_loans
 
     def create_loan_offer(self, offer: LoanOffer) -> str:
         response = self._private_query(

@@ -37,6 +37,15 @@ class LoanOffer:
 
 
 @dataclass(frozen=True)
+class ActiveLoan:
+    currency: str
+    amount: float
+    daily_rate: float
+    duration_days: int
+    external_loan_id: str
+
+
+@dataclass(frozen=True)
 class LendingDecision:
     currency: str
     offers: list[LoanOffer]

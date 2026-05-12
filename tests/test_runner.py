@@ -8,6 +8,7 @@ from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
     MarketRateRepository,
@@ -20,12 +21,14 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     settings = _settings(database_url)
     exchange = MockExchangeClient()
     loan_offers = LoanOfferRepository(database_url)
+    active_loans = ActiveLoanRepository(database_url)
 
     runner = BotRunner(
         settings=settings,
         exchange=exchange,
         bot_runs=BotRunRepository(database_url),
         loan_offers=loan_offers,
+        active_loans=active_loans,
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -33,6 +36,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     runner.run_once()
 
     assert loan_offers.count() == 6
+    assert active_loans.count() == 1
     assert exchange.get_open_loan_offers() == []
 
 
@@ -46,6 +50,7 @@ def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
         exchange=MockExchangeClient(),
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -68,6 +73,7 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
         exchange=exchange,
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
     )
@@ -118,9 +124,12 @@ class AuthFailingExchange:
     def __init__(self) -> None:
         self.calls = 0
 
-    def get_lending_balances(self):
+    def get_active_loans(self):
         self.calls += 1
         raise ExchangeAuthenticationError("invalid key")
+
+    def get_lending_balances(self):
+        return []
 
     def get_loan_orders(self, currency: str):
         return []

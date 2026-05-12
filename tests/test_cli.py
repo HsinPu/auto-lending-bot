@@ -22,6 +22,7 @@ def test_cli_status_prints_counts(tmp_path, monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert "Exchange: mock" in output
     assert "Bot runs: 0" in output
+    assert "Active loans: 0" in output
     assert "Latest run: none" in output
 
 
@@ -58,6 +59,9 @@ class FakeExchange:
         return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]
 
     def get_open_loan_offers(self):
+        return []
+
+    def get_active_loans(self):
         return []
 
     def create_loan_offer(self, offer):

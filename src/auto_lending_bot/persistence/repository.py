@@ -1,4 +1,4 @@
-from auto_lending_bot.domain.models import LoanApplication, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, LoanApplication, LoanOffer, LoanOrder
 from auto_lending_bot.persistence.database import connect
 
 
@@ -220,6 +220,55 @@ class MarketRateRepository:
                 """
                 SELECT id, currency, daily_rate, available_amount, captured_at
                 FROM market_rates
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+
+class ActiveLoanRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def replace_all(self, active_loans: list[ActiveLoan]) -> None:
+        with connect(self._database_url) as connection:
+            connection.execute("DELETE FROM active_loans")
+            connection.executemany(
+                """
+                INSERT INTO active_loans (
+                    currency,
+                    amount,
+                    daily_rate,
+                    duration_days,
+                    external_loan_id
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        active_loan.currency,
+                        active_loan.amount,
+                        active_loan.daily_rate,
+                        active_loan.duration_days,
+                        active_loan.external_loan_id,
+                    )
+                    for active_loan in active_loans
+                ],
+            )
+
+    def count(self) -> int:
+        with connect(self._database_url) as connection:
+            row = connection.execute("SELECT COUNT(*) AS count FROM active_loans").fetchone()
+            return int(row["count"])
+
+    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, currency, amount, daily_rate, duration_days,
+                       external_loan_id, captured_at
+                FROM active_loans
                 ORDER BY id DESC
                 LIMIT ?
                 """,

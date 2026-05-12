@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
 
 
 class ExchangeClient(Protocol):
@@ -11,6 +11,9 @@ class ExchangeClient(Protocol):
         pass
 
     def get_open_loan_offers(self) -> list[LoanOffer]:
+        pass
+
+    def get_active_loans(self) -> list[ActiveLoan]:
         pass
 
     def create_loan_offer(self, offer: LoanOffer) -> str:

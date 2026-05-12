@@ -4,6 +4,7 @@ from pathlib import Path
 
 from auto_lending_bot.config import Settings
 from auto_lending_bot.persistence.repository import (
+    ActiveLoanRepository,
     BotRunRepository,
     LoanOfferRepository,
     MarketRateRepository,
@@ -23,6 +24,7 @@ COLUMN_LABELS = {
     "daily_rate": "日利率",
     "duration_days": "天數",
     "external_offer_id": "交易所委託編號",
+    "external_loan_id": "交易所貸款編號",
     "created_at": "建立時間",
     "available_amount": "可用數量",
     "captured_at": "擷取時間",
@@ -40,6 +42,7 @@ def _render_dashboard(settings: Settings) -> str:
     bot_runs = BotRunRepository(settings.database_url)
     loan_offers = LoanOfferRepository(settings.database_url)
     market_rates = MarketRateRepository(settings.database_url)
+    active_loans = ActiveLoanRepository(settings.database_url)
     generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     latest_run = bot_runs.latest()
     failed_offer_count = loan_offers.count_by_status("failed")
@@ -66,11 +69,14 @@ def _render_dashboard(settings: Settings) -> str:
   {_render_summary(settings, generated_at, latest_run, failed_offer_count)}
   <div class="metric">執行次數：{bot_runs.count()}</div>
   <div class="metric">貸出委託：{loan_offers.count()}</div>
+  <div class="metric">目前放貸中：{active_loans.count()}</div>
   <div class="metric">市場利率紀錄：{market_rates.count()}</div>
   <h2>最近執行紀錄</h2>
   {_render_table(bot_runs.recent(), ["id", "started_at", "finished_at", "status", "dry_run", "message"])}
   <h2>最近貸出委託</h2>
   {_render_table(loan_offers.recent(), ["id", "bot_run_id", "currency", "amount", "daily_rate", "duration_days", "status", "external_offer_id", "created_at"])}
+  <h2>目前放貸中</h2>
+  {_render_table(active_loans.recent(), ["id", "currency", "amount", "daily_rate", "duration_days", "external_loan_id", "captured_at"])}
   <h2>最近市場利率</h2>
   {_render_table(market_rates.recent(), ["id", "currency", "daily_rate", "available_amount", "captured_at"])}
 </body>

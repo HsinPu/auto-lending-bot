@@ -1,4 +1,4 @@
-from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
 
 
 class MockExchangeClient:
@@ -22,6 +22,17 @@ class MockExchangeClient:
 
     def get_open_loan_offers(self) -> list[LoanOffer]:
         return list(self._created_offers)
+
+    def get_active_loans(self) -> list[ActiveLoan]:
+        return [
+            ActiveLoan(
+                currency="BTC",
+                amount=0.05,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_loan_id="mock-active-1",
+            )
+        ]
 
     def create_loan_offer(self, offer: LoanOffer) -> str:
         self._created_offers.append(offer)

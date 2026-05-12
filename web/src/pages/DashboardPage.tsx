@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
+import { ActivityLog } from '../components/ActivityLog'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
 import {
@@ -130,6 +131,13 @@ export function DashboardPage() {
             earnings={data.earnings}
             marketRates={data.marketRates}
             offers={data.offers}
+          />
+
+          <ActivityLog
+            runs={data.runs}
+            offers={data.offers}
+            latestResult={latestResult}
+            latestError={latestError}
           />
 
           {displaySettings.showRawTables ? (

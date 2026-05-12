@@ -315,7 +315,8 @@ h1 {
 .table-section,
 .action-panel,
 .currency-overview,
-.forecast-panel {
+.forecast-panel,
+.activity-panel {
   margin-top: 20px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 24px;
@@ -497,6 +498,47 @@ h1 {
   margin-top: 6px;
   color: #f8fafc;
   font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.activity-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0 24px 24px;
+  list-style: none;
+}
+
+.activity-list li {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 14px;
+  border-left: 3px solid rgba(147, 197, 253, 0.34);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.activity-list li.ok {
+  border-left-color: #86efac;
+}
+
+.activity-list li.error {
+  border-left-color: #fda4af;
+}
+
+.activity-list time {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.activity-list strong {
+  color: #f8fafc;
+}
+
+.activity-list p {
+  margin: 6px 0 0;
+  color: #bfdbfe;
   overflow-wrap: anywhere;
 }
 
@@ -710,7 +752,8 @@ td {
   }
 
   .forecast-card,
-  .forecast-metrics {
+  .forecast-metrics,
+  .activity-list li {
     grid-template-columns: 1fr;
   }
 }

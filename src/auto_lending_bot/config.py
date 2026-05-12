@@ -10,6 +10,7 @@ except ImportError:  # pragma: no cover - used before dependencies are installed
 
 @dataclass(frozen=True)
 class Settings:
+    allow_live_trading: bool
     bot_label: str
     bot_sleep_seconds: int
     dry_run: bool
@@ -27,6 +28,7 @@ def load_settings() -> Settings:
         load_dotenv()
 
     return Settings(
+        allow_live_trading=_get_bool("ALLOW_LIVE_TRADING", default=False),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),

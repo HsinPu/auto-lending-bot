@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-auto-lending-bot = "auto_lending_bot.main:main"
+auto-lending-bot = "auto_lending_bot.cli:main"
 
 [dependency-groups]
 dev = [

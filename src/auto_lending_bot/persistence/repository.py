@@ -58,6 +58,22 @@ class BotRunRepository:
             row = connection.execute("SELECT COUNT(*) AS count FROM bot_runs").fetchone()
             return int(row["count"])
 
+    def latest(self) -> dict[str, object] | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, started_at, finished_at, status, dry_run, message
+                FROM bot_runs
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+
+            if row is None:
+                return None
+
+            return dict(row)
+
 
 class LoanOfferRepository:
     def __init__(self, database_url: str) -> None:

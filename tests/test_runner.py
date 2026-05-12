@@ -15,6 +15,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
     settings = Settings(
+        allow_live_trading=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=True,

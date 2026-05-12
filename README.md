@@ -22,7 +22,9 @@ Copy-Item .env.example .env
 ## Run
 
 ```powershell
-uv run auto-lending-bot
+uv run auto-lending-bot init-db
+uv run auto-lending-bot run
+uv run auto-lending-bot status
 ```
 
 Phase one uses a mock exchange by default and runs in dry-run mode. It records bot runs,
@@ -58,3 +60,10 @@ src/auto_lending_bot/
 - Simple lending strategy based on minimum daily rate, minimum loan size, and split count
 - SQLite tables for bot runs, loan offers, and market rates
 - No real exchange API calls yet
+
+## Safety
+
+- `EXCHANGE=mock` is the only runnable exchange in the current phase.
+- `BOT_DRY_RUN=true` is the default.
+- `BOT_DRY_RUN=false` requires `ALLOW_LIVE_TRADING=true`.
+- Live trading support is not implemented yet.

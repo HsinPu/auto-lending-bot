@@ -160,6 +160,14 @@ class LoanOfferRepository:
             row = connection.execute("SELECT COUNT(*) AS count FROM loan_offers").fetchone()
             return int(row["count"])
 
+    def count_by_status(self, status: str) -> int:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM loan_offers WHERE status = ?",
+                (status,),
+            ).fetchone()
+            return int(row["count"])
+
     def recent(self, limit: int = 20) -> list[dict[str, object]]:
         with connect(self._database_url) as connection:
             rows = connection.execute(

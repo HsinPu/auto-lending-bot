@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 
@@ -39,6 +40,9 @@ def _render_dashboard(settings: Settings) -> str:
     bot_runs = BotRunRepository(settings.database_url)
     loan_offers = LoanOfferRepository(settings.database_url)
     market_rates = MarketRateRepository(settings.database_url)
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+    latest_run = bot_runs.latest()
+    failed_offer_count = loan_offers.count_by_status("failed")
 
     return f"""<!doctype html>
 <html lang="zh-Hant">
@@ -51,11 +55,15 @@ def _render_dashboard(settings: Settings) -> str:
     th, td {{ border: 1px solid #d5dbe7; padding: 0.5rem; text-align: left; }}
     th {{ background: #eef3fb; }}
     .metric {{ display: inline-block; margin-right: 1rem; padding: 0.75rem; background: #f7f9fc; }}
+    .summary {{ margin: 1rem 0 1.5rem; padding: 1rem; background: #f7f9fc; border: 1px solid #d5dbe7; }}
+    .badge {{ display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; background: #e6f4ea; color: #14532d; font-weight: 700; }}
+    .badge.live {{ background: #fff1f2; color: #9f1239; }}
+    .warning {{ margin-top: 0.75rem; padding: 0.75rem; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; }}
   </style>
 </head>
 <body>
   <h1>{escape(settings.bot_label)} 儀表板</h1>
-  <p>交易所：{escape(settings.exchange)} | 模擬模式：{_format_bool(settings.dry_run)}</p>
+  {_render_summary(settings, generated_at, latest_run, failed_offer_count)}
   <div class="metric">執行次數：{bot_runs.count()}</div>
   <div class="metric">貸出委託：{loan_offers.count()}</div>
   <div class="metric">市場利率紀錄：{market_rates.count()}</div>
@@ -67,6 +75,34 @@ def _render_dashboard(settings: Settings) -> str:
   {_render_table(market_rates.recent(), ["id", "currency", "daily_rate", "available_amount", "captured_at"])}
 </body>
 </html>
+"""
+
+
+def _render_summary(
+    settings: Settings,
+    generated_at: str,
+    latest_run: dict[str, object] | None,
+    failed_offer_count: int,
+) -> str:
+    badge_class = "badge" if settings.dry_run else "badge live"
+    mode_status = (
+        f"交易所：{escape(settings.exchange)} | "
+        f'模式：<span class="{badge_class}">{_format_mode(settings)}</span>'
+    )
+    warning = ""
+    if failed_offer_count:
+        warning = (
+            f'<div class="warning">警示：目前有 {failed_offer_count} 筆失敗貸出委託，'
+            "請檢查最近貸出委託表格。</div>"
+        )
+
+    return f"""
+  <section class="summary">
+    <p>產生時間：{escape(generated_at)}</p>
+    <p>{mode_status}</p>
+    <p>最新執行狀態：{_format_latest_run(latest_run)}</p>
+    {warning}
+  </section>
 """
 
 
@@ -85,3 +121,17 @@ def _render_table(rows: list[dict[str, object]], columns: list[str]) -> str:
 
 def _format_bool(value: bool) -> str:
     return "是" if value else "否"
+
+
+def _format_mode(settings: Settings) -> str:
+    return "模擬模式" if settings.dry_run else "Live 模式"
+
+
+def _format_latest_run(latest_run: dict[str, object] | None) -> str:
+    if latest_run is None:
+        return "尚無執行紀錄"
+
+    dry_run = _format_bool(bool(latest_run.get("dry_run")))
+    return escape(
+        f"#{latest_run.get('id')} {latest_run.get('status')}（模擬模式：{dry_run}）"
+    )

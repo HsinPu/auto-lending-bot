@@ -35,6 +35,14 @@ uv run pytest
 uv run ruff check .
 ```
 
+Frontend checks:
+
+```powershell
+cd web
+npm install
+npm run build
+```
+
 If `uv` is not installed yet:
 
 ```powershell
@@ -212,3 +220,5 @@ src/auto_lending_bot/
 ├─ notifications/       # Local notifier adapter
 └─ persistence/         # SQLite schema and repositories
 ```
+
+Frontend source lives in `web/` and uses Vite, React, TypeScript, and TanStack Query.

@@ -109,7 +109,12 @@ export type DashboardData = {
   settings: SettingsResponse
 }
 
-export type SafeActionName = 'smoke-exchange' | 'sync-history' | 'sync-open-offers' | 'cleanup'
+export type SafeActionName =
+  | 'smoke-exchange'
+  | 'sync-history'
+  | 'sync-open-offers'
+  | 'cleanup'
+  | 'run-once'
 
 export type SafeActionResponse = {
   action: SafeActionName

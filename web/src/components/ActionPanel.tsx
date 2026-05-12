@@ -1,6 +1,7 @@
 import type { SafeActionName, SafeActionResponse } from '../types/api'
 
 type ActionPanelProps = {
+  dryRun: boolean
   isPending: boolean
   latestResult: SafeActionResponse | null
   latestError: string | null
@@ -28,9 +29,15 @@ const actions: Array<{ action: SafeActionName; label: string; description: strin
     label: 'Cleanup',
     description: '清理過期市場利率紀錄。',
   },
+  {
+    action: 'run-once',
+    label: 'Run Once',
+    description: '觸發一次 bot run；Live 模式需要二次確認。',
+  },
 ]
 
 export function ActionPanel({
+  dryRun,
   isPending,
   latestResult,
   latestError,
@@ -41,7 +48,10 @@ export function ActionPanel({
       <div className="section-heading compact">
         <div>
           <h2>安全操作</h2>
-          <p>這些按鈕只執行 read-only 或本地清理動作，不會建立或取消 live offer。</p>
+          <p>
+            sync/cleanup 不會建立或取消 live offer；Run Once 會遵守後端 safety guard。
+            目前模式：{dryRun ? '模擬模式' : 'Live 模式'}。
+          </p>
         </div>
       </div>
       <div className="action-grid">

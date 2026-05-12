@@ -114,6 +114,44 @@ def test_api_safe_action_returns_safety_error(tmp_path) -> None:
     assert "BOT_DRY_RUN=false requires ALLOW_LIVE_TRADING=true" in response.json()["detail"]
 
 
+def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/run-once")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["action"] == "run-once"
+    assert body["dry_run"] is True
+    assert body["created_count"] == 6
+    assert body["latest_run"]["status"] == "completed"
+
+
+def test_api_run_once_requires_live_confirmation(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(
+        database_url,
+        exchange="bitfinex",
+        api_key="key",
+        api_secret="secret",
+        dry_run=False,
+        allow_live_trading=True,
+        bitfinex_enable_live_offers=True,
+        max_total_lend_amount=1,
+        max_single_offer_amount=1,
+    )
+
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/run-once")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Live run requires confirm_live=true."
+
+
 def _seed_database(database_url: str) -> None:
     bot_runs = BotRunRepository(database_url)
     bot_run_id = bot_runs.start(dry_run=True)
@@ -172,16 +210,22 @@ def _settings(
     database_url: str,
     dry_run: bool = True,
     allow_live_trading: bool = False,
+    exchange: str = "mock",
+    api_key: str = "",
+    api_secret: str = "",
+    bitfinex_enable_live_offers: bool = False,
+    max_total_lend_amount: float | None = None,
+    max_single_offer_amount: float | None = None,
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
-        api_key="",
-        api_secret="",
-        bitfinex_enable_live_offers=False,
+        api_key=api_key,
+        api_secret=api_secret,
+        bitfinex_enable_live_offers=bitfinex_enable_live_offers,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=dry_run,
-        exchange="mock",
+        exchange=exchange,
         http_timeout_seconds=30,
         market_rate_retention_days=30,
         max_loops=1,
@@ -201,8 +245,8 @@ def _settings(
         frr_as_min=False,
         frr_delta=0,
         max_amount_to_lend=None,
-        max_single_offer_amount=None,
-        max_total_lend_amount=None,
+        max_single_offer_amount=max_single_offer_amount,
+        max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
         min_loan_size=0.01,

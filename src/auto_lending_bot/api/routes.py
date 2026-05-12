@@ -1,7 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
+from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, sqlite_path_from_url, strategy_config_for
 from auto_lending_bot.integrations.factory import create_exchange_client
+from auto_lending_bot.market.recorder import MarketRecorder
+from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
@@ -131,6 +134,32 @@ def create_api_router(settings: Settings) -> APIRouter:
             "action": "cleanup",
             "ok": True,
             "deleted_count": deleted_count,
+        }
+
+    @router.post("/actions/run-once")
+    def run_once(payload: dict[str, bool] | None = None) -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        if not settings.dry_run and not (payload or {}).get("confirm_live", False):
+            raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
+
+        offers_before = loan_offers.count()
+        runner = BotRunner(
+            settings=settings,
+            exchange=create_exchange_client(settings),
+            bot_runs=bot_runs,
+            loan_offers=loan_offers,
+            active_loans=active_loans,
+            market_recorder=MarketRecorder(market_rates),
+            notifier=Notifier(settings=settings),
+        )
+        runner.run_once()
+        offers_after = loan_offers.count()
+        return {
+            "action": "run-once",
+            "ok": True,
+            "dry_run": settings.dry_run,
+            "created_count": offers_after - offers_before,
+            "latest_run": bot_runs.latest(),
         }
 
     return router

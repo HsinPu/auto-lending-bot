@@ -25,7 +25,8 @@ export function DashboardPage() {
     queryFn: getDashboardData,
   })
   const actionMutation = useMutation({
-    mutationFn: runSafeAction,
+    mutationFn: ({ action, confirmLive }: { action: SafeActionName; confirmLive?: boolean }) =>
+      runSafeAction(action, { confirmLive }),
     onSuccess: async (result) => {
       setLatestResult(result)
       setLatestError(null)
@@ -87,10 +88,17 @@ export function DashboardPage() {
           </section>
 
           <ActionPanel
+            dryRun={data.status.dry_run}
             isPending={actionMutation.isPending}
             latestResult={latestResult}
             latestError={latestError}
-            onRunAction={(action: SafeActionName) => actionMutation.mutate(action)}
+            onRunAction={(action: SafeActionName) => {
+              const confirmLive = action === 'run-once' && !data.status.dry_run
+              if (confirmLive && !window.confirm('Live 模式會觸發真實 run。確定要繼續？')) {
+                return
+              }
+              actionMutation.mutate({ action, confirmLive })
+            }}
           />
 
           <DataTable<BotRun>

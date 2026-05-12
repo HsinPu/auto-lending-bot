@@ -54,8 +54,12 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 }
 
-export async function runSafeAction(action: SafeActionName): Promise<SafeActionResponse> {
-  return postJson<SafeActionResponse>(`/api/actions/${action}`)
+export async function runSafeAction(
+  action: SafeActionName,
+  options: { confirmLive?: boolean } = {},
+): Promise<SafeActionResponse> {
+  const body = options.confirmLive ? { confirm_live: true } : undefined
+  return postJson<SafeActionResponse>(`/api/actions/${action}`, body)
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -67,8 +71,12 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
-async function postJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST' })
+async function postJson<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
   if (!response.ok) {
     const detail = await response.json().catch(() => null)
     throw new Error(detail?.detail ?? `API request failed with ${response.status}`)

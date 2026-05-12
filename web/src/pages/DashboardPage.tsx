@@ -12,6 +12,7 @@ import {
 } from '../components/DisplaySettingsModal'
 import { EarningsForecast } from '../components/EarningsForecast'
 import { MiniCharts } from '../components/MiniCharts'
+import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
 import type {
@@ -132,6 +133,8 @@ export function DashboardPage() {
             marketRates={data.marketRates}
             offers={data.offers}
           />
+
+          <ProfitCharts history={data.lendingHistory} />
 
           <ActivityLog
             runs={data.runs}

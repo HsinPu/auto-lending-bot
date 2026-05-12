@@ -29,6 +29,9 @@ class Settings:
     smoke_test_currency: str
     strategy_debug: bool
     hide_coins: bool
+    gap_mode: str
+    gap_bottom: float
+    gap_top: float
     max_amount_to_lend: float | None
     max_single_offer_amount: float | None
     max_total_lend_amount: float | None
@@ -63,6 +66,9 @@ def load_settings() -> Settings:
         smoke_test_currency=os.getenv("SMOKE_TEST_CURRENCY", "BTC"),
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
         hide_coins=_get_bool("HIDE_COINS", default=True),
+        gap_mode=os.getenv("GAP_MODE", "off"),
+        gap_bottom=_get_float("GAP_BOTTOM", default=0.0),
+        gap_top=_get_float("GAP_TOP", default=0.0),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
@@ -115,6 +121,9 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         max_daily_rate=_get_float(f"{prefix}_MAX_DAILY_RATE", settings.max_daily_rate),
         min_loan_size=_get_float(f"{prefix}_MIN_LOAN_SIZE", settings.min_loan_size),
         spread_lend=_get_int(f"{prefix}_SPREAD_LEND", settings.spread_lend),
+        gap_mode=os.getenv(f"{prefix}_GAP_MODE", settings.gap_mode),
+        gap_bottom=_get_float(f"{prefix}_GAP_BOTTOM", settings.gap_bottom),
+        gap_top=_get_float(f"{prefix}_GAP_TOP", settings.gap_top),
         max_percent_to_lend=_get_float(
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),

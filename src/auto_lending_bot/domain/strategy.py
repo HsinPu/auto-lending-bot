@@ -9,6 +9,9 @@ class StrategyConfig:
     max_daily_rate: float
     min_loan_size: float
     spread_lend: int
+    gap_mode: str
+    gap_bottom: float
+    gap_top: float
     max_percent_to_lend: float
     max_amount_to_lend: float | None
     hide_coins: bool
@@ -42,17 +45,17 @@ def build_lending_decision(
             reason="Best daily rate is below the configured minimum.",
         )
 
-    offer_rate = min(max(best_order.daily_rate, strategy.min_daily_rate), strategy.max_daily_rate)
     split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
     offer_amounts = _split_amount(lendable_amount, split_count)
+    offer_rates = _offer_rates(order_book, strategy, lendable_amount, split_count)
     offers = [
         LoanOffer(
             currency=balance.currency,
             amount=amount,
-            daily_rate=offer_rate,
+            daily_rate=rate,
             duration_days=2,
         )
-        for amount in offer_amounts
+        for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
 
     return LendingDecision(
@@ -89,3 +92,52 @@ def _split_amount(amount: float, split_count: int) -> list[float]:
     remainder = round(amount - sum(amounts), 8)
     amounts[0] = round(amounts[0] + remainder, 8)
     return amounts
+
+
+def _offer_rates(
+    order_book: list[LoanOrder],
+    strategy: StrategyConfig,
+    lendable_amount: float,
+    split_count: int,
+) -> list[float]:
+    gap_mode = strategy.gap_mode.lower()
+    if gap_mode not in {"raw", "relative"}:
+        best_order = _best_order(order_book)
+        rate = _clamp_rate(best_order.daily_rate if best_order else 0, strategy)
+        return [rate for _ in range(split_count)]
+
+    bottom_rate = _gap_rate(order_book, strategy.gap_bottom, lendable_amount, gap_mode, strategy)
+    top_rate = _gap_rate(order_book, strategy.gap_top, lendable_amount, gap_mode, strategy)
+    if split_count == 1:
+        return [_clamp_rate(bottom_rate, strategy)]
+
+    rate_step = (top_rate - bottom_rate) / (split_count - 1)
+    return [_clamp_rate(bottom_rate + (rate_step * index), strategy) for index in range(split_count)]
+
+
+def _gap_rate(
+    order_book: list[LoanOrder],
+    gap: float,
+    lendable_amount: float,
+    gap_mode: str,
+    strategy: StrategyConfig,
+) -> float:
+    sorted_orders = sorted(order_book, key=lambda order: order.daily_rate)
+    if not sorted_orders:
+        return strategy.min_daily_rate
+
+    target_depth = gap if gap_mode == "raw" else lendable_amount * gap / 100
+    if target_depth <= 0:
+        return sorted_orders[0].daily_rate
+
+    depth = 0.0
+    for order in sorted_orders:
+        depth += order.amount
+        if depth >= target_depth:
+            return order.daily_rate
+
+    return strategy.max_daily_rate
+
+
+def _clamp_rate(rate: float, strategy: StrategyConfig) -> float:
+    return round(min(max(rate, strategy.min_daily_rate), strategy.max_daily_rate), 10)

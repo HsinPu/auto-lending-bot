@@ -136,6 +136,9 @@ Global settings:
 - `MAX_AMOUNT_TO_LEND`
 - `HIDE_COINS`
 - `SPREAD_LEND`
+- `GAP_MODE`
+- `GAP_BOTTOM`
+- `GAP_TOP`
 - `STRATEGY_DEBUG`
 
 Per-currency overrides use the currency symbol as a prefix:
@@ -145,6 +148,9 @@ BTC_MIN_DAILY_RATE=0.00008
 BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_HIDE_COINS=true
+BTC_GAP_MODE=raw
+BTC_GAP_BOTTOM=20
+BTC_GAP_TOP=100
 ```
 
 ## Operations

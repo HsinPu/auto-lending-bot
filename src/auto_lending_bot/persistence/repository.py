@@ -294,6 +294,34 @@ class MarketAnalysisRateRepository:
             index = round((bounded_percentile / 100) * (len(rates) - 1))
             return rates[index]
 
+    def macd_rate(
+        self,
+        currency: str,
+        short_samples: int,
+        long_samples: int,
+    ) -> float | None:
+        sample_count = max(short_samples, long_samples, 1)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT daily_rate
+                FROM market_analysis_rates
+                WHERE currency = ? AND level = 0
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (currency.upper(), sample_count),
+            ).fetchall()
+            rates = [float(row["daily_rate"]) for row in rows]
+            if len(rates) < sample_count:
+                return None
+
+            short_window = rates[: max(short_samples, 1)]
+            long_window = rates[: max(long_samples, 1)]
+            short_average = sum(short_window) / len(short_window)
+            long_average = sum(long_window) / len(long_window)
+            return max(short_average, long_average)
+
 
 class ActiveLoanRepository:
     def __init__(self, database_url: str) -> None:

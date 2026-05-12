@@ -29,6 +29,8 @@ def _settings(exchange: str) -> Settings:
         market_analysis_levels=10,
         market_analysis_method="off",
         market_analysis_percentile=75,
+        market_analysis_macd_short_samples=3,
+        market_analysis_macd_long_samples=10,
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,

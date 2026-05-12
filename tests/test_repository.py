@@ -1,3 +1,5 @@
+import pytest
+
 from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
@@ -141,6 +143,17 @@ def test_market_analysis_rate_repository_records_levels(tmp_path) -> None:
     assert changed_count == 2
     assert repository.recent(1)[0]["level"] == 1
     assert repository.percentile_rate("BTC", 75) == 0.00009
+
+
+def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+
+    for daily_rate in [0.00005, 0.00007, 0.00009, 0.00011, 0.00013]:
+        repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)])
+
+    assert repository.macd_rate("BTC", short_samples=2, long_samples=5) == pytest.approx(0.00012)
 
 
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:

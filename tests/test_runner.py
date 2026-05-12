@@ -1,5 +1,7 @@
 import logging
 
+import pytest
+
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import LoanOffer, LoanOrder
@@ -152,6 +154,41 @@ def test_runner_uses_percentile_market_analysis_minimum(tmp_path) -> None:
     assert btc_offer["daily_rate"] == 0.00012
 
 
+def test_runner_uses_macd_market_analysis_minimum(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    settings = _settings(
+        database_url,
+        market_analysis_method="macd",
+        hide_coins=False,
+        market_analysis_macd_short_samples=2,
+        market_analysis_macd_long_samples=5,
+    )
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    for daily_rate in [0.00005, 0.00006, 0.00007, 0.00008, 0.00015]:
+        market_analysis_rates.add_many(
+            [LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)]
+        )
+    loan_offers = LoanOfferRepository(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=loan_offers,
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    runner.run_once()
+
+    btc_offer = next(row for row in loan_offers.recent() if row["currency"] == "BTC")
+    assert btc_offer["daily_rate"] == pytest.approx(0.000115)
+
+
 def _settings(
     database_url: str,
     strategy_debug: bool = False,
@@ -159,6 +196,8 @@ def _settings(
     auto_cancel_open_offers: bool = False,
     market_analysis_method: str = "off",
     hide_coins: bool = True,
+    market_analysis_macd_short_samples: int = 3,
+    market_analysis_macd_long_samples: int = 10,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -176,6 +215,8 @@ def _settings(
         market_analysis_levels=10,
         market_analysis_method=market_analysis_method,
         market_analysis_percentile=75,
+        market_analysis_macd_short_samples=market_analysis_macd_short_samples,
+        market_analysis_macd_long_samples=market_analysis_macd_long_samples,
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,

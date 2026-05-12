@@ -184,13 +184,20 @@ class BotRunner:
         return self._exchange.get_btc_price(currency)
 
     def _suggested_min_daily_rate(self, currency: str) -> float | None:
-        if self._settings.market_analysis_method != "percentile":
-            return None
+        if self._settings.market_analysis_method == "percentile":
+            return self._market_analysis_rates.percentile_rate(
+                currency,
+                self._settings.market_analysis_percentile,
+            )
 
-        return self._market_analysis_rates.percentile_rate(
-            currency,
-            self._settings.market_analysis_percentile,
-        )
+        if self._settings.market_analysis_method == "macd":
+            return self._market_analysis_rates.macd_rate(
+                currency,
+                self._settings.market_analysis_macd_short_samples,
+                self._settings.market_analysis_macd_long_samples,
+            )
+
+        return None
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
         best_rate = max((order.daily_rate for order in orders), default=0)

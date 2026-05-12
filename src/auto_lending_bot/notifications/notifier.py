@@ -2,6 +2,7 @@ import logging
 from urllib.parse import urlencode
 
 from auto_lending_bot.config import Settings
+from auto_lending_bot.domain.models import ActiveLoan
 from auto_lending_bot.integrations.http import HttpClient, UrlLibHttpClient
 
 
@@ -18,6 +19,20 @@ class Notifier:
     def error(self, message: str) -> None:
         self._logger.error(message)
         self._send_telegram(f"ERROR: {message}")
+
+    def run_summary(self, created_offers: int, active_loans: int, dry_run: bool) -> None:
+        mode = "dry-run" if dry_run else "live"
+        self.info(
+            f"Completed {mode} run with {created_offers} offer(s). "
+            f"Active loans: {active_loans}."
+        )
+
+    def loan_filled(self, active_loan: ActiveLoan) -> None:
+        self.info(
+            f"Filled {active_loan.currency} loan {active_loan.external_loan_id}: "
+            f"{active_loan.amount:g} at {active_loan.daily_rate:.8f} daily rate "
+            f"for {active_loan.duration_days} day(s)."
+        )
 
     def _send_telegram(self, message: str) -> None:
         if self._settings is None:

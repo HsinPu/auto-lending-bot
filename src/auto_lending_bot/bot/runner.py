@@ -2,7 +2,7 @@ import logging
 import time
 
 from auto_lending_bot.config import Settings, strategy_config_for
-from auto_lending_bot.domain.models import LoanOffer
+from auto_lending_bot.domain.models import ActiveLoan, LoanOffer
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.exchange import ExchangeClient
@@ -77,7 +77,12 @@ class BotRunner:
         live_lend_amount = 0.0
 
         try:
-            self._active_loans.replace_all(self._exchange.get_active_loans())
+            previous_active_loan_ids = {
+                str(row["external_loan_id"]) for row in self._active_loans.recent(1000)
+            }
+            active_loans = self._exchange.get_active_loans()
+            self._active_loans.replace_all(active_loans)
+            self._notify_new_active_loans(previous_active_loan_ids, active_loans)
             self._rebalance_open_offers()
             balances = self._exchange.get_lending_balances()
             for balance in balances:
@@ -139,7 +144,11 @@ class BotRunner:
 
             message = f"Completed with {created_offers} offer(s)."
             self._bot_runs.finish(bot_run_id, status="completed", message=message)
-            self._notifier.info(message)
+            self._notifier.run_summary(
+                created_offers=created_offers,
+                active_loans=len(active_loans),
+                dry_run=self._settings.dry_run,
+            )
         except Exception as error:
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
             self._notifier.error(str(error))
@@ -149,6 +158,11 @@ class BotRunner:
         if self._settings.max_single_offer_amount is not None:
             if offer.amount > self._settings.max_single_offer_amount:
                 msg = "Offer amount exceeds MAX_SINGLE_OFFER_AMOUNT."
+                raise ValueError(msg)
+
+        if self._settings.max_total_lend_amount is not None:
+            if live_lend_amount + offer.amount > self._settings.max_total_lend_amount:
+                msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)
 
     def _rebalance_open_offers(self) -> None:
@@ -164,11 +178,6 @@ class BotRunner:
             if offer.external_offer_id:
                 self._exchange.cancel_loan_offer(offer.external_offer_id)
         self._open_offers.replace_all([])
-
-        if self._settings.max_total_lend_amount is not None:
-            if live_lend_amount + offer.amount > self._settings.max_total_lend_amount:
-                msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
-                raise ValueError(msg)
 
     def _frr_daily_rate(self, currency: str, frr_as_min: bool) -> float | None:
         if not frr_as_min:
@@ -213,3 +222,15 @@ class BotRunner:
             len(decision.offers),
             decision.reason,
         )
+
+    def _notify_new_active_loans(
+        self,
+        previous_active_loan_ids: set[str],
+        active_loans: list[ActiveLoan],
+    ) -> None:
+        if not previous_active_loan_ids:
+            return
+
+        for active_loan in active_loans:
+            if active_loan.external_loan_id not in previous_active_loan_ids:
+                self._notifier.loan_filled(active_loan)

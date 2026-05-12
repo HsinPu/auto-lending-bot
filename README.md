@@ -198,6 +198,10 @@ Global settings:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+Telegram notifications are disabled unless both Telegram settings are present. When enabled,
+the bot sends run summaries, live offer creation failures, live offer creation confirmations,
+and newly detected filled-loan messages.
+
 Per-currency overrides use the currency symbol as a prefix:
 
 ```env

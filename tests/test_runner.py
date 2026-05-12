@@ -4,9 +4,9 @@ import pytest
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
-from auto_lending_bot.domain.models import LoanOffer, LoanOrder
-from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
+from auto_lending_bot.domain.models import ActiveLoan, LoanOffer, LoanOrder
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.database import initialize_database
@@ -189,6 +189,61 @@ def test_runner_uses_macd_market_analysis_minimum(tmp_path) -> None:
     assert btc_offer["daily_rate"] == pytest.approx(0.000115)
 
 
+def test_runner_notifies_new_active_loans_after_initial_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    active_loans = ActiveLoanRepository(database_url)
+    active_loans.replace_all(
+        [
+            ActiveLoan(
+                currency="BTC",
+                amount=0.01,
+                daily_rate=0.00007,
+                duration_days=2,
+                external_loan_id="loan-old",
+            )
+        ]
+    )
+    notifier = SpyNotifier()
+
+    runner = BotRunner(
+        settings=_settings(database_url),
+        exchange=NewActiveLoanExchange(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=active_loans,
+        open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=notifier,
+    )
+
+    runner.run_once()
+
+    assert notifier.filled_loan_ids == ["loan-new"]
+    assert notifier.summaries == [(0, 2, True)]
+
+
+def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(database_url, dry_run=False, max_total_lend_amount=0.02),
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    with pytest.raises(ValueError, match="MAX_TOTAL_LEND_AMOUNT"):
+        runner.run_once()
+
+
 def _settings(
     database_url: str,
     strategy_debug: bool = False,
@@ -198,6 +253,8 @@ def _settings(
     hide_coins: bool = True,
     market_analysis_macd_short_samples: int = 3,
     market_analysis_macd_long_samples: int = 10,
+    dry_run: bool = True,
+    max_total_lend_amount: float | None = None,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -208,7 +265,7 @@ def _settings(
         bot_sleep_seconds=60,
         auto_rebalance_open_offers=auto_rebalance_open_offers,
         auto_cancel_open_offers=auto_cancel_open_offers,
-        dry_run=True,
+        dry_run=dry_run,
         exchange="mock",
         http_timeout_seconds=30,
         market_rate_retention_days=30,
@@ -236,7 +293,7 @@ def _settings(
         frr_delta=0,
         max_amount_to_lend=None,
         max_single_offer_amount=None,
-        max_total_lend_amount=None,
+        max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
         min_loan_size=0.01,
@@ -256,6 +313,61 @@ class AuthFailingExchange:
     def get_active_loans(self):
         self.calls += 1
         raise ExchangeAuthenticationError("invalid key")
+
+    def get_lending_balances(self):
+        return []
+
+    def get_loan_orders(self, currency: str):
+        return []
+
+    def get_open_loan_offers(self):
+        return []
+
+    def create_loan_offer(self, offer):
+        return ""
+
+    def cancel_loan_offer(self, offer_id: str):
+        return None
+
+
+class SpyNotifier:
+    def __init__(self) -> None:
+        self.errors: list[str] = []
+        self.filled_loan_ids: list[str] = []
+        self.infos: list[str] = []
+        self.summaries: list[tuple[int, int, bool]] = []
+
+    def info(self, message: str) -> None:
+        self.infos.append(message)
+
+    def error(self, message: str) -> None:
+        self.errors.append(message)
+
+    def run_summary(self, created_offers: int, active_loans: int, dry_run: bool) -> None:
+        self.summaries.append((created_offers, active_loans, dry_run))
+
+    def loan_filled(self, active_loan: ActiveLoan) -> None:
+        self.filled_loan_ids.append(active_loan.external_loan_id)
+
+
+class NewActiveLoanExchange:
+    def get_active_loans(self):
+        return [
+            ActiveLoan(
+                currency="BTC",
+                amount=0.01,
+                daily_rate=0.00007,
+                duration_days=2,
+                external_loan_id="loan-old",
+            ),
+            ActiveLoan(
+                currency="BTC",
+                amount=0.02,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_loan_id="loan-new",
+            ),
+        ]
 
     def get_lending_balances(self):
         return []

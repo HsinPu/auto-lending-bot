@@ -1,4 +1,5 @@
 from auto_lending_bot.config import Settings
+from auto_lending_bot.domain.models import ActiveLoan
 from auto_lending_bot.integrations.http import HttpResponse
 from auto_lending_bot.notifications.notifier import Notifier
 
@@ -25,6 +26,44 @@ def test_notifier_sends_telegram_message() -> None:
     request = http_client.requests[0]
     assert request["url"] == "https://api.telegram.org/bottoken/sendMessage"
     assert request["body"] == "chat_id=chat&text=hello+world"
+
+
+def test_notifier_sends_run_summary() -> None:
+    http_client = FakeHttpClient()
+    notifier = Notifier(
+        settings=_settings(telegram_bot_token="token", telegram_chat_id="chat"),
+        http_client=http_client,
+    )
+
+    notifier.run_summary(created_offers=3, active_loans=2, dry_run=True)
+
+    assert http_client.requests[0]["body"] == (
+        "chat_id=chat&text=Completed+dry-run+run+with+3+offer%28s%29."
+        "+Active+loans%3A+2."
+    )
+
+
+def test_notifier_sends_filled_loan_message() -> None:
+    http_client = FakeHttpClient()
+    notifier = Notifier(
+        settings=_settings(telegram_bot_token="token", telegram_chat_id="chat"),
+        http_client=http_client,
+    )
+
+    notifier.loan_filled(
+        ActiveLoan(
+            currency="BTC",
+            amount=0.05,
+            daily_rate=0.00008,
+            duration_days=2,
+            external_loan_id="loan-1",
+        )
+    )
+
+    assert http_client.requests[0]["body"] == (
+        "chat_id=chat&text=Filled+BTC+loan+loan-1%3A+0.05+at+0.00008000+daily+rate+"
+        "for+2+day%28s%29."
+    )
 
 
 class FakeHttpClient:

@@ -67,3 +67,24 @@ src/auto_lending_bot/
 - `BOT_DRY_RUN=true` is the default.
 - `BOT_DRY_RUN=false` requires `ALLOW_LIVE_TRADING=true`.
 - Live trading support is not implemented yet.
+
+## Strategy Settings
+
+Global strategy settings can be configured through environment variables:
+
+- `MIN_DAILY_RATE`
+- `MAX_DAILY_RATE`
+- `MIN_LOAN_SIZE`
+- `MAX_PERCENT_TO_LEND`
+- `MAX_AMOUNT_TO_LEND`
+- `HIDE_COINS`
+- `SPREAD_LEND`
+
+Per-currency overrides use the currency symbol as a prefix, for example:
+
+```env
+BTC_MIN_DAILY_RATE=0.00008
+BTC_MAX_PERCENT_TO_LEND=80
+BTC_MAX_AMOUNT_TO_LEND=0.1
+BTC_HIDE_COINS=true
+```

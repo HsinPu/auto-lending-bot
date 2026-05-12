@@ -1,14 +1,26 @@
+from dataclasses import dataclass
+
 from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
+
+
+@dataclass(frozen=True)
+class StrategyConfig:
+    min_daily_rate: float
+    max_daily_rate: float
+    min_loan_size: float
+    spread_lend: int
+    max_percent_to_lend: float
+    max_amount_to_lend: float | None
+    hide_coins: bool
 
 
 def build_lending_decision(
     balance: CurrencyBalance,
     order_book: list[LoanOrder],
-    min_daily_rate: float,
-    min_loan_size: float,
-    spread_lend: int,
+    strategy: StrategyConfig,
 ) -> LendingDecision:
-    if balance.amount < min_loan_size:
+    lendable_amount = _lendable_amount(balance.amount, strategy)
+    if lendable_amount < strategy.min_loan_size:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
@@ -23,20 +35,21 @@ def build_lending_decision(
             reason="No loan orders are available.",
         )
 
-    if best_order.daily_rate < min_daily_rate:
+    if best_order.daily_rate < strategy.min_daily_rate and strategy.hide_coins:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
             reason="Best daily rate is below the configured minimum.",
         )
 
-    split_count = _split_count(balance.amount, min_loan_size, spread_lend)
-    offer_amounts = _split_amount(balance.amount, split_count)
+    offer_rate = min(max(best_order.daily_rate, strategy.min_daily_rate), strategy.max_daily_rate)
+    split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
+    offer_amounts = _split_amount(lendable_amount, split_count)
     offers = [
         LoanOffer(
             currency=balance.currency,
             amount=amount,
-            daily_rate=best_order.daily_rate,
+            daily_rate=offer_rate,
             duration_days=2,
         )
         for amount in offer_amounts
@@ -54,6 +67,14 @@ def _best_order(order_book: list[LoanOrder]) -> LoanOrder | None:
         return None
 
     return max(order_book, key=lambda order: order.daily_rate)
+
+
+def _lendable_amount(amount: float, strategy: StrategyConfig) -> float:
+    percent_amount = amount * (strategy.max_percent_to_lend / 100)
+    if strategy.max_amount_to_lend is None:
+        return round(percent_amount, 8)
+
+    return round(min(percent_amount, strategy.max_amount_to_lend), 8)
 
 
 def _split_count(amount: float, min_loan_size: float, spread_lend: int) -> int:

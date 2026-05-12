@@ -1,7 +1,7 @@
 import logging
 import time
 
-from auto_lending_bot.config import Settings
+from auto_lending_bot.config import Settings, strategy_config_for
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -49,9 +49,7 @@ class BotRunner:
                 decision = build_lending_decision(
                     balance=balance,
                     order_book=orders,
-                    min_daily_rate=self._settings.min_daily_rate,
-                    min_loan_size=self._settings.min_loan_size,
-                    spread_lend=self._settings.spread_lend,
+                    strategy=strategy_config_for(self._settings, balance.currency),
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)

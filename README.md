@@ -171,6 +171,8 @@ Global settings:
 - `MAX_DAILY_RATE`
 - `MIN_LOAN_SIZE`
 - `MAX_PERCENT_TO_LEND`
+- `MAX_TO_LEND`
+- `MAX_TO_LEND_RATE`
 - `MAX_AMOUNT_TO_LEND`
 - `HIDE_COINS`
 - `SPREAD_LEND`
@@ -191,6 +193,8 @@ Per-currency overrides use the currency symbol as a prefix:
 ```env
 BTC_MIN_DAILY_RATE=0.00008
 BTC_MAX_PERCENT_TO_LEND=80
+BTC_MAX_TO_LEND=0.1
+BTC_MAX_TO_LEND_RATE=0.00008
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_HIDE_COINS=true
 BTC_GAP_MODE=raw
@@ -204,6 +208,8 @@ BTC_FRR_DELTA=0.00001
 ```
 
 `FRR_AS_MIN=true` is Bitfinex-only strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
+
+`MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 
 ## Operations
 

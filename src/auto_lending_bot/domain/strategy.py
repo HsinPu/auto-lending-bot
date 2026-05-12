@@ -20,6 +20,7 @@ class StrategyConfig:
     frr_delta: float
     max_percent_to_lend: float
     max_amount_to_lend: float | None
+    max_to_lend_rate: float
     hide_coins: bool
 
 
@@ -30,20 +31,20 @@ def build_lending_decision(
     frr_daily_rate: float | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
-    lendable_amount = _lendable_amount(balance.amount, strategy)
-    if lendable_amount < strategy.min_loan_size:
-        return LendingDecision(
-            currency=balance.currency,
-            offers=[],
-            reason="Available balance is below the minimum loan size.",
-        )
-
     best_order = _best_order(order_book)
     if best_order is None:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
             reason="No loan orders are available.",
+        )
+
+    lendable_amount = _lendable_amount(balance.amount, best_order.daily_rate, strategy)
+    if lendable_amount < strategy.min_loan_size:
+        return LendingDecision(
+            currency=balance.currency,
+            offers=[],
+            reason="Available balance is below the minimum loan size.",
         )
 
     if best_order.daily_rate < strategy.min_daily_rate and strategy.hide_coins:
@@ -80,12 +81,25 @@ def _best_order(order_book: list[LoanOrder]) -> LoanOrder | None:
     return max(order_book, key=lambda order: order.daily_rate)
 
 
-def _lendable_amount(amount: float, strategy: StrategyConfig) -> float:
+def _lendable_amount(amount: float, best_daily_rate: float, strategy: StrategyConfig) -> float:
+    if not _should_restrict_lendable_amount(best_daily_rate, strategy):
+        return round(amount, 8)
+
     percent_amount = amount * (strategy.max_percent_to_lend / 100)
     if strategy.max_amount_to_lend is None:
         return round(percent_amount, 8)
 
     return round(min(percent_amount, strategy.max_amount_to_lend), 8)
+
+
+def _should_restrict_lendable_amount(best_daily_rate: float, strategy: StrategyConfig) -> bool:
+    if strategy.max_amount_to_lend is None and strategy.max_percent_to_lend >= 100:
+        return False
+
+    if best_daily_rate <= 0:
+        return False
+
+    return strategy.max_to_lend_rate == 0 or best_daily_rate <= strategy.max_to_lend_rate
 
 
 def _split_count(amount: float, min_loan_size: float, spread_lend: int) -> int:

@@ -57,6 +57,26 @@ def test_strategy_limits_lendable_amount_by_percent() -> None:
     assert sum(offer.amount for offer in decision.offers) == 5.0
 
 
+def test_strategy_does_not_limit_lendable_amount_above_max_to_lend_rate() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=10.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001)],
+        strategy=_strategy(max_percent_to_lend=50, max_to_lend_rate=0.00008),
+    )
+
+    assert sum(offer.amount for offer in decision.offers) == 10.0
+
+
+def test_strategy_limits_lendable_amount_at_or_below_max_to_lend_rate() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=10.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008)],
+        strategy=_strategy(max_percent_to_lend=50, max_to_lend_rate=0.00008),
+    )
+
+    assert sum(offer.amount for offer in decision.offers) == 5.0
+
+
 def test_strategy_limits_lendable_amount_by_max_amount() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=10.0),
@@ -164,6 +184,7 @@ def _strategy(
     frr_delta: float = 0,
     max_percent_to_lend: float = 100,
     max_amount_to_lend: float | None = None,
+    max_to_lend_rate: float = 0,
     hide_coins: bool = True,
 ) -> StrategyConfig:
     return StrategyConfig(
@@ -181,5 +202,6 @@ def _strategy(
         frr_delta=frr_delta,
         max_percent_to_lend=max_percent_to_lend,
         max_amount_to_lend=max_amount_to_lend,
+        max_to_lend_rate=max_to_lend_rate,
         hide_coins=hide_coins,
     )

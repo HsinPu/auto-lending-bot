@@ -45,6 +45,7 @@ class Settings:
     max_daily_rate: float
     min_loan_size: float
     max_percent_to_lend: float
+    max_to_lend_rate: float
     spread_lend: int
     database_url: str
     log_level: str
@@ -81,13 +82,16 @@ def load_settings() -> Settings:
         xday_spread=_get_float("XDAY_SPREAD", default=0.0),
         frr_as_min=_get_bool("FRR_AS_MIN", default=False),
         frr_delta=_get_float("FRR_DELTA", default=0.0),
-        max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),
+        max_amount_to_lend=_get_optional_float("MAX_TO_LEND")
+        if os.getenv("MAX_TO_LEND") is not None
+        else _get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
         min_daily_rate=_get_float("MIN_DAILY_RATE", default=0.00005),
         max_daily_rate=_get_float("MAX_DAILY_RATE", default=0.05),
         min_loan_size=_get_float("MIN_LOAN_SIZE", default=0.01),
         max_percent_to_lend=_get_float("MAX_PERCENT_TO_LEND", default=100.0),
+        max_to_lend_rate=_get_float("MAX_TO_LEND_RATE", default=0.0),
         spread_lend=_get_int("SPREAD_LEND", default=3),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -144,11 +148,20 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         max_percent_to_lend=_get_float(
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),
-        max_amount_to_lend=_get_optional_float(f"{prefix}_MAX_AMOUNT_TO_LEND")
-        if os.getenv(f"{prefix}_MAX_AMOUNT_TO_LEND") is not None
-        else settings.max_amount_to_lend,
+        max_amount_to_lend=_currency_max_to_lend(prefix, settings),
+        max_to_lend_rate=_get_float(f"{prefix}_MAX_TO_LEND_RATE", settings.max_to_lend_rate),
         hide_coins=_get_bool(f"{prefix}_HIDE_COINS", settings.hide_coins),
     )
+
+
+def _currency_max_to_lend(prefix: str, settings: Settings) -> float | None:
+    if os.getenv(f"{prefix}_MAX_TO_LEND") is not None:
+        return _get_optional_float(f"{prefix}_MAX_TO_LEND")
+
+    if os.getenv(f"{prefix}_MAX_AMOUNT_TO_LEND") is not None:
+        return _get_optional_float(f"{prefix}_MAX_AMOUNT_TO_LEND")
+
+    return settings.max_amount_to_lend
 
 
 def sqlite_path_from_url(database_url: str) -> Path:

@@ -138,6 +138,7 @@ def _settings(
         max_daily_rate=0.05,
         min_loan_size=0.01,
         max_percent_to_lend=100,
+        max_to_lend_rate=0,
         spread_lend=3,
         database_url="sqlite:///data/test.db",
         log_level="INFO",

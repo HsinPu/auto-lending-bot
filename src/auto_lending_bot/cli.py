@@ -3,7 +3,7 @@ import sys
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, load_settings, sqlite_path_from_url
-from auto_lending_bot.integrations.mock_exchange import create_exchange_client
+from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
@@ -63,7 +63,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _create_runner(settings: Settings) -> BotRunner:
     return BotRunner(
         settings=settings,
-        exchange=create_exchange_client(settings.exchange),
+        exchange=create_exchange_client(settings),
         bot_runs=BotRunRepository(settings.database_url),
         loan_offers=LoanOfferRepository(settings.database_url),
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),

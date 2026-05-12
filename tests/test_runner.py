@@ -16,10 +16,13 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     initialize_database(database_url)
     settings = Settings(
         allow_live_trading=False,
+        api_key="",
+        api_secret="",
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=True,
         exchange="mock",
+        http_timeout_seconds=30,
         max_loops=1,
         hide_coins=True,
         max_amount_to_lend=None,

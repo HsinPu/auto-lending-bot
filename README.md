@@ -99,4 +99,14 @@ building blocks for future real exchanges:
 - retry wrapper for rate-limit responses
 - Poloniex signing skeleton
 
-Real read-only exchange calls are still planned for a later phase.
+Phase five adds read-only Poloniex calls for balances, loan orders, and open loan offers.
+The runner still requires `BOT_DRY_RUN=true` for `EXCHANGE=poloniex`.
+
+```env
+EXCHANGE=poloniex
+EXCHANGE_API_KEY=your-key
+EXCHANGE_API_SECRET=your-secret
+BOT_DRY_RUN=true
+```
+
+Use API keys without withdrawal permissions.

@@ -13,10 +13,13 @@ except ImportError:  # pragma: no cover - used before dependencies are installed
 @dataclass(frozen=True)
 class Settings:
     allow_live_trading: bool
+    api_key: str
+    api_secret: str
     bot_label: str
     bot_sleep_seconds: int
     dry_run: bool
     exchange: str
+    http_timeout_seconds: int
     max_loops: int
     hide_coins: bool
     max_amount_to_lend: float | None
@@ -35,10 +38,13 @@ def load_settings() -> Settings:
 
     return Settings(
         allow_live_trading=_get_bool("ALLOW_LIVE_TRADING", default=False),
+        api_key=os.getenv("EXCHANGE_API_KEY", ""),
+        api_secret=os.getenv("EXCHANGE_API_SECRET", ""),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),
         exchange=os.getenv("EXCHANGE", "mock"),
+        http_timeout_seconds=_get_int("HTTP_TIMEOUT_SECONDS", default=30),
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         max_amount_to_lend=_get_optional_float("MAX_AMOUNT_TO_LEND"),

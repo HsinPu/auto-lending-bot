@@ -9,8 +9,8 @@ def test_validate_run_settings_allows_mock_dry_run() -> None:
 
 
 def test_validate_run_settings_rejects_non_mock_exchange() -> None:
-    with pytest.raises(SafetyError, match="Only EXCHANGE=mock"):
-        validate_run_settings(_settings(exchange="poloniex", dry_run=True, allow_live_trading=False))
+    with pytest.raises(SafetyError, match="Only EXCHANGE=mock or EXCHANGE=poloniex"):
+        validate_run_settings(_settings(exchange="bitfinex", dry_run=True, allow_live_trading=False))
 
 
 def test_validate_run_settings_rejects_live_mode_without_explicit_allowance() -> None:
@@ -22,13 +22,52 @@ def test_validate_run_settings_allows_explicit_live_mode() -> None:
     validate_run_settings(_settings(exchange="mock", dry_run=False, allow_live_trading=True))
 
 
-def _settings(exchange: str, dry_run: bool, allow_live_trading: bool) -> Settings:
+def test_validate_run_settings_rejects_poloniex_without_credentials() -> None:
+    with pytest.raises(SafetyError, match="EXCHANGE_API_KEY"):
+        validate_run_settings(_settings(exchange="poloniex", dry_run=True, allow_live_trading=False))
+
+
+def test_validate_run_settings_rejects_poloniex_live_mode() -> None:
+    with pytest.raises(SafetyError, match="read-only"):
+        validate_run_settings(
+            _settings(
+                exchange="poloniex",
+                dry_run=False,
+                allow_live_trading=True,
+                api_key="key",
+                api_secret="secret",
+            )
+        )
+
+
+def test_validate_run_settings_allows_poloniex_dry_run_with_credentials() -> None:
+    validate_run_settings(
+        _settings(
+            exchange="poloniex",
+            dry_run=True,
+            allow_live_trading=False,
+            api_key="key",
+            api_secret="secret",
+        )
+    )
+
+
+def _settings(
+    exchange: str,
+    dry_run: bool,
+    allow_live_trading: bool,
+    api_key: str = "",
+    api_secret: str = "",
+) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
+        api_key=api_key,
+        api_secret=api_secret,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=dry_run,
         exchange=exchange,
+        http_timeout_seconds=30,
         max_loops=1,
         hide_coins=True,
         max_amount_to_lend=None,

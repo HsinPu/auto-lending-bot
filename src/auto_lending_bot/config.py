@@ -15,6 +15,7 @@ class Settings:
     allow_live_trading: bool
     api_key: str
     api_secret: str
+    bitfinex_enable_live_offers: bool
     bot_label: str
     bot_sleep_seconds: int
     dry_run: bool
@@ -48,6 +49,7 @@ def load_settings() -> Settings:
         allow_live_trading=_get_bool("ALLOW_LIVE_TRADING", default=False),
         api_key=os.getenv("EXCHANGE_API_KEY", ""),
         api_secret=os.getenv("EXCHANGE_API_SECRET", ""),
+        bitfinex_enable_live_offers=_get_bool("BITFINEX_ENABLE_LIVE_OFFERS", default=False),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),

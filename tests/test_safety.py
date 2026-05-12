@@ -67,8 +67,8 @@ def test_validate_run_settings_rejects_bitfinex_without_credentials() -> None:
         validate_run_settings(_settings(exchange="bitfinex", dry_run=True, allow_live_trading=False))
 
 
-def test_validate_run_settings_rejects_bitfinex_live_mode() -> None:
-    with pytest.raises(SafetyError, match="read-only"):
+def test_validate_run_settings_rejects_bitfinex_live_mode_without_live_flag() -> None:
+    with pytest.raises(SafetyError, match="BITFINEX_ENABLE_LIVE_OFFERS"):
         validate_run_settings(
             _settings(
                 exchange="bitfinex",
@@ -76,6 +76,22 @@ def test_validate_run_settings_rejects_bitfinex_live_mode() -> None:
                 allow_live_trading=True,
                 api_key="key",
                 api_secret="secret",
+                max_single_offer_amount=0.1,
+                max_total_lend_amount=1.0,
+            )
+        )
+
+
+def test_validate_run_settings_rejects_bitfinex_live_mode_until_implemented() -> None:
+    with pytest.raises(SafetyError, match="not implemented"):
+        validate_run_settings(
+            _settings(
+                exchange="bitfinex",
+                dry_run=False,
+                allow_live_trading=True,
+                api_key="key",
+                api_secret="secret",
+                bitfinex_enable_live_offers=True,
                 max_single_offer_amount=0.1,
                 max_total_lend_amount=1.0,
             )
@@ -100,6 +116,7 @@ def _settings(
     allow_live_trading: bool,
     api_key: str = "",
     api_secret: str = "",
+    bitfinex_enable_live_offers: bool = False,
     max_single_offer_amount: float | None = None,
     max_total_lend_amount: float | None = None,
 ) -> Settings:
@@ -107,6 +124,7 @@ def _settings(
         allow_live_trading=allow_live_trading,
         api_key=api_key,
         api_secret=api_secret,
+        bitfinex_enable_live_offers=bitfinex_enable_live_offers,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=dry_run,

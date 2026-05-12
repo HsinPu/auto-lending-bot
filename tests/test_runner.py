@@ -61,6 +61,7 @@ def _settings(database_url: str, strategy_debug: bool = False) -> Settings:
         allow_live_trading=False,
         api_key="",
         api_secret="",
+        bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=True,

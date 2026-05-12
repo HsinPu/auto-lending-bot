@@ -146,6 +146,17 @@ BOT_DRY_RUN=true
 
 Use API keys without withdrawal permissions.
 
+Bitfinex live lending is still blocked in code. Future live testing will require all of:
+
+```env
+EXCHANGE=bitfinex
+BOT_DRY_RUN=false
+ALLOW_LIVE_TRADING=true
+MAX_TOTAL_LEND_AMOUNT=1
+MAX_SINGLE_OFFER_AMOUNT=0.1
+BITFINEX_ENABLE_LIVE_OFFERS=true
+```
+
 ## Live Lending Beta
 
 Live lending is guarded by explicit settings and is intended for small tests only:

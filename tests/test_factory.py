@@ -22,6 +22,7 @@ def _settings(exchange: str) -> Settings:
         allow_live_trading=False,
         api_key="key",
         api_secret="secret",
+        bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         dry_run=True,

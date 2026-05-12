@@ -55,6 +55,7 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         "/api/active-loans",
         "/api/lending-history",
         "/api/earnings",
+        "/api/converted-earnings",
         "/api/market-rates",
         "/api/currency-details",
     ]
@@ -100,6 +101,7 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
 
     assert response.status_code == 200
     body = response.json()
+    assert body["output_currency"] == "BTC"
     assert body["smoke_test_currency"] == "BTC"
     assert body["strategy"]["min_daily_rate"] == 0.00005
     assert body["strategy"]["spread_lend"] == 3
@@ -287,6 +289,7 @@ def _settings(
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,
+        output_currency="BTC",
         smoke_test_currency="BTC",
         strategy_debug=False,
         telegram_bot_token="",

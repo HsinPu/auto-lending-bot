@@ -160,6 +160,7 @@ Current read-only endpoints:
 - `GET /api/active-loans`
 - `GET /api/lending-history`
 - `GET /api/earnings`
+- `GET /api/converted-earnings`
 - `GET /api/market-rates`
 - `GET /api/settings`
 - `POST /api/actions/cancel-open-offers`
@@ -171,6 +172,7 @@ Global settings:
 - `MIN_DAILY_RATE`
 - `MAX_DAILY_RATE`
 - `MIN_LOAN_SIZE`
+- `OUTPUT_CURRENCY`
 - `MAX_PERCENT_TO_LEND`
 - `MAX_TO_LEND`
 - `MAX_TO_LEND_RATE`

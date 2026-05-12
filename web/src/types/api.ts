@@ -78,6 +78,14 @@ export type EarningsSummary = {
   total_earned: number
 }
 
+export type ConvertedEarnings = {
+  currency: string
+  output_currency: string
+  total_earned: number
+  converted_total_earned: number | null
+  conversion_available: boolean
+}
+
 export type MarketRate = {
   id: number
   currency: string
@@ -92,6 +100,7 @@ export type SettingsResponse = {
   dry_run: boolean
   allow_live_trading: boolean
   bitfinex_enable_live_offers: boolean
+  output_currency: string
   smoke_test_currency: string
   strategy_debug: boolean
   strategy: Record<string, string | number | boolean | null>
@@ -116,6 +125,7 @@ export type DashboardData = {
   activeLoans: ActiveLoan[]
   lendingHistory: LendingHistoryEntry[]
   earnings: EarningsSummary[]
+  convertedEarnings: ConvertedEarnings[]
   marketRates: MarketRate[]
   settings: SettingsResponse
   currencyDetails: CurrencyDetail[]

@@ -166,14 +166,16 @@ button {
 .mika-console-layout .action-panel,
 .mika-console-layout .currency-overview,
 .mika-console-layout .activity-panel,
-.mika-console-layout .forecast-panel {
+.mika-console-layout .forecast-panel,
+.mika-console-layout .converted-earnings-panel {
   margin-top: 0;
 }
 
 .mika-side-column .settings-panel,
 .mika-side-column .settings-panel dl,
 .mika-side-column .action-grid,
-.mika-side-column .forecast-grid {
+.mika-side-column .forecast-grid,
+.converted-earnings-grid {
   grid-template-columns: 1fr;
 }
 
@@ -192,8 +194,32 @@ button {
 }
 
 .mika-side-column .action-grid,
-.mika-side-column .forecast-grid {
+.mika-side-column .forecast-grid,
+.converted-earnings-grid {
   padding: 0 18px 18px;
+}
+
+.converted-earnings-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.converted-earnings-grid article {
+  display: grid;
+  gap: 6px;
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.converted-earnings-grid strong,
+.converted-earnings-grid b {
+  color: #f8fafc;
+}
+
+.converted-earnings-grid span {
+  color: #93c5fd;
+  font-size: 12px;
 }
 
 .mika-side-column .forecast-card {
@@ -456,7 +482,8 @@ h1 {
 .currency-overview,
 .forecast-panel,
 .activity-panel,
-.profit-panel {
+.profit-panel,
+.converted-earnings-panel {
   margin-top: 20px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 24px;

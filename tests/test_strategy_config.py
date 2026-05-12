@@ -7,6 +7,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MAX_TO_LEND", "0.5")
     monkeypatch.setenv("MAX_TO_LEND_RATE", "0.00008")
     monkeypatch.setenv("END_DATE", "2027-01-15")
+    monkeypatch.setenv("OUTPUT_CURRENCY", "usd")
     monkeypatch.setenv("GAP_MODE", "raw")
     monkeypatch.setenv("GAP_BOTTOM", "10")
     monkeypatch.setenv("GAP_TOP", "50")
@@ -18,6 +19,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
 
+    assert settings.output_currency == "USD"
     assert strategy.min_daily_rate == 0.00007
     assert strategy.max_percent_to_lend == 75
     assert strategy.max_amount_to_lend == 0.5

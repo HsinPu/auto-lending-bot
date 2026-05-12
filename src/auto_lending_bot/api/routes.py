@@ -69,6 +69,14 @@ def create_api_router(settings: Settings) -> APIRouter:
     def earnings() -> list[dict[str, object]]:
         return lending_history.earnings_summary_by_currency()
 
+    @router.get("/converted-earnings")
+    def converted_earnings() -> list[dict[str, object]]:
+        return _converted_earnings(
+            earnings_rows=lending_history.earnings_summary_by_currency(),
+            output_currency=settings.output_currency,
+            exchange=create_exchange_client(settings),
+        )
+
     @router.get("/market-rates")
     def market_rate_rows() -> list[dict[str, object]]:
         return market_rates.recent()
@@ -82,6 +90,7 @@ def create_api_router(settings: Settings) -> APIRouter:
             "dry_run": settings.dry_run,
             "allow_live_trading": settings.allow_live_trading,
             "bitfinex_enable_live_offers": settings.bitfinex_enable_live_offers,
+            "output_currency": settings.output_currency,
             "smoke_test_currency": settings.smoke_test_currency,
             "strategy_debug": settings.strategy_debug,
             "strategy": strategy.__dict__,
@@ -260,3 +269,39 @@ def _currency_details(
             }
         )
     return details
+
+
+def _converted_earnings(
+    earnings_rows: list[dict[str, object]],
+    output_currency: str,
+    exchange,
+) -> list[dict[str, object]]:
+    output_currency = output_currency.upper()
+    output_btc_price = _safe_btc_price(exchange, output_currency)
+    converted_rows = []
+    for row in earnings_rows:
+        currency = str(row["currency"]).upper()
+        total_earned = float(row.get("total_earned", 0))
+        currency_btc_price = _safe_btc_price(exchange, currency)
+        converted_total = None
+        conversion_available = False
+        if currency_btc_price is not None and output_btc_price not in {None, 0}:
+            converted_total = total_earned * currency_btc_price / output_btc_price
+            conversion_available = True
+        converted_rows.append(
+            {
+                "currency": currency,
+                "output_currency": output_currency,
+                "total_earned": total_earned,
+                "converted_total_earned": converted_total,
+                "conversion_available": conversion_available,
+            }
+        )
+    return converted_rows
+
+
+def _safe_btc_price(exchange, currency: str) -> float | None:
+    try:
+        return exchange.get_btc_price(currency)
+    except Exception:
+        return None

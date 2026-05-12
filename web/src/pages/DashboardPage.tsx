@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
+import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
 import { DashboardNav } from '../components/DashboardNav'
@@ -141,6 +142,8 @@ export function DashboardPage() {
               />
 
               <EarningsForecast details={data.currencyDetails} />
+
+              <ConvertedEarningsPanel rows={data.convertedEarnings} />
             </aside>
           </div>
 

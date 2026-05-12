@@ -29,6 +29,7 @@ def _settings(exchange: str) -> Settings:
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,
+        output_currency="BTC",
         smoke_test_currency="BTC",
         strategy_debug=False,
         telegram_bot_token="",

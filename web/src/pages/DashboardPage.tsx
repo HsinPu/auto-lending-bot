@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { DataTable } from '../components/DataTable'
+import { MiniCharts } from '../components/MiniCharts'
 import { StatusCard } from '../components/StatusCard'
 import type {
   ActiveLoan,
@@ -99,6 +100,12 @@ export function DashboardPage() {
               }
               actionMutation.mutate({ action, confirmLive })
             }}
+          />
+
+          <MiniCharts
+            earnings={data.earnings}
+            marketRates={data.marketRates}
+            offers={data.offers}
           />
 
           <DataTable<BotRun>

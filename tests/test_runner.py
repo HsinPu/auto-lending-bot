@@ -136,6 +136,7 @@ def _settings(
         exchange="mock",
         http_timeout_seconds=30,
         market_rate_retention_days=30,
+        market_analysis_levels=10,
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,

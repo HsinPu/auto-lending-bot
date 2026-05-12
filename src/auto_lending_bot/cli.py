@@ -10,6 +10,7 @@ from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
 from auto_lending_bot.market.recorder import MarketRecorder
+from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
@@ -17,6 +18,7 @@ from auto_lending_bot.persistence.repository import (
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
@@ -77,6 +79,24 @@ def run_cli(argv: list[str] | None = None) -> int:
         offers = create_exchange_client(settings).get_open_loan_offers()
         OpenLoanOfferRepository(settings.database_url).replace_all(offers)
         print(f"Synced {len(offers)} open loan offer row(s).")
+        return 0
+
+    if args.command == "record-market-analysis":
+        try:
+            validate_run_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        initialize_database(settings.database_url)
+        changed_count = MarketAnalysisRecorder(
+            MarketAnalysisRateRepository(settings.database_url)
+        ).record_currency(
+            exchange=create_exchange_client(settings),
+            currency=args.currency or settings.smoke_test_currency,
+            levels=args.levels or settings.market_analysis_levels,
+        )
+        print(f"Recorded {changed_count} market analysis rate row(s).")
         return 0
 
     if args.command == "cancel-open-offers":
@@ -157,6 +177,11 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("status", help="Show bot status from SQLite.")
     subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")
     subparsers.add_parser("sync-open-offers", help="Sync open loan offers from the exchange.")
+    market_analysis_parser = subparsers.add_parser(
+        "record-market-analysis", help="Record lendbook levels for market analysis."
+    )
+    market_analysis_parser.add_argument("--currency", help="Currency to record.")
+    market_analysis_parser.add_argument("--levels", type=int, help="Number of lendbook levels.")
     cancel_parser = subparsers.add_parser(
         "cancel-open-offers", help="Cancel open loan offers after safety confirmation."
     )

@@ -4,12 +4,14 @@ from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, sqlite_path_from_url, strategy_config_for
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.recorder import MarketRecorder
+from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
@@ -22,6 +24,7 @@ def create_api_router(settings: Settings) -> APIRouter:
     bot_runs = BotRunRepository(settings.database_url)
     loan_offers = LoanOfferRepository(settings.database_url)
     market_rates = MarketRateRepository(settings.database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(settings.database_url)
     active_loans = ActiveLoanRepository(settings.database_url)
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
@@ -40,7 +43,8 @@ def create_api_router(settings: Settings) -> APIRouter:
                 "open_loan_offers": open_offers.count(),
                 "active_loans": active_loans.count(),
                 "lending_history": lending_history.count(),
-                "market_rates": market_rates.count(),
+                 "market_rates": market_rates.count(),
+                "market_analysis_rates": market_analysis_rates.count(),
             },
             "latest_run": bot_runs.latest(),
         }
@@ -81,6 +85,10 @@ def create_api_router(settings: Settings) -> APIRouter:
     def market_rate_rows() -> list[dict[str, object]]:
         return market_rates.recent()
 
+    @router.get("/market-analysis-rates")
+    def market_analysis_rate_rows() -> list[dict[str, object]]:
+        return market_analysis_rates.recent()
+
     @router.get("/settings")
     def settings_snapshot() -> dict[str, object]:
         strategy = strategy_config_for(settings, settings.smoke_test_currency)
@@ -91,6 +99,7 @@ def create_api_router(settings: Settings) -> APIRouter:
             "allow_live_trading": settings.allow_live_trading,
             "bitfinex_enable_live_offers": settings.bitfinex_enable_live_offers,
             "output_currency": settings.output_currency,
+            "market_analysis_levels": settings.market_analysis_levels,
             "smoke_test_currency": settings.smoke_test_currency,
             "strategy_debug": settings.strategy_debug,
             "strategy": strategy.__dict__,
@@ -143,6 +152,24 @@ def create_api_router(settings: Settings) -> APIRouter:
             "action": "sync-open-offers",
             "ok": True,
             "changed_count": len(offers),
+        }
+
+    @router.post("/actions/record-market-analysis")
+    def record_market_analysis(payload: dict[str, object] | None = None) -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        payload = payload or {}
+        currency = str(payload.get("currency") or settings.smoke_test_currency).upper()
+        levels = int(payload.get("levels") or settings.market_analysis_levels)
+        changed_count = MarketAnalysisRecorder(market_analysis_rates).record_currency(
+            exchange=create_exchange_client(settings),
+            currency=currency,
+            levels=levels,
+        )
+        return {
+            "action": "record-market-analysis",
+            "ok": True,
+            "currency": currency,
+            "changed_count": changed_count,
         }
 
     @router.post("/actions/cancel-open-offers")

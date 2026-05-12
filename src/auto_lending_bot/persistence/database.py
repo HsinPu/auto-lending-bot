@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS open_loan_offers (
     external_offer_id TEXT,
     captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS market_analysis_rates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency TEXT NOT NULL,
+    level INTEGER NOT NULL,
+    daily_rate REAL NOT NULL,
+    available_amount REAL NOT NULL,
+    captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

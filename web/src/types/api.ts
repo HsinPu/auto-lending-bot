@@ -11,6 +11,7 @@ export type StatusResponse = {
     active_loans: number
     lending_history: number
     market_rates: number
+    market_analysis_rates: number
   }
   latest_run: null | {
     id: number
@@ -94,6 +95,15 @@ export type MarketRate = {
   captured_at: string
 }
 
+export type MarketAnalysisRate = {
+  id: number
+  currency: string
+  level: number
+  daily_rate: number
+  available_amount: number
+  captured_at: string
+}
+
 export type SettingsResponse = {
   label: string
   exchange: string
@@ -101,6 +111,7 @@ export type SettingsResponse = {
   allow_live_trading: boolean
   bitfinex_enable_live_offers: boolean
   output_currency: string
+  market_analysis_levels: number
   smoke_test_currency: string
   strategy_debug: boolean
   strategy: Record<string, string | number | boolean | null>
@@ -127,6 +138,7 @@ export type DashboardData = {
   earnings: EarningsSummary[]
   convertedEarnings: ConvertedEarnings[]
   marketRates: MarketRate[]
+  marketAnalysisRates: MarketAnalysisRate[]
   settings: SettingsResponse
   currencyDetails: CurrencyDetail[]
 }
@@ -136,6 +148,7 @@ export type SafeActionName =
   | 'sync-history'
   | 'sync-open-offers'
   | 'cancel-open-offers'
+  | 'record-market-analysis'
   | 'cleanup'
   | 'run-once'
 

@@ -25,6 +25,11 @@ const actions: Array<{ action: SafeActionName; label: string; description: strin
     description: '同步交易所未成交委託快照。',
   },
   {
+    action: 'record-market-analysis',
+    label: 'Record Market Analysis',
+    description: '記錄目前設定幣種的 lendbook levels。',
+  },
+  {
     action: 'cancel-open-offers',
     label: 'Cancel Open Offers',
     description: '取消未成交委託；Live 模式需要二次確認。',

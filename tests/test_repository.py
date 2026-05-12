@@ -5,6 +5,7 @@ from auto_lending_bot.persistence.repository import (
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
@@ -20,6 +21,7 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     active_loans = ActiveLoanRepository(database_url)
     lending_history = LendingHistoryRepository(database_url)
     open_offers = OpenLoanOfferRepository(database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
 
     bot_run_id = bot_runs.start(dry_run=True)
     loan_offers.add(
@@ -29,6 +31,12 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
         dry_run=True,
     )
     market_rates.add(LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008))
+    market_analysis_rates.add_many(
+        [
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008),
+            LoanOrder(currency="BTC", amount=2.0, daily_rate=0.00009),
+        ]
+    )
     active_loans.replace_all(
         [
             ActiveLoan(
@@ -57,6 +65,7 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     assert bot_runs.count() == 1
     assert loan_offers.count() == 1
     assert market_rates.count() == 1
+    assert market_analysis_rates.count() == 2
     assert active_loans.count() == 1
     assert lending_history.count() == 1
     assert open_offers.count() == 1
@@ -115,6 +124,22 @@ def test_open_loan_offer_repository_replaces_snapshot(tmp_path) -> None:
     open_offers.replace_all([])
 
     assert open_offers.count() == 0
+
+
+def test_market_analysis_rate_repository_records_levels(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+
+    changed_count = repository.add_many(
+        [
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008),
+            LoanOrder(currency="BTC", amount=2.0, daily_rate=0.00009),
+        ]
+    )
+
+    assert changed_count == 2
+    assert repository.recent(1)[0]["level"] == 1
 
 
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:

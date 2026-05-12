@@ -7,6 +7,7 @@ import type {
   EarningsSummary,
   LendingHistoryEntry,
   LoanOffer,
+  MarketAnalysisRate,
   MarketRate,
   SafeActionName,
   SafeActionResponse,
@@ -31,6 +32,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     earnings,
     convertedEarnings,
     marketRates,
+    marketAnalysisRates,
     settings,
     currencyDetails,
   ] = await Promise.all([
@@ -43,6 +45,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     getJson<EarningsSummary[]>('/api/earnings'),
     getJson<ConvertedEarnings[]>('/api/converted-earnings'),
     getJson<MarketRate[]>('/api/market-rates'),
+    getJson<MarketAnalysisRate[]>('/api/market-analysis-rates'),
     getJson<SettingsResponse>('/api/settings'),
     getJson<CurrencyDetail[]>('/api/currency-details'),
   ])
@@ -57,6 +60,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     earnings,
     convertedEarnings,
     marketRates,
+    marketAnalysisRates,
     settings,
     currencyDetails,
   }

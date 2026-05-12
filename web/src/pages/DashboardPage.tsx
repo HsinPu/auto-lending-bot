@@ -23,6 +23,7 @@ import type {
   EarningsSummary,
   LendingHistoryEntry,
   LoanOffer,
+  MarketAnalysisRate,
   MarketRate,
   SafeActionName,
   SafeActionResponse,
@@ -96,6 +97,7 @@ export function DashboardPage() {
                 <StatusCard label="貸出委託" value={data.status.counts.loan_offers} />
                 <StatusCard label="目前放貸中" value={data.status.counts.active_loans} />
                 <StatusCard label="收益紀錄" value={data.status.counts.lending_history} />
+                <StatusCard label="市場分析" value={data.status.counts.market_analysis_rates} />
               </section>
 
               <CurrencyOverview details={data.currencyDetails} />
@@ -218,6 +220,13 @@ export function DashboardPage() {
                 rows={data.marketRates}
                 columns={marketRateColumns}
               />
+
+              <DataTable<MarketAnalysisRate>
+                title="市場分析紀錄"
+                description="由 record-market-analysis 記錄的 lendbook depth levels。"
+                rows={data.marketAnalysisRates}
+                columns={marketAnalysisColumns}
+              />
             </section>
           ) : null}
         </>
@@ -312,3 +321,12 @@ const marketRateColumns = [
   { key: 'available_amount', label: '可用數量', format: amount },
   { key: 'captured_at', label: '擷取時間' },
 ] satisfies Parameters<typeof DataTable<MarketRate>>[0]['columns']
+
+const marketAnalysisColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'level', label: 'Level' },
+  { key: 'daily_rate', label: '日利率', format: rate },
+  { key: 'available_amount', label: '可用數量', format: amount },
+  { key: 'captured_at', label: '擷取時間' },
+] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']

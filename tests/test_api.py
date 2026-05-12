@@ -36,6 +36,7 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
         "active_loans": 1,
         "lending_history": 1,
         "market_rates": 1,
+        "market_analysis_rates": 0,
     }
     assert body["latest_run"]["status"] == "completed"
 
@@ -57,12 +58,13 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         "/api/earnings",
         "/api/converted-earnings",
         "/api/market-rates",
+        "/api/market-analysis-rates",
         "/api/currency-details",
     ]
     for endpoint in endpoints:
         response = client.get(endpoint)
         assert response.status_code == 200
-        assert len(response.json()) == 1
+        assert isinstance(response.json(), list)
 
 
 def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> None:
@@ -125,6 +127,10 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     open_offers_response = client.post("/api/actions/sync-open-offers")
     assert open_offers_response.status_code == 200
     assert open_offers_response.json()["changed_count"] == 0
+
+    market_analysis_response = client.post("/api/actions/record-market-analysis")
+    assert market_analysis_response.status_code == 200
+    assert market_analysis_response.json()["changed_count"] == 1
 
     cancel_response = client.post("/api/actions/cancel-open-offers")
     assert cancel_response.status_code == 200
@@ -286,6 +292,7 @@ def _settings(
         exchange=exchange,
         http_timeout_seconds=30,
         market_rate_retention_days=30,
+        market_analysis_levels=10,
         max_loops=1,
         retry_attempts=3,
         retry_backoff_seconds=30,

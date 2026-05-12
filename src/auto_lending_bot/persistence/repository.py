@@ -233,6 +233,49 @@ class MarketRateRepository:
             return [dict(row) for row in rows]
 
 
+class MarketAnalysisRateRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def add_many(self, orders: list[LoanOrder]) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.executemany(
+                """
+                INSERT INTO market_analysis_rates (
+                    currency,
+                    level,
+                    daily_rate,
+                    available_amount
+                ) VALUES (?, ?, ?, ?)
+                """,
+                [
+                    (order.currency, index, order.daily_rate, order.amount)
+                    for index, order in enumerate(orders)
+                ],
+            )
+            return int(cursor.rowcount)
+
+    def count(self) -> int:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM market_analysis_rates"
+            ).fetchone()
+            return int(row["count"])
+
+    def recent(self, limit: int = 50) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, currency, level, daily_rate, available_amount, captured_at
+                FROM market_analysis_rates
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+
 class ActiveLoanRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

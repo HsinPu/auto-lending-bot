@@ -68,6 +68,18 @@ def test_cli_cancel_open_offers_dry_run_does_not_cancel(tmp_path, monkeypatch, c
     assert exchange.canceled_offer_ids == []
 
 
+def test_cli_record_market_analysis_writes_rows(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: FakeExchange())
+
+    exit_code = run_cli(["record-market-analysis", "--currency", "BTC", "--levels", "1"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Recorded 1 market analysis rate row(s)." in output
+
+
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("BOT_DRY_RUN", "false")

@@ -143,7 +143,10 @@ export function DashboardPage() {
 
               <EarningsForecast details={data.currencyDetails} />
 
-              <ConvertedEarningsPanel rows={data.convertedEarnings} />
+              <ConvertedEarningsPanel
+                rows={data.convertedEarnings}
+                btcUnit={displaySettings.btcUnit}
+              />
             </aside>
           </div>
 
@@ -228,6 +231,7 @@ const displaySettingsKey = 'auto-lending-bot.displaySettings'
 const defaultDisplaySettings: DisplaySettings = {
   compactLayout: false,
   showRawTables: true,
+  btcUnit: 'BTC',
 }
 
 function loadDisplaySettings(): DisplaySettings {

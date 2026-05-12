@@ -2,9 +2,10 @@ import type { ConvertedEarnings } from '../types/api'
 
 type ConvertedEarningsPanelProps = {
   rows: ConvertedEarnings[]
+  btcUnit: 'BTC' | 'mBTC' | 'Bits' | 'Satoshi'
 }
 
-export function ConvertedEarningsPanel({ rows }: ConvertedEarningsPanelProps) {
+export function ConvertedEarningsPanel({ rows, btcUnit }: ConvertedEarningsPanelProps) {
   const outputCurrency = rows[0]?.output_currency ?? 'BTC'
 
   return (
@@ -21,10 +22,10 @@ export function ConvertedEarningsPanel({ rows }: ConvertedEarningsPanelProps) {
           {rows.map((row) => (
             <article key={row.currency}>
               <strong>{row.currency}</strong>
-              <span>原幣 {amount(row.total_earned)}</span>
+              <span>原幣 {displayAmount(row.total_earned, row.currency, btcUnit)}</span>
               <b>
                 {row.conversion_available && row.converted_total_earned !== null
-                  ? `${amount(row.converted_total_earned)} ${row.output_currency}`
+                  ? displayAmount(row.converted_total_earned, row.output_currency, btcUnit)
                   : 'unavailable'}
               </b>
             </article>
@@ -35,6 +36,24 @@ export function ConvertedEarningsPanel({ rows }: ConvertedEarningsPanelProps) {
       )}
     </section>
   )
+}
+
+function displayAmount(
+  value: number,
+  currency: string,
+  btcUnit: ConvertedEarningsPanelProps['btcUnit'],
+) {
+  if (currency !== 'BTC') {
+    return `${amount(value)} ${currency}`
+  }
+
+  const multipliers = {
+    BTC: 1,
+    mBTC: 1000,
+    Bits: 1000000,
+    Satoshi: 100000000,
+  }
+  return `${amount(value * multipliers[btcUnit])} ${btcUnit}`
 }
 
 const amount = (value: number) => value.toPrecision(8)

@@ -3,6 +3,7 @@ import { useState } from 'react'
 export type DisplaySettings = {
   compactLayout: boolean
   showRawTables: boolean
+  btcUnit: 'BTC' | 'mBTC' | 'Bits' | 'Satoshi'
 }
 
 type DisplaySettingsModalProps = {
@@ -64,6 +65,27 @@ export function DisplaySettingsModal({ settings, onChange }: DisplaySettingsModa
                 <strong>顯示原始資料表</strong>
                 <small>保留 runs、offers、history、market rates 等 API 明細表。</small>
               </span>
+            </label>
+
+            <label className="toggle-row">
+              <span>
+                <strong>BTC 顯示單位</strong>
+                <small>只影響前端顯示，類似 Mika 的 BTC/mBTC/Bits/Satoshi 選項。</small>
+              </span>
+              <select
+                value={settings.btcUnit}
+                onChange={(event) =>
+                  onChange({
+                    ...settings,
+                    btcUnit: event.currentTarget.value as DisplaySettings['btcUnit'],
+                  })
+                }
+              >
+                <option value="BTC">BTC</option>
+                <option value="mBTC">mBTC</option>
+                <option value="Bits">Bits</option>
+                <option value="Satoshi">Satoshi</option>
+              </select>
             </label>
           </section>
         </div>

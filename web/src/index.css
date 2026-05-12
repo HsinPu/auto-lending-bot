@@ -406,6 +406,15 @@ h1 {
   margin-top: 2px;
 }
 
+.toggle-row select {
+  margin-left: auto;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  border-radius: 12px;
+  padding: 8px 10px;
+  color: #dbeafe;
+  background: #0f172a;
+}
+
 .toggle-row strong,
 .toggle-row small {
   display: block;

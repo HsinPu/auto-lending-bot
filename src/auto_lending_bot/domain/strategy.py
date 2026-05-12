@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import replace
+from datetime import date
 
 from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
 
@@ -21,6 +22,7 @@ class StrategyConfig:
     max_percent_to_lend: float
     max_amount_to_lend: float | None
     max_to_lend_rate: float
+    end_date: date | None
     hide_coins: bool
 
 
@@ -52,6 +54,13 @@ def build_lending_decision(
             currency=balance.currency,
             offers=[],
             reason="Best daily rate is below the configured minimum.",
+        )
+
+    if strategy.end_date is not None and _days_until_end(strategy) <= 2:
+        return LendingDecision(
+            currency=balance.currency,
+            offers=[],
+            reason="End date is too close to create new lending offers.",
         )
 
     split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
@@ -183,10 +192,13 @@ def _strategy_with_frr_minimum(
 
 
 def _duration_days(rate: float, strategy: StrategyConfig) -> int:
+    max_end_date_days = _days_until_end(strategy)
     if strategy.xday_threshold <= 0:
-        return 2
+        return min(2, max_end_date_days) if max_end_date_days > 0 else 2
 
     max_days = min(max(strategy.xdays, 2), 120)
+    if max_end_date_days > 0:
+        max_days = min(max_days, max_end_date_days)
     if rate >= strategy.xday_threshold:
         return max_days
 
@@ -199,3 +211,10 @@ def _duration_days(rate: float, strategy: StrategyConfig) -> int:
 
     slope = (max_days - 2) / (strategy.xday_threshold - threshold_min)
     return min(max(round(slope * (rate - threshold_min) + 2), 2), max_days)
+
+
+def _days_until_end(strategy: StrategyConfig) -> int:
+    if strategy.end_date is None:
+        return 0
+
+    return (strategy.end_date - date.today()).days

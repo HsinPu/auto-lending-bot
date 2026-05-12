@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from auto_lending_bot.domain.strategy import StrategyConfig
@@ -46,6 +47,7 @@ class Settings:
     min_loan_size: float
     max_percent_to_lend: float
     max_to_lend_rate: float
+    end_date: date | None
     spread_lend: int
     database_url: str
     log_level: str
@@ -92,6 +94,7 @@ def load_settings() -> Settings:
         min_loan_size=_get_float("MIN_LOAN_SIZE", default=0.01),
         max_percent_to_lend=_get_float("MAX_PERCENT_TO_LEND", default=100.0),
         max_to_lend_rate=_get_float("MAX_TO_LEND_RATE", default=0.0),
+        end_date=_get_optional_date("END_DATE"),
         spread_lend=_get_int("SPREAD_LEND", default=3),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -130,6 +133,14 @@ def _get_optional_float(name: str) -> float | None:
     return float(raw_value)
 
 
+def _get_optional_date(name: str) -> date | None:
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return None
+
+    return date.fromisoformat(raw_value)
+
+
 def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
     prefix = currency.upper()
     return StrategyConfig(
@@ -150,6 +161,9 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         ),
         max_amount_to_lend=_currency_max_to_lend(prefix, settings),
         max_to_lend_rate=_get_float(f"{prefix}_MAX_TO_LEND_RATE", settings.max_to_lend_rate),
+        end_date=_get_optional_date(f"{prefix}_END_DATE")
+        if os.getenv(f"{prefix}_END_DATE") is not None
+        else settings.end_date,
         hide_coins=_get_bool(f"{prefix}_HIDE_COINS", settings.hide_coins),
     )
 

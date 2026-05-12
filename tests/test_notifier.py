@@ -87,6 +87,7 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         min_loan_size=0.01,
         max_percent_to_lend=100,
         max_to_lend_rate=0,
+        end_date=None,
         spread_lend=3,
         database_url="sqlite:///data/test.db",
         log_level="INFO",

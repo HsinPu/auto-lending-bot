@@ -182,6 +182,7 @@ Global settings:
 - `XDAY_THRESHOLD`
 - `XDAYS`
 - `XDAY_SPREAD`
+- `END_DATE`
 - `FRR_AS_MIN`
 - `FRR_DELTA`
 - `STRATEGY_DEBUG`
@@ -204,6 +205,7 @@ BTC_GAP_TOP=100
 BTC_XDAY_THRESHOLD=0.001
 BTC_XDAYS=30
 BTC_XDAY_SPREAD=2
+BTC_END_DATE=2027-01-15
 BTC_FRR_AS_MIN=true
 BTC_FRR_DELTA=0.00001
 ```
@@ -211,6 +213,8 @@ BTC_FRR_DELTA=0.00001
 `FRR_AS_MIN=true` is Bitfinex-only strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
 
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
+
+`END_DATE=YYYY-MM-DD` caps offer duration so new loans finish before the date. When two or fewer days remain, the strategy stops creating new lending offers.
 
 ## Operations
 

@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from auto_lending_bot.domain.models import CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import StrategyConfig, build_lending_decision
 
@@ -192,6 +194,27 @@ def test_strategy_linearly_increases_duration_with_xday_spread() -> None:
     assert {offer.duration_days for offer in decision.offers} == {16}
 
 
+def test_strategy_caps_duration_at_end_date() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.001)],
+        strategy=_strategy(xday_threshold=0.001, xdays=30, end_date=date.today() + timedelta(days=10)),
+    )
+
+    assert {offer.duration_days for offer in decision.offers} == {10}
+
+
+def test_strategy_stops_when_end_date_is_too_close() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.001)],
+        strategy=_strategy(end_date=date.today() + timedelta(days=2)),
+    )
+
+    assert decision.should_lend is False
+    assert decision.reason == "End date is too close to create new lending offers."
+
+
 def _strategy(
     min_daily_rate: float = 0.00005,
     max_daily_rate: float = 0.05,
@@ -208,6 +231,7 @@ def _strategy(
     max_percent_to_lend: float = 100,
     max_amount_to_lend: float | None = None,
     max_to_lend_rate: float = 0,
+    end_date: date | None = None,
     hide_coins: bool = True,
 ) -> StrategyConfig:
     return StrategyConfig(
@@ -226,5 +250,6 @@ def _strategy(
         max_percent_to_lend=max_percent_to_lend,
         max_amount_to_lend=max_amount_to_lend,
         max_to_lend_rate=max_to_lend_rate,
+        end_date=end_date,
         hide_coins=hide_coins,
     )

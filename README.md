@@ -105,6 +105,8 @@ docker compose run --rm --env-file .env auto-lending-bot auto-lending-bot dashbo
 
 `STRATEGY_DEBUG=true` prints balance, observed best daily rate, configured min/max rates, skip reason, and generated offer count.
 
+See `docs/bitfinex-dry-run-workflow.md` for the full dry-run calibration workflow.
+
 ## Guarded Live Lending
 
 Live Bitfinex lending is intended for small beta tests only. It requires all of:

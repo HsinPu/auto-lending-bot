@@ -88,3 +88,15 @@ BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_HIDE_COINS=true
 ```
+
+## Exchange Adapter Roadmap
+
+The project currently includes only a mock runnable exchange. Phase four adds adapter
+building blocks for future real exchanges:
+
+- exchange error types
+- HTTP client protocol
+- retry wrapper for rate-limit responses
+- Poloniex signing skeleton
+
+Real read-only exchange calls are still planned for a later phase.

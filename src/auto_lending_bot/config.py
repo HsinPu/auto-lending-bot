@@ -163,6 +163,13 @@ def load_settings() -> Settings:
     )
 
 
+def settings_encryption_key() -> str:
+    if load_dotenv is not None:
+        load_dotenv()
+
+    return os.getenv("SETTINGS_ENCRYPTION_KEY", "")
+
+
 def _get_bool(name: str, default: bool) -> bool:
     raw_value = os.getenv(name)
     if raw_value is None:

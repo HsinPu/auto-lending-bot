@@ -283,6 +283,22 @@ def test_app_setting_repository_resets_values(tmp_path) -> None:
     assert repository.audit_log()[0]["new_value"] is None
 
 
+def test_app_setting_repository_encrypts_secret_values(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = AppSettingRepository(database_url, encryption_key="test-key")
+
+    repository.set_many({"EXCHANGE_API_SECRET": "super-secret"}, source="test")
+
+    public_settings = repository.get_many()
+    assert public_settings["EXCHANGE_API_SECRET"]["value"] == "********cret"
+    assert public_settings["EXCHANGE_API_SECRET"]["is_set"] is True
+    assert repository.plain_values()["EXCHANGE_API_SECRET"] == "super-secret"
+    audit_row = repository.audit_log()[0]
+    assert audit_row["new_value"] == "<secret updated>"
+    assert "super-secret" not in str(audit_row)
+
+
 def test_setting_registry_contains_secret_metadata() -> None:
     assert SETTING_DEFINITIONS_BY_KEY["EXCHANGE_API_SECRET"].secret is True
     assert SETTING_DEFINITIONS_BY_KEY["BOT_DRY_RUN"].category == "Safety"

@@ -6,12 +6,14 @@ from auto_lending_bot.domain.models import (
     LoanOrder,
 )
 from auto_lending_bot.persistence.database import connect
+from auto_lending_bot.settings_security import decrypt_secret, encrypt_secret, mask_secret
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY
 
 
 class AppSettingRepository:
-    def __init__(self, database_url: str) -> None:
+    def __init__(self, database_url: str, encryption_key: str = "") -> None:
         self._database_url = database_url
+        self._encryption_key = encryption_key
 
     def get_many(self) -> dict[str, dict[str, object]]:
         with connect(self._database_url) as connection:
@@ -22,7 +24,24 @@ class AppSettingRepository:
                 ORDER BY key
                 """
             ).fetchall()
-            return {row["key"]: dict(row) for row in rows}
+            return {row["key"]: self._public_row(dict(row)) for row in rows}
+
+    def plain_values(self) -> dict[str, str]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT key, value, is_secret
+                FROM app_settings
+                ORDER BY key
+                """
+            ).fetchall()
+            values = {}
+            for row in rows:
+                value = str(row["value"])
+                if int(row["is_secret"]):
+                    value = decrypt_secret(value, self._encryption_key)
+                values[str(row["key"])] = value
+            return values
 
     def set_many(self, values: dict[str, str], source: str = "api") -> None:
         with connect(self._database_url) as connection:
@@ -37,6 +56,7 @@ class AppSettingRepository:
                     (key,),
                 ).fetchone()
                 old_value = old_row["value"] if old_row is not None else None
+                stored_value = encrypt_secret(value, self._encryption_key) if definition.secret else value
                 connection.execute(
                     """
                     INSERT INTO app_settings (key, value, value_type, is_secret, updated_at)
@@ -47,14 +67,16 @@ class AppSettingRepository:
                         is_secret = excluded.is_secret,
                         updated_at = CURRENT_TIMESTAMP
                     """,
-                    (key, value, definition.value_type, int(definition.secret)),
+                    (key, stored_value, definition.value_type, int(definition.secret)),
                 )
+                audit_old_value = "<secret updated>" if definition.secret and old_value else old_value
+                audit_new_value = "<secret updated>" if definition.secret else value
                 connection.execute(
                     """
                     INSERT INTO app_setting_audit_log (key, old_value, new_value, source)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (key, old_value, value, source),
+                    (key, audit_old_value, audit_new_value, source),
                 )
 
     def reset(self, key: str, source: str = "api") -> None:
@@ -84,6 +106,17 @@ class AppSettingRepository:
                 (limit,),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def _public_row(self, row: dict[str, object]) -> dict[str, object]:
+        if not int(row["is_secret"]):
+            return row
+        try:
+            plain_value = decrypt_secret(str(row["value"]), self._encryption_key)
+        except ValueError:
+            plain_value = ""
+        row["value"] = mask_secret(plain_value)
+        row["is_set"] = bool(plain_value)
+        return row
 
 
 class LoanApplicationRepository:

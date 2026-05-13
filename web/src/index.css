@@ -876,6 +876,51 @@ h1 {
   display: none;
 }
 
+.safety-action-header,
+.live-warning-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-top: 20px;
+  border: 1px solid rgba(147, 197, 253, 0.16);
+  border-radius: 24px;
+  padding: 22px 24px;
+  background: rgba(15, 23, 42, 0.64);
+}
+
+.safety-action-header h2,
+.safety-action-header p,
+.live-warning-panel p {
+  margin: 0;
+}
+
+.safety-action-header h2 {
+  color: #f8fafc;
+  font-size: 24px;
+}
+
+.safety-action-header p:not(.eyebrow) {
+  margin-top: 8px;
+  color: #bfdbfe;
+  line-height: 1.6;
+}
+
+.live-warning-panel {
+  display: grid;
+  border-color: rgba(253, 164, 175, 0.4);
+  color: #fecdd3;
+  background: rgba(76, 5, 25, 0.34);
+}
+
+.live-warning-panel strong {
+  color: #fecdd3;
+}
+
+.live-warning-panel p {
+  color: #fed7aa;
+}
+
 .settings-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1358,7 +1403,8 @@ td {
   }
 
   .console-intro,
-  .modal-heading {
+  .modal-heading,
+  .safety-action-header {
     flex-direction: column;
   }
 

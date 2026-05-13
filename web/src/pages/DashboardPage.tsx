@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { getDashboardData, runSafeAction } from '../api/client'
+import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
 import { actions } from '../components/actionDefinitions'
 import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
@@ -30,7 +31,7 @@ export function DashboardPage() {
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
-  const [adminToken] = useState(loadAdminToken)
+  const [adminToken, setAdminToken] = useState(loadAdminToken)
   const [activePage, setActivePage] = useState<PageKey>('overview')
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
@@ -265,7 +266,45 @@ export function DashboardPage() {
           />
         </div>
       ) : null}
-      {data && !['overview', 'currencies', 'earnings', 'market', 'offers'].includes(activePage) ? (
+      {data && activePage === 'actions' ? (
+        <div className="page-stack">
+          <section className="safety-action-header">
+            <div>
+              <p className="eyebrow">Protected Operations</p>
+              <h2>安全操作中心</h2>
+              <p>
+                Live 模式操作需要 Admin Token 與後端 confirm guard。Dry-run 模式仍可用來驗證流程。
+              </p>
+            </div>
+            <label className="admin-token-field">
+              <span>Admin Token</span>
+              <input
+                type="password"
+                value={adminToken}
+                placeholder="ADMIN_AUTH_TOKEN"
+                onChange={(event) => {
+                  setAdminToken(event.currentTarget.value)
+                  sessionStorage.setItem(adminTokenKey, event.currentTarget.value)
+                }}
+              />
+            </label>
+          </section>
+          {!data.status.dry_run ? (
+            <section className="live-warning-panel">
+              <strong>Live 模式警示</strong>
+              <p>Transfer funds、Cancel open offers、Run once 可能執行真實交易所操作。</p>
+            </section>
+          ) : null}
+          <ActionPanel
+            dryRun={data.status.dry_run}
+            isPending={actionMutation.isPending}
+            latestResult={latestResult}
+            latestError={latestError}
+            onRunAction={(action: SafeActionName) => runAction(action, data.status.dry_run)}
+          />
+        </div>
+      ) : null}
+      {data && !['overview', 'currencies', 'earnings', 'market', 'offers', 'actions'].includes(activePage) ? (
         <PagePlaceholder page={activePage} />
       ) : null}
           </div>

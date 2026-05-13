@@ -4,6 +4,11 @@ export type StatusResponse = {
   exchange: string
   dry_run: boolean
   live_trading_allowed: boolean
+  settings_runtime: {
+    hot_reload: boolean
+    managed_override_count: number
+    last_updated_at: string | null
+  }
   counts: {
     bot_runs: number
     loan_offers: number

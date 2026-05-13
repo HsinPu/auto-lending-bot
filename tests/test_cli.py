@@ -1,5 +1,6 @@
 from auto_lending_bot.cli import run_cli
 from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.persistence.repository import AppSettingRepository
 
 
 def test_cli_init_db_creates_database(tmp_path, monkeypatch, capsys) -> None:
@@ -145,6 +146,35 @@ def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsy
 
     assert exit_code == 2
     assert "Safety check failed" in capsys.readouterr().err
+
+
+def test_cli_run_reloads_database_settings_between_loops(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("BOT_MAX_LOOPS", "2")
+    monkeypatch.setenv("BOT_SLEEP_SECONDS", "0")
+    monkeypatch.setenv("BOT_INACTIVE_SLEEP_SECONDS", "0")
+    seen_labels = []
+    reloaded = False
+
+    def create_exchange(settings):
+        seen_labels.append(settings.bot_label)
+        return ReloadingExchange()
+
+    class ReloadingExchange(FakeExchange):
+        def get_lending_balances(self):
+            nonlocal reloaded
+            if not reloaded:
+                AppSettingRepository(database_url).set_many({"BOT_LABEL": "Reloaded Bot"})
+                reloaded = True
+            return super().get_lending_balances()
+
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", create_exchange)
+
+    exit_code = run_cli(["run"])
+
+    assert exit_code == 0
+    assert seen_labels == ["Auto Lending Bot", "Reloaded Bot"]
 
 
 def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> None:

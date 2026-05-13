@@ -114,6 +114,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
             "live_trading_allowed": settings.allow_live_trading,
+            "settings_runtime": _settings_runtime(settings),
             "counts": {
                 "bot_runs": bot_runs.count(),
                 "loan_offers": loan_offers.count(),
@@ -427,6 +428,16 @@ def _validate_transfer_limits(settings: Settings, transfers: list[object]) -> No
 
 def _app_settings(settings: Settings) -> AppSettingRepository:
     return AppSettingRepository(settings.database_url, encryption_key=settings_encryption_key())
+
+
+def _settings_runtime(settings: Settings) -> dict[str, object]:
+    values = _app_settings(settings).get_many()
+    updated_at_values = [str(row["updated_at"]) for row in values.values() if row.get("updated_at")]
+    return {
+        "hot_reload": True,
+        "managed_override_count": len(values),
+        "last_updated_at": max(updated_at_values) if updated_at_values else None,
+    }
 
 
 def _cancel_open_offers(exchange, offers: list[object]) -> int:

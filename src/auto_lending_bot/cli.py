@@ -1,5 +1,6 @@
 import argparse
 import sys
+import time
 
 import uvicorn
 
@@ -227,7 +228,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             print(f"Recovered {recovered_count} interrupted run(s).")
         if not settings.dry_run:
             print("WARNING: live lending is enabled. Real loan offers may be created.")
-        _create_runner(settings).run()
+        _run_bot_with_reloaded_settings(settings)
         return 0
 
     parser.error(f"Unsupported command: {args.command}")
@@ -315,6 +316,30 @@ def _create_runner(settings: Settings) -> BotRunner:
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
         notifier=Notifier(settings=settings),
     )
+
+
+def _run_bot_with_reloaded_settings(initial_settings: Settings) -> None:
+    loops_completed = 0
+    settings = initial_settings
+    database_url = initial_settings.database_url
+    try:
+        while settings.max_loops <= 0 or loops_completed < settings.max_loops:
+            validate_run_settings(settings)
+            created_offers = _create_runner(settings).run_once_with_retry()
+            loops_completed += 1
+
+            settings = load_effective_settings(database_url)
+            if settings.max_loops <= 0 or loops_completed < settings.max_loops:
+                time.sleep(_sleep_seconds(settings, created_offers))
+    except KeyboardInterrupt:
+        return
+
+
+def _sleep_seconds(settings: Settings, created_offers: int) -> int:
+    if created_offers > 0:
+        return settings.bot_sleep_seconds
+
+    return settings.bot_inactive_sleep_seconds
 
 
 def _format_status(settings: Settings) -> str:

@@ -52,7 +52,7 @@ class BotRunner:
         loops_completed = 0
         try:
             while self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
-                created_offers = self._run_once_with_retry()
+                created_offers = self.run_once_with_retry()
                 loops_completed += 1
 
                 if self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
@@ -60,7 +60,7 @@ class BotRunner:
         except KeyboardInterrupt:
             logger.info("Shutdown requested; stopping bot runner.")
 
-    def _run_once_with_retry(self) -> int:
+    def run_once_with_retry(self) -> int:
         for attempt in range(1, self._settings.retry_attempts + 1):
             try:
                 return self.run_once()

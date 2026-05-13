@@ -148,6 +148,7 @@ export function DashboardPage() {
                 <StatusCard label="目前放貸中" value={data.status.counts.active_loans} />
                 <StatusCard label="收益紀錄" value={data.status.counts.lending_history} />
                 <StatusCard label="市場分析" value={data.status.counts.market_analysis_rates} />
+                <StatusCard label="設定覆寫" value={data.status.settings_runtime.managed_override_count} />
               </section>
 
               <CurrencyOverview details={data.currencyDetails} />

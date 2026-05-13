@@ -32,6 +32,11 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
     assert body["label"] == "Auto Lending Bot"
     assert body["exchange"] == "mock"
     assert body["dry_run"] is True
+    assert body["settings_runtime"] == {
+        "hot_reload": True,
+        "managed_override_count": 0,
+        "last_updated_at": None,
+    }
     assert body["counts"] == {
         "bot_runs": 1,
         "loan_offers": 1,

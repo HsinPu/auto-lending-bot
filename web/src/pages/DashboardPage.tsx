@@ -114,37 +114,6 @@ export function DashboardPage() {
 
       {data && activePage === 'overview' ? (
         <>
-          <section className="quick-actions" aria-label="Primary bot controls">
-            <div>
-                <p className="eyebrow">Bot 控制</p>
-              <h2>前端控制</h2>
-              <p>
-                目前是 {data.status.dry_run ? '模擬模式' : 'Live 模式'}。按鈕會呼叫後端 API，
-                執行後自動更新資料。
-              </p>
-            </div>
-            <div className="quick-action-buttons">
-              {primaryActions.map((action) => {
-                const item = actions.find((entry) => entry.action === action)
-                if (!item) {
-                  return null
-                }
-
-                return (
-                  <button
-                    key={item.action}
-                    type="button"
-                    className={`quick-action-button ${item.action === 'run-once' ? 'primary' : ''}`}
-                    disabled={actionMutation.isPending}
-                    onClick={() => runAction(item.action, data.status.dry_run)}
-                  >
-                    {actionMutation.isPending ? '執行中...' : item.label}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
           <div className="overview-layout">
             <div className="overview-main">
               <section className="status-grid" id="status" aria-label="Bot status summary">
@@ -592,17 +561,6 @@ function loadActivePage(): PageKey {
 function isPageKey(value: string): value is PageKey {
   return pageItems.some((item) => item.key === value)
 }
-
-const primaryActions: SafeActionName[] = [
-  'run-once',
-  'start-loop',
-  'stop-loop',
-  'start-market-analysis',
-  'stop-market-analysis',
-  'sync-open-offers',
-  'record-market-analysis',
-  'cancel-open-offers',
-]
 
 const displaySettingsKey = 'auto-lending-bot.displaySettings'
 const adminTokenKey = 'auto-lending-bot.adminToken'

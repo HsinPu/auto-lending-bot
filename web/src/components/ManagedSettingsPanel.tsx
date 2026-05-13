@@ -210,6 +210,52 @@ const settingHints: Record<string, string> = {
   XDAY_THRESHOLD: '日利率小數，例如 0.002 = 0.2%',
 }
 
+const commonSettingSections: Array<{
+  title: string
+  description: string
+  keys: string[]
+}> = [
+  {
+    title: '先確認安全模式',
+    description: '自己測試時主要看這裡。保持模擬模式就不會送出真實委託。',
+    keys: ['BOT_DRY_RUN', 'EXCHANGE', 'BOT_LABEL', 'DISPLAY_TIMEZONE'],
+  },
+  {
+    title: '交易所連線',
+    description: '要接 Bitfinex 時才需要填 API key。建議使用沒有提領權限的 key。',
+    keys: ['EXCHANGE_API_KEY', 'EXCHANGE_API_SECRET', 'HTTP_TIMEOUT_SECONDS'],
+  },
+  {
+    title: '放貸策略',
+    description: '平常最常調的是最低利率、金額限制與拆單數。',
+    keys: [
+      'MIN_DAILY_RATE',
+      'MAX_DAILY_RATE',
+      'MIN_LOAN_SIZE',
+      'SPREAD_LEND',
+      'MAX_PERCENT_TO_LEND',
+      'MAX_TO_LEND',
+    ],
+  },
+  {
+    title: '持續執行頻率',
+    description: '從 dashboard 按「開始持續執行」後，這些秒數會影響每輪等待時間。',
+    keys: ['BOT_SLEEP_SECONDS', 'BOT_INACTIVE_SLEEP_SECONDS', 'RETRY_ATTEMPTS', 'RETRY_BACKOFF_SECONDS'],
+  },
+  {
+    title: 'Live 前保險絲',
+    description: '只有要真實下單才需要設定。未確認前不要把模擬模式關掉。',
+    keys: [
+      'ALLOW_LIVE_TRADING',
+      'BITFINEX_ENABLE_LIVE_OFFERS',
+      'MAX_TOTAL_LEND_AMOUNT',
+      'MAX_SINGLE_OFFER_AMOUNT',
+    ],
+  },
+]
+
+const commonSettingKeys = new Set(commonSettingSections.flatMap((section) => section.keys))
+
 export function ManagedSettingsPanel({
   adminToken,
   onAdminTokenChange,
@@ -221,6 +267,7 @@ export function ManagedSettingsPanel({
   const [searchText, setSearchText] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [showOnlyOverrides, setShowOnlyOverrides] = useState(false)
+  const [settingsMode, setSettingsMode] = useState<'common' | 'advanced'>('common')
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['managed-settings'],
     queryFn: getManagedSettings,
@@ -314,18 +361,27 @@ export function ManagedSettingsPanel({
     exportMutation.isPending ||
     importMutation.isPending
   const visibleGroups = data
-    ? groupByCategory(
-        data.schema.filter((definition) =>
-          shouldShowDefinition(
-            definition,
-            data.values[definition.key],
-            draftOverrides,
-            searchText,
-            selectedCategory,
-            showOnlyOverrides,
+    ? settingsMode === 'common'
+      ? groupCommonSettings(
+          data.schema,
+          data.values,
+          draftOverrides,
+          searchText,
+          showOnlyOverrides,
+        )
+      : groupByCategory(
+          data.schema.filter((definition) =>
+            shouldShowDefinition(
+              definition,
+              data.values[definition.key],
+              draftOverrides,
+              searchText,
+              selectedCategory,
+              showOnlyOverrides,
+              false,
+            ),
           ),
-        ),
-      )
+        )
     : []
   const categories = data ? Array.from(new Set(data.schema.map((definition) => definition.category))) : []
 
@@ -333,9 +389,9 @@ export function ManagedSettingsPanel({
     <section className="managed-settings-panel" id="managed-settings">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">SaaS 設定</p>
+          <p className="eyebrow">系統設定</p>
           <h2>Bot 設定管理</h2>
-          <p>讀取 SQLite 中的覆寫值；儲存後會在下一次 API 動作或 bot 迴圈熱更新。</p>
+          <p>預設只顯示常用設定；儲存後會在下一次 API 動作或 bot 迴圈熱更新。</p>
         </div>
         <label className="admin-token-field">
           <span>管理權杖</span>
@@ -353,6 +409,33 @@ export function ManagedSettingsPanel({
 
       {data ? (
         <div className="settings-editor">
+          <div className="settings-mode-panel">
+            <div>
+              <p className="eyebrow">設定模式</p>
+              <h3>{settingsMode === 'common' ? '常用設定' : '進階設定'}</h3>
+              <p>
+                {settingsMode === 'common'
+                  ? '只顯示目前最需要調整的項目，適合日常模擬、接交易所與調利率。'
+                  : '顯示所有系統參數，包含市場分析、通知、資金轉移與進階策略。'}
+              </p>
+            </div>
+            <div className="settings-mode-buttons" role="group" aria-label="設定顯示模式">
+              <button
+                type="button"
+                className={settingsMode === 'common' ? 'active' : ''}
+                onClick={() => setSettingsMode('common')}
+              >
+                常用設定
+              </button>
+              <button
+                type="button"
+                className={settingsMode === 'advanced' ? 'active' : ''}
+                onClick={() => setSettingsMode('advanced')}
+              >
+                全部進階參數
+              </button>
+            </div>
+          </div>
           <div className="settings-filter-bar">
             <label>
               <span>搜尋設定</span>
@@ -364,9 +447,10 @@ export function ManagedSettingsPanel({
               />
             </label>
             <label>
-              <span>分類</span>
+              <span>{settingsMode === 'common' ? '分類（進階模式可用）' : '分類'}</span>
               <select
                 value={selectedCategory}
+                disabled={settingsMode === 'common'}
                 onChange={(event) => setSelectedCategory(event.currentTarget.value)}
               >
                 <option value="all">全部分類</option>
@@ -389,13 +473,16 @@ export function ManagedSettingsPanel({
           <div className="settings-safety-note">
             <strong>安全提醒</strong>
             <span>
-              高風險與關鍵風險設定會影響 live 放貸、取消委託或資金轉移。後端仍會套用 safety guard，
+              高風險與關鍵風險設定會影響真實放貸、取消委託或資金轉移。後端仍會套用安全檢查，
               但請先保持「模擬模式 = 是」完成驗證。
             </span>
           </div>
           {visibleGroups.map(([category, definitions]) => (
             <fieldset className="settings-category" key={category}>
-              <legend>{categoryLabels[category] ?? category}</legend>
+              <legend>{categoryTitle(category)}</legend>
+              {categoryDescription(category) ? (
+                <p className="settings-category-description">{categoryDescription(category)}</p>
+              ) : null}
               <div className="settings-field-grid">
                 {definitions.map((definition) => (
                   <SettingField
@@ -404,6 +491,7 @@ export function ManagedSettingsPanel({
                     value={draftValueFor(definition, data.values[definition.key], draftOverrides)}
                     storedValue={data.values[definition.key]}
                     disabled={isPending}
+                    showSystemKey={settingsMode === 'advanced'}
                     onChange={(value) =>
                       setDraftOverrides((current) => ({ ...current, [definition.key]: value }))
                     }
@@ -475,6 +563,7 @@ type SettingFieldProps = {
   value: string
   storedValue?: ManagedSettingValue
   disabled: boolean
+  showSystemKey: boolean
   onChange: (value: string) => void
   onReset: () => void
 }
@@ -484,6 +573,7 @@ function SettingField({
   value,
   storedValue,
   disabled,
+  showSystemKey,
   onChange,
   onReset,
 }: SettingFieldProps) {
@@ -496,7 +586,7 @@ function SettingField({
         <strong>{settingLabel(definition.key)}</strong>
         <small>{dangerLabels[definition.danger_level]}</small>
       </span>
-      <span className="settings-field-key">{definition.key}</span>
+      {showSystemKey ? <span className="settings-field-key">系統代碼：{definition.key}</span> : null}
       <span className="settings-field-help">{settingHelpText(definition)}</span>
       {valueType === 'bool' ? (
         <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
@@ -545,6 +635,36 @@ function groupByCategory(
   return Array.from(groups.entries())
 }
 
+function groupCommonSettings(
+  definitions: ManagedSettingDefinition[],
+  values: Record<string, ManagedSettingValue>,
+  draftOverrides: Record<string, string>,
+  searchText: string,
+  showOnlyOverrides: boolean,
+): Array<[string, ManagedSettingDefinition[]]> {
+  const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]))
+
+  return commonSettingSections
+    .map((section) => [
+      section.title,
+      section.keys
+        .map((key) => definitionsByKey.get(key))
+        .filter((definition): definition is ManagedSettingDefinition => Boolean(definition))
+        .filter((definition) =>
+          shouldShowDefinition(
+            definition,
+            values[definition.key],
+            draftOverrides,
+            searchText,
+            'all',
+            showOnlyOverrides,
+            true,
+          ),
+        ),
+    ] as [string, ManagedSettingDefinition[]])
+    .filter(([, sectionDefinitions]) => sectionDefinitions.length > 0)
+}
+
 function currentValue(definition: ManagedSettingDefinition, storedValue?: ManagedSettingValue): string {
   return storedValue?.value ?? definition.default
 }
@@ -583,7 +703,11 @@ function shouldShowDefinition(
   searchText: string,
   selectedCategory: string,
   showOnlyOverrides: boolean,
+  commonOnly: boolean,
 ): boolean {
+  if (commonOnly && !commonSettingKeys.has(definition.key)) {
+    return false
+  }
   if (selectedCategory !== 'all' && definition.category !== selectedCategory) {
     return false
   }
@@ -613,6 +737,14 @@ function shouldShowDefinition(
 
 function settingLabel(key: string): string {
   return settingLabels[key] ?? key
+}
+
+function categoryTitle(category: string): string {
+  return commonSettingSections.find((section) => section.title === category)?.title ?? categoryLabels[category] ?? category
+}
+
+function categoryDescription(category: string): string {
+  return commonSettingSections.find((section) => section.title === category)?.description ?? ''
 }
 
 function settingHelpText(definition: ManagedSettingDefinition): string {

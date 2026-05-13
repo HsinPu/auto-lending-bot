@@ -281,7 +281,7 @@ export function DashboardPage() {
         <div className="page-stack">
           <PageActionStrip
             title="委託操作"
-            description="同步交易所未成交委託；取消委託會遵守後端 dry-run / live guard。"
+            description="同步交易所未成交委託；取消委託會遵守後端模擬模式與真實操作安全檢查。"
             actionNames={['sync-open-offers', 'cancel-open-offers']}
             isPending={actionMutation.isPending}
             onRunAction={(action) => runAction(action, data.status.dry_run)}

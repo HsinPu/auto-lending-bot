@@ -19,6 +19,7 @@ import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
 import type {
+  BotRun,
   LendingHistoryEntry,
   LoanOffer,
   MarketAnalysisRate,
@@ -314,7 +315,29 @@ export function DashboardPage() {
           }}
         />
       ) : null}
-      {data && !['overview', 'currencies', 'earnings', 'market', 'offers', 'actions', 'settings'].includes(activePage) ? (
+      {data && activePage === 'logs' ? (
+        <div className="page-stack">
+          <ActivityLog
+            runs={data.runs}
+            offers={data.offers}
+            latestResult={latestResult}
+            latestError={latestError}
+          />
+          <DataTable<BotRun>
+            title="最近執行"
+            description="Bot run 狀態與訊息。"
+            rows={data.runs}
+            columns={runColumns}
+          />
+          <DataTable<LoanOffer>
+            title="最近貸出活動"
+            description="本地紀錄的 offer intent、dry-run 或 live 結果。"
+            rows={data.offers}
+            columns={offerColumns}
+          />
+        </div>
+      ) : null}
+      {data && !['overview', 'currencies', 'earnings', 'market', 'offers', 'actions', 'settings', 'logs'].includes(activePage) ? (
         <PagePlaceholder page={activePage} />
       ) : null}
           </div>
@@ -503,6 +526,15 @@ const historyColumns = [
   { key: 'earned', label: '實收', format: amount },
   { key: 'closed_at', label: '結束時間' },
 ] satisfies Parameters<typeof DataTable<LendingHistoryEntry>>[0]['columns']
+
+const runColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'status', label: '狀態' },
+  { key: 'dry_run', label: '模擬' },
+  { key: 'started_at', label: '開始時間' },
+  { key: 'finished_at', label: '結束時間' },
+  { key: 'message', label: '訊息' },
+] satisfies Parameters<typeof DataTable<BotRun>>[0]['columns']
 
 const offerColumns = [
   { key: 'id', label: '編號' },

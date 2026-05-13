@@ -1,7 +1,7 @@
 import pytest
 
 from auto_lending_bot.integrations.errors import ExchangeRateLimitError, ExchangeRequestError
-from auto_lending_bot.integrations.http import HttpResponse, RetryingHttpClient
+from auto_lending_bot.integrations.http import HttpResponse, RetryingHttpClient, UrlLibHttpClient
 
 
 def test_retrying_http_client_returns_successful_response() -> None:
@@ -47,6 +47,21 @@ def test_retrying_http_client_raises_request_error_for_non_success() -> None:
         retrying_client.request("GET", "https://example.test")
 
 
+def test_url_lib_http_client_sets_default_user_agent(monkeypatch) -> None:
+    seen_headers = {}
+
+    def fake_urlopen(request, timeout):
+        seen_headers["user_agent"] = request.get_header("User-agent")
+        return FakeUrlOpenResponse()
+
+    monkeypatch.setattr("auto_lending_bot.integrations.http.urlopen", fake_urlopen)
+
+    response = UrlLibHttpClient().request("GET", "https://example.test")
+
+    assert response.status_code == 200
+    assert seen_headers["user_agent"] == "auto-lending-bot/0.1"
+
+
 class FakeHttpClient:
     def __init__(self, responses: list[HttpResponse]) -> None:
         self._responses = responses
@@ -65,3 +80,16 @@ class FakeHttpClient:
             return self._responses[0]
 
         return self._responses.pop(0)
+
+
+class FakeUrlOpenResponse:
+    status = 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return b"{}"

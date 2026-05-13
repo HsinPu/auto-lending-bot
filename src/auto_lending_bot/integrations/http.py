@@ -73,7 +73,9 @@ class UrlLibHttpClient:
         timeout_seconds: int = 30,
     ) -> HttpResponse:
         body_bytes = body.encode("utf-8") if body is not None else None
-        request = Request(url=url, data=body_bytes, headers=headers or {}, method=method.upper())
+        request_headers = {"User-Agent": "auto-lending-bot/0.1"}
+        request_headers.update(headers or {})
+        request = Request(url=url, data=body_bytes, headers=request_headers, method=method.upper())
         try:
             with urlopen(request, timeout=timeout_seconds) as response:
                 return HttpResponse(

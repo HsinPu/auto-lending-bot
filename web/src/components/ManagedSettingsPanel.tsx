@@ -385,6 +385,8 @@ export function ManagedSettingsPanel({
     resetMutation.isPending ||
     exportMutation.isPending ||
     importMutation.isPending
+  const categoryOptions = data ? categoryOptionsForMode(data.schema, settingsMode) : []
+  const activeCategory = categoryOptions.some((option) => option.value === selectedCategory) ? selectedCategory : 'all'
   const visibleGroups = data
     ? settingsMode === 'common'
       ? groupCommonSettings(
@@ -392,6 +394,7 @@ export function ManagedSettingsPanel({
           data.values,
           draftOverrides,
           searchText,
+          activeCategory,
           showOnlyOverrides,
         )
       : groupByCategory(
@@ -401,15 +404,13 @@ export function ManagedSettingsPanel({
               data.values[definition.key],
               draftOverrides,
               searchText,
-              selectedCategory,
+              activeCategory,
               showOnlyOverrides,
               false,
             ),
           ),
         )
     : []
-  const categories = data ? Array.from(new Set(data.schema.map((definition) => definition.category))) : []
-
   return (
     <section className="managed-settings-panel" id="managed-settings">
       <div className="section-heading">
@@ -448,14 +449,20 @@ export function ManagedSettingsPanel({
               <button
                 type="button"
                 className={settingsMode === 'common' ? 'active' : ''}
-                onClick={() => setSettingsMode('common')}
+                onClick={() => {
+                  setSettingsMode('common')
+                  setSelectedCategory('all')
+                }}
               >
                 常用設定
               </button>
               <button
                 type="button"
                 className={settingsMode === 'advanced' ? 'active' : ''}
-                onClick={() => setSettingsMode('advanced')}
+                onClick={() => {
+                  setSettingsMode('advanced')
+                  setSelectedCategory('all')
+                }}
               >
                 全部進階參數
               </button>
@@ -472,16 +479,15 @@ export function ManagedSettingsPanel({
               />
             </label>
             <label>
-              <span>{settingsMode === 'common' ? '分類（進階模式可用）' : '分類'}</span>
+              <span>分類</span>
               <select
-                value={selectedCategory}
-                disabled={settingsMode === 'common'}
+                value={activeCategory}
                 onChange={(event) => setSelectedCategory(event.currentTarget.value)}
               >
                 <option value="all">全部分類</option>
-                {categories.map((category) => (
-                  <option value={category} key={category}>
-                    {categoryLabels[category] ?? category}
+                {categoryOptions.map((category) => (
+                  <option value={category.value} key={category.value}>
+                    {category.label}
                   </option>
                 ))}
               </select>
@@ -668,16 +674,31 @@ function groupByCategory(
   return Array.from(groups.entries())
 }
 
+function categoryOptionsForMode(
+  definitions: ManagedSettingDefinition[],
+  settingsMode: 'common' | 'advanced',
+): Array<{ value: string; label: string }> {
+  if (settingsMode === 'common') {
+    return commonSettingSections.map((section) => ({ value: section.title, label: section.title }))
+  }
+
+  return Array.from(new Set(definitions.map((definition) => definition.category)))
+    .sort((left, right) => categoryLabels[left]?.localeCompare(categoryLabels[right] ?? right) ?? left.localeCompare(right))
+    .map((category) => ({ value: category, label: categoryLabels[category] ?? category }))
+}
+
 function groupCommonSettings(
   definitions: ManagedSettingDefinition[],
   values: Record<string, ManagedSettingValue>,
   draftOverrides: Record<string, string>,
   searchText: string,
+  selectedSection: string,
   showOnlyOverrides: boolean,
 ): Array<[string, ManagedSettingDefinition[]]> {
   const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]))
 
   return commonSettingSections
+    .filter((section) => selectedSection === 'all' || section.title === selectedSection)
     .map((section) => [
       section.title,
       section.keys

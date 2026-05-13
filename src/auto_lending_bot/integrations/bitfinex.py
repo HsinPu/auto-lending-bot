@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import time
 from datetime import UTC, datetime
 
 from auto_lending_bot.domain.models import (
@@ -54,12 +55,12 @@ class BitfinexClient:
             if amount is None or amount <= 0 or not currency:
                 continue
 
-            balances.append(CurrencyBalance(currency=str(currency).upper(), amount=amount))
+            balances.append(CurrencyBalance(currency=_display_currency(currency), amount=amount))
 
         return balances
 
     def get_loan_orders(self, currency: str) -> list[LoanOrder]:
-        response = self._public_query(f"/v1/lendbook/{currency.lower()}")
+        response = self._public_query(f"/v1/lendbook/{_bitfinex_currency(currency).lower()}")
         asks = response.get("asks", []) if isinstance(response, dict) else []
         if not isinstance(asks, list):
             return []
@@ -79,7 +80,7 @@ class BitfinexClient:
         return orders
 
     def get_frr_rate(self, currency: str) -> float | None:
-        response = self._public_query(f"/v2/tickers?symbols=f{currency.upper()}")
+        response = self._public_query(f"/v2/tickers?symbols=f{_bitfinex_currency(currency).upper()}")
         if not isinstance(response, list) or not response:
             return None
 
@@ -123,7 +124,7 @@ class BitfinexClient:
 
             offers.append(
                 LoanOffer(
-                    currency=str(currency).upper(),
+                    currency=_display_currency(currency),
                     amount=amount,
                     daily_rate=rate,
                     duration_days=duration_days,
@@ -153,7 +154,7 @@ class BitfinexClient:
 
             active_loans.append(
                 ActiveLoan(
-                    currency=str(currency).upper(),
+                    currency=_display_currency(currency),
                     amount=amount,
                     daily_rate=rate,
                     duration_days=duration_days,
@@ -167,7 +168,7 @@ class BitfinexClient:
         response = self._private_query(
             "/v1/history",
             {
-                "currency": currency.upper(),
+                "currency": _bitfinex_currency(currency).upper(),
                 "wallet": "deposit",
                 "limit": limit,
             },
@@ -210,7 +211,7 @@ class BitfinexClient:
         response = self._private_query(
             "/v1/offer/new",
             {
-                "currency": offer.currency,
+                "currency": _bitfinex_currency(offer.currency).upper(),
                 "amount": str(offer.amount),
                 "rate": str(round(offer.daily_rate, 10) * 36500),
                 "period": offer.duration_days,
@@ -230,7 +231,7 @@ class BitfinexClient:
             "/v1/transfer",
             {
                 "amount": str(amount),
-                "currency": currency.upper(),
+                "currency": _bitfinex_currency(currency).upper(),
                 "walletfrom": "exchange",
                 "walletto": "deposit",
             },
@@ -262,7 +263,7 @@ class BitfinexClient:
         return _raise_for_api_error(parse_json_response(response.body))
 
     def _private_query(self, path: str, payload: dict[str, object]) -> object:
-        request_payload = {"request": path, **payload}
+        request_payload = {"request": path, "nonce": str(time.time_ns()), **payload}
         response = self._http_client.request(
             method="POST",
             url=f"https://api.bitfinex.com{path}",
@@ -290,6 +291,26 @@ def _encode_payload(payload: dict[str, object]) -> str:
 
 def _bitfinex_rate_to_daily_rate(rate: object) -> float:
     return float(rate) / 36500
+
+
+def _bitfinex_currency(currency: object) -> str:
+    normalized_currency = str(currency).upper()
+    api_currencies = {
+        "DASH": "DSH",
+        "IOTA": "IOT",
+        "USDT": "UST",
+    }
+    return api_currencies.get(normalized_currency, normalized_currency)
+
+
+def _display_currency(currency: object) -> str:
+    normalized_currency = str(currency).upper()
+    display_currencies = {
+        "DSH": "DASH",
+        "IOT": "IOTA",
+        "UST": "USDT",
+    }
+    return display_currencies.get(normalized_currency, normalized_currency)
 
 
 def _optional_float(value: object) -> float | None:

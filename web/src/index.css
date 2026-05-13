@@ -78,6 +78,52 @@ button {
   font-size: 22px;
 }
 
+.sidebar-start-card {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  border: 1px solid rgba(134, 239, 172, 0.42);
+  border-radius: 20px;
+  padding: 16px;
+  color: #052e16;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.42), transparent 36%),
+    linear-gradient(135deg, #86efac, #38bdf8);
+  text-align: left;
+  box-shadow: 0 18px 40px rgba(20, 184, 166, 0.18);
+  cursor: pointer;
+}
+
+.sidebar-start-card:hover,
+.sidebar-start-card:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 46px rgba(20, 184, 166, 0.24);
+}
+
+.sidebar-start-card:focus-visible {
+  outline: 2px solid rgba(134, 239, 172, 0.8);
+  outline-offset: 3px;
+}
+
+.sidebar-start-card span {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sidebar-start-card strong {
+  font-size: 24px;
+  letter-spacing: -0.03em;
+}
+
+.sidebar-start-card small {
+  color: rgba(5, 46, 22, 0.82);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .sidebar-nav {
   display: grid;
   gap: 8px;
@@ -778,6 +824,49 @@ button {
   border-radius: 18px;
   padding: 14px;
   background: rgba(2, 6, 23, 0.3);
+}
+
+.market-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.3fr) minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 0 24px 18px;
+}
+
+.market-filter-bar label {
+  display: grid;
+  gap: 7px;
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.market-filter-bar select,
+.market-filter-bar input {
+  width: 100%;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 13px;
+  padding: 10px 12px;
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.48);
+  outline: none;
+}
+
+.market-filter-bar select:focus,
+.market-filter-bar input:focus {
+  border-color: rgba(125, 211, 252, 0.72);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+}
+
+.market-filter-bar strong {
+  border-radius: 999px;
+  padding: 10px 12px;
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .market-table-scroll {
@@ -2188,7 +2277,8 @@ td {
   .settings-panel,
   .settings-panel dl,
   .settings-field-grid,
-  .settings-filter-bar {
+  .settings-filter-bar,
+  .market-filter-bar {
     grid-template-columns: 1fr;
   }
 

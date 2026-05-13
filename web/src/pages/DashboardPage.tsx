@@ -79,6 +79,7 @@ export function DashboardPage() {
     if (window.location.hash !== nextHash) {
       window.history.pushState(null, '', nextHash)
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -332,14 +333,14 @@ type PageKey =
   | 'logs'
 
 const pageItems: Array<{ key: PageKey; label: string; description: string }> = [
-  { key: 'overview', label: '總覽', description: '核心狀態與常用操作' },
-  { key: 'currencies', label: '幣種狀態', description: '餘額、放貸中與幣種摘要' },
-  { key: 'earnings', label: '收益與歷史', description: '收益圖表與放貸歷史' },
-  { key: 'market', label: '市場分析', description: '利率紀錄與建議門檻' },
-  { key: 'offers', label: '委託管理', description: '本地與交易所委託' },
-  { key: 'actions', label: '安全操作', description: '同步、轉移、取消與 run once' },
-  { key: 'settings', label: 'Bot 設定', description: 'SQLite 設定覆寫' },
-  { key: 'logs', label: '執行紀錄', description: 'Bot 執行與操作結果' },
+  { key: 'overview', label: '總覽', description: '先看 bot 是否正常' },
+  { key: 'settings', label: 'Bot 設定', description: '設定交易所與安全模式' },
+  { key: 'actions', label: '開始/停止放貸', description: '執行一次或開始持續執行' },
+  { key: 'currencies', label: '幣種狀態', description: '看餘額與策略判斷' },
+  { key: 'market', label: '市場分析', description: '看目前市場利率' },
+  { key: 'offers', label: '委託管理', description: '查看已建立委託' },
+  { key: 'earnings', label: '收益與歷史', description: '查看收益紀錄' },
+  { key: 'logs', label: '執行紀錄', description: '檢查錯誤與執行結果' },
 ]
 
 function SidebarNavigation({
@@ -357,6 +358,15 @@ function SidebarNavigation({
         <span>Auto Lending Bot</span>
         <strong>控制台</strong>
       </div>
+      <button
+        type="button"
+        className="sidebar-start-card"
+        onClick={() => onChange('actions')}
+      >
+        <span>主要操作</span>
+        <strong>開始放貸</strong>
+        <small>到安全操作頁按「開始持續執行」，模擬模式不會送出真實委託。</small>
+      </button>
       <nav className="sidebar-nav">
         {pageItems.map((item) => (
           <button
@@ -669,14 +679,51 @@ function MarketAnalysisStatusList({
 }
 
 function MarketRateList({ rows, timeZone, exchange }: { rows: MarketRate[]; timeZone: string; exchange: string }) {
+  const latestRows = latestMarketRatesByCurrency(rows)
+
   return (
     <MarketRecordList
       title="市場利率快照"
-      description={`從 ${exchange} lendbook 取得後寫入 market_rates 的最近利率快照。`}
+      description={`從 ${exchange} lendbook 取得後寫入 market_rates，每個幣別只顯示最新一筆。`}
       emptyText="目前沒有市場利率資料。"
-      rows={rows.map((row) => ({
+        rows={latestRows.map((row) => ({
+          id: row.id,
+          title: row.currency,
+          currency: row.currency,
+          fields: [
+            ['日利率', rate(row.daily_rate)],
+            ['可用數量', amount(row.available_amount)],
+          ['擷取時間', formatTimestamp(row.captured_at, timeZone)],
+        ],
+      }))}
+    />
+  )
+}
+
+function latestMarketRatesByCurrency(rows: MarketRate[]): MarketRate[] {
+  const latestRows = new Map<string, MarketRate>()
+  for (const row of rows) {
+    const previousRow = latestRows.get(row.currency)
+    if (!previousRow || row.captured_at > previousRow.captured_at) {
+      latestRows.set(row.currency, row)
+    }
+  }
+
+  return Array.from(latestRows.values()).sort((left, right) => left.currency.localeCompare(right.currency))
+}
+
+function MarketDepthList({ rows, timeZone, exchange }: { rows: MarketAnalysisRate[]; timeZone: string; exchange: string }) {
+  const latestRows = latestMarketAnalysisRowsByCurrency(rows)
+
+  return (
+    <MarketRecordList
+      title="市場分析紀錄"
+      description={`由市場分析操作從 ${exchange} 記錄的多層放貸簿深度資料，每個幣別只顯示最新一輪。`}
+      emptyText="目前沒有市場分析紀錄。"
+      rows={latestRows.map((row) => ({
         id: row.id,
-        title: row.currency,
+        title: `${row.currency} / 第 ${row.level} 層`,
+        currency: row.currency,
         fields: [
           ['日利率', rate(row.daily_rate)],
           ['可用數量', amount(row.available_amount)],
@@ -687,23 +734,21 @@ function MarketRateList({ rows, timeZone, exchange }: { rows: MarketRate[]; time
   )
 }
 
-function MarketDepthList({ rows, timeZone, exchange }: { rows: MarketAnalysisRate[]; timeZone: string; exchange: string }) {
-  return (
-    <MarketRecordList
-      title="市場分析紀錄"
-      description={`由市場分析操作從 ${exchange} 記錄的多層放貸簿深度資料。`}
-      emptyText="目前沒有市場分析紀錄。"
-      rows={rows.map((row) => ({
-        id: row.id,
-        title: `${row.currency} / 第 ${row.level} 層`,
-        fields: [
-          ['日利率', rate(row.daily_rate)],
-          ['可用數量', amount(row.available_amount)],
-          ['擷取時間', formatTimestamp(row.captured_at, timeZone)],
-        ],
-      }))}
-    />
-  )
+function latestMarketAnalysisRowsByCurrency(rows: MarketAnalysisRate[]): MarketAnalysisRate[] {
+  const latestCapturedAtByCurrency = new Map<string, string>()
+  for (const row of rows) {
+    const previousCapturedAt = latestCapturedAtByCurrency.get(row.currency)
+    if (!previousCapturedAt || row.captured_at > previousCapturedAt) {
+      latestCapturedAtByCurrency.set(row.currency, row.captured_at)
+    }
+  }
+
+  return rows
+    .filter((row) => row.captured_at === latestCapturedAtByCurrency.get(row.currency))
+    .sort((left, right) => {
+      const currencyComparison = left.currency.localeCompare(right.currency)
+      return currencyComparison || left.level - right.level
+    })
 }
 
 function MarketRecordList({
@@ -715,13 +760,35 @@ function MarketRecordList({
   title: string
   description: string
   emptyText: string
-  rows: Array<{ id: number; title: string; fields: Array<[string, string]> }>
+  rows: Array<{ id: number; title: string; currency: string; fields: Array<[string, string]> }>
 }) {
   const [page, setPage] = useState(1)
+  const [selectedCurrency, setSelectedCurrency] = useState('all')
+  const [searchText, setSearchText] = useState('')
   const pageSize = 10
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currencyOptions = Array.from(new Set(rows.map((row) => row.currency))).sort()
+  const filteredRows = rows.filter((row) => {
+    const matchesCurrency = selectedCurrency === 'all' || row.currency === selectedCurrency
+    const normalizedSearch = searchText.trim().toLowerCase()
+    const matchesSearch = normalizedSearch
+      ? [row.title, ...row.fields.flatMap(([label, value]) => [label, value])]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      : true
+    return matchesCurrency && matchesSearch
+  })
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const currentPage = Math.min(page, totalPages)
-  const visibleRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const visibleRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const changeCurrency = (currency: string) => {
+    setSelectedCurrency(currency)
+    setPage(1)
+  }
+  const changeSearchText = (value: string) => {
+    setSearchText(value)
+    setPage(1)
+  }
 
   return (
     <section className="market-panel">
@@ -732,8 +799,33 @@ function MarketRecordList({
         </div>
         <span>{rows.length} 筆</span>
       </div>
+      {rows.length > 0 ? (
+        <div className="market-filter-bar">
+          <label>
+            <span>幣別</span>
+            <select value={selectedCurrency} onChange={(event) => changeCurrency(event.currentTarget.value)}>
+              <option value="all">全部幣別</option>
+              {currencyOptions.map((currency) => (
+                <option key={currency} value={currency}>{currency}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>搜尋</span>
+            <input
+              type="search"
+              value={searchText}
+              placeholder="輸入層級、利率、數量或時間"
+              onChange={(event) => changeSearchText(event.currentTarget.value)}
+            />
+          </label>
+          <strong>{filteredRows.length} 筆符合</strong>
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <p className="empty-hint padded">{emptyText}</p>
+      ) : filteredRows.length === 0 ? (
+        <p className="empty-hint padded">沒有符合篩選條件的資料。</p>
       ) : (
         <>
           <div className="market-table-scroll">
@@ -757,7 +849,7 @@ function MarketRecordList({
           <PaginationControls
             currentPage={currentPage}
             totalPages={totalPages}
-            totalRows={rows.length}
+            totalRows={filteredRows.length}
             pageSize={pageSize}
             onPageChange={setPage}
           />
@@ -1140,7 +1232,7 @@ const reasonLabels: Record<string, string> = {
   'Active lending amount is at or above the configured maximum.': '放貸中金額已達或超過設定上限。',
   'Best daily rate is below the configured minimum.': '最佳日利率低於設定的最低日利率。',
   'End date is too close to create new lending offers.': '停止放貸日期太近，不能建立新委託。',
-  'Market analysis is disabled.': '市場分析已關閉。',
+  'Market analysis is disabled.': '策略分析方法已關閉，仍會收集市場資料。',
   'No market analysis samples have been recorded.': '尚未記錄市場分析樣本。',
   'Latest market analysis sample is older than the configured max age.': '最新市場分析資料已超過設定最大年齡。',
   'Not enough samples to calculate a suggestion.': '樣本數不足，無法計算建議利率。',

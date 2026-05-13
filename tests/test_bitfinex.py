@@ -1,3 +1,6 @@
+import base64
+import json
+
 import pytest
 
 from auto_lending_bot.domain.models import LoanOffer
@@ -20,6 +23,17 @@ def test_bitfinex_client_builds_signed_headers() -> None:
     assert headers["X-BFX-APIKEY"] == "key"
     assert len(headers["X-BFX-PAYLOAD"]) > 0
     assert len(headers["X-BFX-SIGNATURE"]) == 96
+
+
+def test_bitfinex_client_adds_nonce_to_private_payload() -> None:
+    http_client = RecordingHttpClient('[{"type":"deposit","currency":"btc","available":"0.25"}]')
+    client = BitfinexClient(api_key="key", api_secret="secret", http_client=http_client)
+
+    client.get_lending_balances()
+
+    payload = json.loads(base64.b64decode(http_client.requests[0]["headers"]["X-BFX-PAYLOAD"]))
+    assert payload["request"] == "/v1/balances"
+    assert int(payload["nonce"]) > 0
 
 
 def test_bitfinex_client_reads_lending_balances() -> None:
@@ -82,6 +96,39 @@ def test_bitfinex_client_reads_loan_orders() -> None:
     assert orders[0].currency == "BTC"
     assert orders[0].amount == 1.5
     assert round(orders[0].daily_rate, 8) == 0.00008
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected_path"),
+    [
+        ("DASH", "/v1/lendbook/dsh"),
+        ("IOTA", "/v1/lendbook/iot"),
+        ("USDT", "/v1/lendbook/ust"),
+    ],
+)
+def test_bitfinex_client_maps_display_currency_to_bitfinex_lendbook_symbol(
+    currency: str,
+    expected_path: str,
+) -> None:
+    http_client = RecordingHttpClient('{"asks":[{"amount":"1.5","rate":"2.92"}]}')
+    client = BitfinexClient(api_key="key", api_secret="secret", http_client=http_client)
+
+    orders = client.get_loan_orders(currency)
+
+    assert http_client.requests[0]["url"].endswith(expected_path)
+    assert orders[0].currency == currency
+
+
+def test_bitfinex_client_maps_api_currency_to_display_currency() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('[{"type":"deposit","currency":"ust","available":"10"}]'),
+    )
+
+    balances = client.get_lending_balances()
+
+    assert balances[0].currency == "USDT"
 
 
 def test_bitfinex_client_reads_frr_rate() -> None:
@@ -235,6 +282,29 @@ def test_bitfinex_client_creates_loan_offer() -> None:
     assert offer_id == "123"
 
 
+def test_bitfinex_client_maps_usdt_to_bitfinex_ust_for_private_payloads() -> None:
+    http_client = RecordingHttpClient('{"id": 123}')
+    client = BitfinexClient(api_key="key", api_secret="secret", http_client=http_client)
+
+    client.create_loan_offer(LoanOffer(currency="USDT", amount=0.1, daily_rate=0.00008, duration_days=2))
+
+    payload = json.loads(base64.b64decode(http_client.requests[0]["headers"]["X-BFX-PAYLOAD"]))
+    assert payload["currency"] == "UST"
+
+
+def test_bitfinex_client_maps_dash_and_iota_private_payloads() -> None:
+    http_client = RecordingHttpClient('{"id": 123}')
+    client = BitfinexClient(api_key="key", api_secret="secret", http_client=http_client)
+
+    client.create_loan_offer(LoanOffer(currency="DASH", amount=0.1, daily_rate=0.00008, duration_days=2))
+    client.transfer_to_lending("IOTA", 0.1)
+
+    offer_payload = json.loads(base64.b64decode(http_client.requests[0]["headers"]["X-BFX-PAYLOAD"]))
+    transfer_payload = json.loads(base64.b64decode(http_client.requests[1]["headers"]["X-BFX-PAYLOAD"]))
+    assert offer_payload["currency"] == "DSH"
+    assert transfer_payload["currency"] == "IOT"
+
+
 def test_bitfinex_client_cancels_loan_offer() -> None:
     client = BitfinexClient(
         api_key="key",
@@ -285,6 +355,31 @@ class FakeHttpClient:
         timeout_seconds: int = 30,
     ) -> HttpResponse:
         return HttpResponse(status_code=200, body=self._body)
+
+
+class RecordingHttpClient(FakeHttpClient):
+    def __init__(self, body: str = "{}") -> None:
+        super().__init__(body)
+        self.requests: list[dict[str, object]] = []
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: str | None = None,
+        timeout_seconds: int = 30,
+    ) -> HttpResponse:
+        self.requests.append(
+            {
+                "method": method,
+                "url": url,
+                "headers": headers or {},
+                "body": body,
+                "timeout_seconds": timeout_seconds,
+            }
+        )
+        return super().request(method, url, headers, body, timeout_seconds)
 
 
 class FakeHttpClientSequence:

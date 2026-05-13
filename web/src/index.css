@@ -619,6 +619,56 @@ button {
   overflow: hidden;
 }
 
+.market-source-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 20px;
+  border: 1px solid rgba(134, 239, 172, 0.22);
+  border-radius: 24px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 36%),
+    rgba(15, 23, 42, 0.68);
+}
+
+.market-source-panel h2 {
+  margin: 6px 0 0;
+  color: #86efac;
+  font-size: 30px;
+}
+
+.market-source-panel p:not(.eyebrow) {
+  margin: 10px 0 0;
+  color: #bfdbfe;
+  line-height: 1.6;
+}
+
+.market-source-panel dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.market-source-panel dl div {
+  min-width: 0;
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.market-source-panel dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.market-source-panel dd {
+  margin: 7px 0 0;
+  color: #f8fafc;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .market-collection-panel,
 .market-overview-grid .market-panel {
   display: grid;
@@ -2096,6 +2146,7 @@ td {
   .overview-content-grid,
   .earnings-summary-panel,
   .earnings-content-grid,
+  .market-source-panel,
   .market-overview-grid,
   .market-data-grid,
   .market-status-row,
@@ -2109,7 +2160,8 @@ td {
 
   .overview-metric-list,
   .overview-rate-summary,
-  .overview-strategy-list {
+  .overview-strategy-list,
+  .market-source-panel dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2162,6 +2214,7 @@ td {
   .overview-metric-list,
   .overview-rate-summary,
   .overview-strategy-list,
+  .market-source-panel dl,
   .earnings-summary-metrics {
     grid-template-columns: 1fr;
   }

@@ -208,15 +208,16 @@ export function DashboardPage() {
             isPending={actionMutation.isPending}
             onRunAction={(action) => runAction(action, data.status.dry_run)}
           />
+          <MarketSourcePanel data={data} />
           <div className="market-overview-grid">
             <MarketCollectionPanel data={data} timeZone={displayTimeZone} />
             <MarketThresholdPanel data={data} />
           </div>
           <MiniCharts earnings={data.earnings} marketRates={data.marketRates} offers={data.offers} />
-          <MarketAnalysisStatusList rows={data.marketAnalysisStatus} timeZone={displayTimeZone} />
+          <MarketAnalysisStatusList rows={data.marketAnalysisStatus} timeZone={displayTimeZone} exchange={data.status.exchange} />
           <div className="market-data-grid">
-            <MarketRateList rows={data.marketRates} timeZone={displayTimeZone} />
-            <MarketDepthList rows={data.marketAnalysisRates} timeZone={displayTimeZone} />
+            <MarketRateList rows={data.marketRates} timeZone={displayTimeZone} exchange={data.status.exchange} />
+            <MarketDepthList rows={data.marketAnalysisRates} timeZone={displayTimeZone} exchange={data.status.exchange} />
           </div>
         </div>
       ) : null}
@@ -547,6 +548,30 @@ function HistoryMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
+function MarketSourcePanel({ data }: { data: DashboardData }) {
+  const sourceLabel = data.status.exchange === 'mock' ? 'Mock 模擬交易所' : data.status.exchange
+  const modeLabel = data.status.dry_run ? '模擬模式，僅讀取/記錄資料' : 'Live 模式，請確認安全設定'
+
+  return (
+    <section className="market-source-panel">
+      <div>
+        <p className="eyebrow">資料來源</p>
+        <h2>{sourceLabel}</h2>
+        <p>
+          市場分析資料由後端 exchange adapter 讀取 lendbook / funding book 後寫入 SQLite，前端只讀取本地 API
+          顯示。
+        </p>
+      </div>
+      <dl>
+        <HistoryMetric label="目前交易所" value={data.status.exchange} />
+        <HistoryMetric label="執行模式" value={modeLabel} />
+        <HistoryMetric label="市場利率資料" value="market_rates：最近市場利率快照" />
+        <HistoryMetric label="分析深度資料" value="market_analysis_rates：多層放貸簿深度紀錄" />
+      </dl>
+    </section>
+  )
+}
+
 function MarketCollectionPanel({ data, timeZone }: { data: DashboardData; timeZone: string }) {
   const collection = data.status.market_analysis_collection
   return (
@@ -554,7 +579,7 @@ function MarketCollectionPanel({ data, timeZone }: { data: DashboardData; timeZo
       <div>
         <p className="eyebrow">資料收集</p>
         <h2>{collection.running ? '收集中' : '未啟動'}</h2>
-        <p>定期抓取設定幣別的放貸簿深度，寫入市場分析紀錄。</p>
+        <p>從 {data.status.exchange} 定期抓取設定幣別的放貸簿深度，寫入市場分析紀錄。</p>
       </div>
       <dl className="market-metric-list">
         <HistoryMetric label="完成輪數" value={String(collection.loops_completed)} />
@@ -584,7 +609,15 @@ function MarketThresholdPanel({ data }: { data: DashboardData }) {
   )
 }
 
-function MarketAnalysisStatusList({ rows, timeZone }: { rows: MarketAnalysisStatus[]; timeZone: string }) {
+function MarketAnalysisStatusList({
+  rows,
+  timeZone,
+  exchange,
+}: {
+  rows: MarketAnalysisStatus[]
+  timeZone: string
+  exchange: string
+}) {
   const [page, setPage] = useState(1)
   const pageSize = 10
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
@@ -596,7 +629,7 @@ function MarketAnalysisStatusList({ rows, timeZone }: { rows: MarketAnalysisStat
       <div className="section-heading compact">
         <div>
           <h2>市場分析狀態</h2>
-          <p>每個幣別的樣本數、新鮮度與建議利率狀態。</p>
+          <p>依 {exchange} 已記錄樣本計算每個幣別的新鮮度、樣本數與建議利率。</p>
         </div>
         <span>{rows.length} 幣別</span>
       </div>
@@ -635,11 +668,11 @@ function MarketAnalysisStatusList({ rows, timeZone }: { rows: MarketAnalysisStat
   )
 }
 
-function MarketRateList({ rows, timeZone }: { rows: MarketRate[]; timeZone: string }) {
+function MarketRateList({ rows, timeZone, exchange }: { rows: MarketRate[]; timeZone: string; exchange: string }) {
   return (
     <MarketRecordList
       title="市場利率快照"
-      description="最近記錄的放貸簿利率。"
+      description={`從 ${exchange} lendbook 取得後寫入 market_rates 的最近利率快照。`}
       emptyText="目前沒有市場利率資料。"
       rows={rows.map((row) => ({
         id: row.id,
@@ -654,11 +687,11 @@ function MarketRateList({ rows, timeZone }: { rows: MarketRate[]; timeZone: stri
   )
 }
 
-function MarketDepthList({ rows, timeZone }: { rows: MarketAnalysisRate[]; timeZone: string }) {
+function MarketDepthList({ rows, timeZone, exchange }: { rows: MarketAnalysisRate[]; timeZone: string; exchange: string }) {
   return (
     <MarketRecordList
       title="市場分析紀錄"
-      description="由市場分析操作記錄的放貸簿深度資料。"
+      description={`由市場分析操作從 ${exchange} 記錄的多層放貸簿深度資料。`}
       emptyText="目前沒有市場分析紀錄。"
       rows={rows.map((row) => ({
         id: row.id,

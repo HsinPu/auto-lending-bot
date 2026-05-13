@@ -8,7 +8,6 @@ import { actions } from '../components/actionDefinitions'
 import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
-import { DashboardNav } from '../components/DashboardNav'
 import {
   DisplaySettingsModal,
   type DisplaySettings,
@@ -37,6 +36,7 @@ export function DashboardPage() {
   const [latestError, setLatestError] = useState<string | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const [adminToken, setAdminToken] = useState(loadAdminToken)
+  const [activePage, setActivePage] = useState<PageKey>('overview')
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
@@ -73,27 +73,29 @@ export function DashboardPage() {
       />
 
       <main className={`shell with-top-bar ${displaySettings.compactLayout ? 'compact-layout' : ''}`}>
-        <section className="console-intro mika-intro">
-          <div>
-            <p className="eyebrow">Lending Console</p>
-            <h1>{data?.status.label ?? 'Auto Lending Bot'}</h1>
-            <p className="lede">狀態、幣種明細、Log 與安全操作集中在同一個監控版面。</p>
-          </div>
-          <DisplaySettingsModal
-            settings={displaySettings}
-            onChange={(settings) => {
-              setDisplaySettings(settings)
-              localStorage.setItem(displaySettingsKey, JSON.stringify(settings))
-            }}
-          />
-        </section>
+        <div className="dashboard-layout">
+          <SidebarNavigation activePage={activePage} onChange={setActivePage} />
 
-        <DashboardNav showRawTables={displaySettings.showRawTables} />
+          <div className="dashboard-content">
+            <section className="console-intro mika-intro">
+              <div>
+                <p className="eyebrow">Lending Console</p>
+                <h1>{pageTitle(activePage, data?.status.label)}</h1>
+                <p className="lede">{pageDescription(activePage)}</p>
+              </div>
+              <DisplaySettingsModal
+                settings={displaySettings}
+                onChange={(settings) => {
+                  setDisplaySettings(settings)
+                  localStorage.setItem(displaySettingsKey, JSON.stringify(settings))
+                }}
+              />
+            </section>
 
       {isLoading ? <section className="status-skeleton">讀取 API 狀態中...</section> : null}
       {error ? <ErrorState message={(error as Error).message} /> : null}
 
-      {data ? (
+      {data && activePage === 'overview' ? (
         <>
           <section className="quick-actions" aria-label="Primary bot controls">
             <div>
@@ -286,9 +288,91 @@ export function DashboardPage() {
           ) : null}
         </>
       ) : null}
+      {data && activePage !== 'overview' ? <PagePlaceholder page={activePage} /> : null}
+          </div>
+        </div>
       </main>
     </>
   )
+}
+
+type PageKey =
+  | 'overview'
+  | 'currencies'
+  | 'earnings'
+  | 'market'
+  | 'offers'
+  | 'actions'
+  | 'settings'
+  | 'logs'
+
+const pageItems: Array<{ key: PageKey; label: string; description: string }> = [
+  { key: 'overview', label: '總覽', description: '核心狀態與常用操作' },
+  { key: 'currencies', label: '幣種狀態', description: '餘額、放貸中與幣種摘要' },
+  { key: 'earnings', label: '收益與歷史', description: '收益圖表與 lending history' },
+  { key: 'market', label: '市場分析', description: '利率紀錄與建議門檻' },
+  { key: 'offers', label: '委託管理', description: '本地與交易所委託' },
+  { key: 'actions', label: '安全操作', description: '同步、轉移、取消與 run once' },
+  { key: 'settings', label: 'Bot 設定', description: 'SQLite managed settings' },
+  { key: 'logs', label: '執行紀錄', description: 'Bot runs 與操作結果' },
+]
+
+function SidebarNavigation({
+  activePage,
+  onChange,
+}: {
+  activePage: PageKey
+  onChange: (page: PageKey) => void
+}) {
+  return (
+    <aside className="app-sidebar" aria-label="主要頁面">
+      <div className="sidebar-heading">
+        <span>Auto Lending Bot</span>
+        <strong>控制台</strong>
+      </div>
+      <nav className="sidebar-nav">
+        {pageItems.map((item) => (
+          <button
+            type="button"
+            key={item.key}
+            className={item.key === activePage ? 'active' : ''}
+            onClick={() => onChange(item.key)}
+          >
+            <strong>{item.label}</strong>
+            <span>{item.description}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  )
+}
+
+function PagePlaceholder({ page }: { page: PageKey }) {
+  const item = pageItems.find((entry) => entry.key === page)
+
+  return (
+    <section className="page-placeholder">
+      <p className="eyebrow">Coming Next</p>
+      <h2>{item?.label}</h2>
+      <p>{item?.description} 會在下一個 phase 開始從總覽頁拆出來。</p>
+    </section>
+  )
+}
+
+function pageTitle(activePage: PageKey, fallbackLabel?: string): string {
+  if (activePage === 'overview') {
+    return fallbackLabel ?? 'Auto Lending Bot'
+  }
+
+  return pageItems.find((item) => item.key === activePage)?.label ?? 'Auto Lending Bot'
+}
+
+function pageDescription(activePage: PageKey): string {
+  if (activePage === 'overview') {
+    return '狀態、幣種明細、Log 與安全操作集中在同一個監控版面。'
+  }
+
+  return pageItems.find((item) => item.key === activePage)?.description ?? ''
 }
 
 const primaryActions: SafeActionName[] = [

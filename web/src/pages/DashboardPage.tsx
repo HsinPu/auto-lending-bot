@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
@@ -34,7 +34,7 @@ export function DashboardPage() {
   const [latestError, setLatestError] = useState<string | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const [adminToken, setAdminToken] = useState(loadAdminToken)
-  const [activePage, setActivePage] = useState<PageKey>('overview')
+  const [activePage, setActivePage] = useState<PageKey>(loadActivePage)
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
@@ -60,6 +60,18 @@ export function DashboardPage() {
 
     actionMutation.mutate({ action, confirmLive })
   }
+  useEffect(() => {
+    const syncPageFromHash = () => setActivePage(loadActivePage())
+    window.addEventListener('hashchange', syncPageFromHash)
+    return () => window.removeEventListener('hashchange', syncPageFromHash)
+  }, [])
+  const changePage = (page: PageKey) => {
+    setActivePage(page)
+    const nextHash = `#${page}`
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, '', nextHash)
+    }
+  }
 
   return (
     <>
@@ -72,7 +84,7 @@ export function DashboardPage() {
 
       <main className={`shell with-top-bar ${displaySettings.compactLayout ? 'compact-layout' : ''}`}>
         <div className="dashboard-layout">
-          <SidebarNavigation activePage={activePage} onChange={setActivePage} />
+          <SidebarNavigation activePage={activePage} onChange={changePage} />
 
           <div className="dashboard-content">
             <section className="console-intro mika-intro">
@@ -469,6 +481,15 @@ function pageDescription(activePage: PageKey): string {
   }
 
   return pageItems.find((item) => item.key === activePage)?.description ?? ''
+}
+
+function loadActivePage(): PageKey {
+  const hashValue = window.location.hash.replace(/^#/, '')
+  return isPageKey(hashValue) ? hashValue : 'overview'
+}
+
+function isPageKey(value: string): value is PageKey {
+  return pageItems.some((item) => item.key === value)
 }
 
 const primaryActions: SafeActionName[] = [

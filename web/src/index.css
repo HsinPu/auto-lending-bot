@@ -252,6 +252,46 @@ button {
   margin-top: 20px;
 }
 
+.overview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.overview-main,
+.overview-side {
+  display: grid;
+  gap: 20px;
+}
+
+.overview-side {
+  position: sticky;
+  top: 96px;
+}
+
+.overview-layout .status-grid,
+.overview-side .settings-panel,
+.overview-main .activity-panel {
+  margin-top: 0;
+}
+
+.overview-side .settings-panel,
+.overview-side .settings-panel dl {
+  grid-template-columns: 1fr;
+}
+
+.overview-side .settings-panel {
+  display: grid;
+  padding: 18px;
+}
+
+.overview-side .settings-panel dl {
+  max-height: 340px;
+  overflow: auto;
+}
+
 .mika-main-column,
 .mika-side-column,
 .raw-data-stack {
@@ -1313,6 +1353,10 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .overview-layout {
+    grid-template-columns: 1fr;
+  }
+
   .quick-actions {
     grid-template-columns: 1fr;
   }
@@ -1322,6 +1366,10 @@ td {
   }
 
   .mika-side-column {
+    position: static;
+  }
+
+  .overview-side {
     position: static;
   }
 

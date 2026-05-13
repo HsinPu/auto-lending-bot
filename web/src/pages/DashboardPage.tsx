@@ -2,40 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { getDashboardData, runSafeAction } from '../api/client'
-import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
 import { actions } from '../components/actionDefinitions'
-import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
-import { CurrencyOverview } from '../components/CurrencyOverview'
-import { DataTable } from '../components/DataTable'
 import {
   DisplaySettingsModal,
   type DisplaySettings,
 } from '../components/DisplaySettingsModal'
-import { EarningsForecast } from '../components/EarningsForecast'
-import { ManagedSettingsPanel } from '../components/ManagedSettingsPanel'
-import { MiniCharts } from '../components/MiniCharts'
-import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
-import type {
-  ActiveLoan,
-  BotRun,
-  EarningsSummary,
-  LendingHistoryEntry,
-  LoanOffer,
-  MarketAnalysisRate,
-  MarketRate,
-  SafeActionName,
-  SafeActionResponse,
-} from '../types/api'
+import type { SafeActionName, SafeActionResponse } from '../types/api'
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
-  const [adminToken, setAdminToken] = useState(loadAdminToken)
+  const [adminToken] = useState(loadAdminToken)
   const [activePage, setActivePage] = useState<PageKey>('overview')
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
@@ -128,16 +110,8 @@ export function DashboardPage() {
             </div>
           </section>
 
-          <ManagedSettingsPanel
-            adminToken={adminToken}
-            onAdminTokenChange={(token) => {
-              setAdminToken(token)
-              sessionStorage.setItem(adminTokenKey, token)
-            }}
-          />
-
-          <div className="mika-console-layout">
-            <div className="mika-main-column">
+          <div className="overview-layout">
+            <div className="overview-main">
               <section className="status-grid" id="status" aria-label="Bot status summary">
                 <StatusCard label="交易所" value={data.status.exchange} />
                 <StatusCard
@@ -153,8 +127,6 @@ export function DashboardPage() {
                 <StatusCard label="設定覆寫" value={data.status.settings_runtime.managed_override_count} />
               </section>
 
-              <CurrencyOverview details={data.currencyDetails} />
-
               <ActivityLog
                 runs={data.runs}
                 offers={data.offers}
@@ -163,7 +135,7 @@ export function DashboardPage() {
               />
             </div>
 
-            <aside className="mika-side-column" aria-label="Console controls">
+            <aside className="overview-side" aria-label="Overview details">
               <section className="settings-panel">
                 <div>
                   <h2>策略設定預覽</h2>
@@ -191,101 +163,8 @@ export function DashboardPage() {
                   ))}
                 </dl>
               </section>
-
-              <ActionPanel
-                dryRun={data.status.dry_run}
-                isPending={actionMutation.isPending}
-                latestResult={latestResult}
-                latestError={latestError}
-                onRunAction={(action: SafeActionName) => runAction(action, data.status.dry_run)}
-              />
-
-              <EarningsForecast details={data.currencyDetails} />
-
-              <ConvertedEarningsPanel
-                rows={data.convertedEarnings}
-                btcUnit={displaySettings.btcUnit}
-              />
             </aside>
           </div>
-
-          <section className="mika-chart-row" aria-label="Dashboard charts">
-            <MiniCharts
-              earnings={data.earnings}
-              marketRates={data.marketRates}
-              offers={data.offers}
-            />
-
-            <ProfitCharts history={data.lendingHistory} />
-          </section>
-
-          {displaySettings.showRawTables ? (
-            <section className="raw-data-stack" aria-label="Raw API data">
-              <div className="raw-data-anchor" id="raw-data" />
-              <DataTable<BotRun>
-                title="最近執行"
-                description="Bot run 狀態與訊息。"
-                rows={data.runs}
-                columns={[
-                  { key: 'id', label: '編號' },
-                  { key: 'status', label: '狀態' },
-                  { key: 'dry_run', label: '模擬' },
-                  { key: 'started_at', label: '開始時間' },
-                  { key: 'finished_at', label: '結束時間' },
-                  { key: 'message', label: '訊息' },
-                ]}
-              />
-
-              <DataTable<LoanOffer>
-                title="貸出委託"
-                description="本地紀錄的 dry-run/live offer intent 與結果。"
-                rows={data.offers}
-                columns={offerColumns}
-              />
-
-              <DataTable<LoanOffer>
-                title="交易所未成交委託"
-                description="由 sync-open-offers 取得的 read-only snapshot。"
-                rows={data.openOffers}
-                columns={openOfferColumns}
-              />
-
-              <DataTable<ActiveLoan>
-                title="目前放貸中"
-                description="交易所 active loans snapshot。"
-                rows={data.activeLoans}
-                columns={activeLoanColumns}
-              />
-
-              <DataTable<EarningsSummary>
-                title="收益摘要"
-                description="依幣種彙總今日、昨日與累積收益。"
-                rows={data.earnings}
-                columns={earningsColumns}
-              />
-
-              <DataTable<LendingHistoryEntry>
-                title="收益明細"
-                description="最近同步的 lending history。"
-                rows={data.lendingHistory}
-                columns={historyColumns}
-              />
-
-              <DataTable<MarketRate>
-                title="市場利率"
-                description="最近記錄的 lendbook rate snapshot。"
-                rows={data.marketRates}
-                columns={marketRateColumns}
-              />
-
-              <DataTable<MarketAnalysisRate>
-                title="市場分析紀錄"
-                description="由 record-market-analysis 記錄的 lendbook depth levels。"
-                rows={data.marketAnalysisRates}
-                columns={marketAnalysisColumns}
-              />
-            </section>
-          ) : null}
         </>
       ) : null}
       {data && activePage !== 'overview' ? <PagePlaceholder page={activePage} /> : null}
@@ -421,67 +300,3 @@ function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
 }
 
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')
-const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
-
-const offerColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'amount', label: '數量', format: amount },
-  { key: 'daily_rate', label: '日利率', format: rate },
-  { key: 'duration_days', label: '天數' },
-  { key: 'status', label: '狀態' },
-  { key: 'external_offer_id', label: '交易所編號' },
-] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
-
-const openOfferColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'amount', label: '數量', format: amount },
-  { key: 'daily_rate', label: '日利率', format: rate },
-  { key: 'duration_days', label: '天數' },
-  { key: 'external_offer_id', label: '交易所編號' },
-  { key: 'captured_at', label: '擷取時間' },
-] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
-
-const activeLoanColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'amount', label: '數量', format: amount },
-  { key: 'daily_rate', label: '日利率', format: rate },
-  { key: 'duration_days', label: '天數' },
-  { key: 'external_loan_id', label: '交易所編號' },
-  { key: 'captured_at', label: '擷取時間' },
-] satisfies Parameters<typeof DataTable<ActiveLoan>>[0]['columns']
-
-const earningsColumns = [
-  { key: 'currency', label: '幣種' },
-  { key: 'today_earned', label: '今日收益', format: amount },
-  { key: 'yesterday_earned', label: '昨日收益', format: amount },
-  { key: 'total_earned', label: '累積收益', format: amount },
-] satisfies Parameters<typeof DataTable<EarningsSummary>>[0]['columns']
-
-const historyColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'interest', label: '利息', format: amount },
-  { key: 'fee', label: '手續費', format: amount },
-  { key: 'earned', label: '實收', format: amount },
-  { key: 'closed_at', label: '結束時間' },
-] satisfies Parameters<typeof DataTable<LendingHistoryEntry>>[0]['columns']
-
-const marketRateColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'daily_rate', label: '日利率', format: rate },
-  { key: 'available_amount', label: '可用數量', format: amount },
-  { key: 'captured_at', label: '擷取時間' },
-] satisfies Parameters<typeof DataTable<MarketRate>>[0]['columns']
-
-const marketAnalysisColumns = [
-  { key: 'id', label: '編號' },
-  { key: 'currency', label: '幣種' },
-  { key: 'level', label: 'Level' },
-  { key: 'daily_rate', label: '日利率', format: rate },
-  { key: 'available_amount', label: '可用數量', format: amount },
-  { key: 'captured_at', label: '擷取時間' },
-] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']

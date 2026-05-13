@@ -252,6 +252,21 @@ def test_api_settings_write_allows_localhost_without_admin_token(tmp_path, monke
     assert client.get("/api/settings/values").json()["BOT_LABEL"]["value"] == "Local Bot"
 
 
+def test_api_settings_write_allows_docker_gateway_for_localhost(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(
+        create_app(),
+        base_url="http://127.0.0.1:8000",
+        client=("172.20.0.1", 50000),
+    )
+
+    response = client.put("/api/settings/values", json={"BOT_LABEL": "Local Docker Bot"})
+
+    assert response.status_code == 200
+
+
 def test_api_settings_write_requires_configured_admin_token(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)

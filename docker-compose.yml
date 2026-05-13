@@ -21,7 +21,7 @@ services:
       ADMIN_AUTH_TOKEN: ${ADMIN_AUTH_TOKEN:-}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./data:/app/data
 
@@ -32,7 +32,7 @@ services:
     environment:
       VITE_API_PROXY_TARGET: http://api:8000
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./web:/app/web
       - web-node-modules:/app/web/node_modules

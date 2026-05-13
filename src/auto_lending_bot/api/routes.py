@@ -641,9 +641,14 @@ def _is_local_request(request: Request) -> bool:
     if request.client is None:
         return False
     try:
-        return ip_address(request.client.host).is_loopback
+        client_ip = ip_address(request.client.host)
     except ValueError:
         return False
+    if client_ip.is_loopback:
+        return True
+
+    host = request.headers.get("host", "").split(":", 1)[0].lower()
+    return client_ip.is_private and host in {"127.0.0.1", "localhost", "::1"}
 
 
 def _validate_transfer_action_settings(settings: Settings) -> None:

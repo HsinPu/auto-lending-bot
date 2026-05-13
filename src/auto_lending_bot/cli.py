@@ -205,7 +205,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "serve-api":
         uvicorn.run(
-            create_app(settings),
+            create_app(),
             host=args.host,
             port=args.port,
             log_level=settings.log_level.lower(),

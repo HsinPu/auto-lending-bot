@@ -1,3 +1,5 @@
+from fastapi.testclient import TestClient
+
 from auto_lending_bot.cli import run_cli
 from auto_lending_bot.domain.models import CurrencyBalance, LoanOffer, LoanOrder
 from auto_lending_bot.persistence.repository import AppSettingRepository
@@ -177,7 +179,8 @@ def test_cli_run_reloads_database_settings_between_loops(tmp_path, monkeypatch) 
     assert seen_labels == ["Auto Lending Bot", "Reloaded Bot"]
 
 
-def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> None:
+def test_cli_smoke_exchange_prints_read_only_summary(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("EXCHANGE", "mock")
     monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: FakeExchange())
 
@@ -189,6 +192,21 @@ def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> Non
     assert "Lending balances: 1" in output
     assert "Loan orders: 1" in output
     assert "Best daily rate: 0.00008000" in output
+
+
+def test_cli_serve_api_uses_reloaded_database_settings(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+
+    def run_server(app, **_kwargs):
+        AppSettingRepository(database_url).set_many({"DISPLAY_TIMEZONE": "Asia/Taipei"})
+        response = TestClient(app).get("/api/settings")
+        assert response.status_code == 200
+        assert response.json()["display_timezone"] == "Asia/Taipei"
+
+    monkeypatch.setattr("auto_lending_bot.cli.uvicorn.run", run_server)
+
+    assert run_cli(["serve-api"]) == 0
 
 
 class FakeExchange:

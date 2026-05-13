@@ -37,6 +37,89 @@ const dangerLabels = {
   critical: '關鍵風險',
 }
 
+const settingLabels: Record<string, string> = {
+  ALLOW_BALANCE_TRANSFERS: '允許資金轉移',
+  ALLOW_LIVE_TRADING: '允許 Live 交易',
+  AUTO_CANCEL_OPEN_OFFERS: '自動取消未成交委託',
+  AUTO_REBALANCE_OPEN_OFFERS: '自動重整未成交委託',
+  BITFINEX_ENABLE_LIVE_OFFERS: '啟用 Bitfinex Live 放貸',
+  BITFINEX_ENABLE_LIVE_TRANSFERS: '啟用 Bitfinex Live 轉帳',
+  BOT_DRY_RUN: '模擬模式',
+  BOT_INACTIVE_SLEEP_SECONDS: '無委託時等待秒數',
+  BOT_LABEL: 'Bot 名稱',
+  BOT_MAX_LOOPS: '最大執行迴圈數',
+  BOT_SLEEP_SECONDS: '一般等待秒數',
+  DISPLAY_TIMEZONE: '顯示時區',
+  END_DATE: '停止放貸日期',
+  EXCHANGE: '交易所',
+  EXCHANGE_API_KEY: '交易所 API Key',
+  EXCHANGE_API_SECRET: '交易所 API Secret',
+  FRR_AS_MIN: '使用 FRR 作為最低利率',
+  FRR_DELTA: 'FRR 調整值',
+  GAP_BOTTOM: 'Gap 下緣深度',
+  GAP_MODE: 'Gap 模式',
+  GAP_TOP: 'Gap 上緣深度',
+  HIDE_COINS: '低於最低利率時保留資金',
+  HTTP_TIMEOUT_SECONDS: 'HTTP 逾時秒數',
+  KEEP_STUCK_ORDERS: '保留卡住的小額委託',
+  LOG_LEVEL: 'Log 等級',
+  MARKET_ANALYSIS_CURRENCIES: '市場分析幣別',
+  MARKET_ANALYSIS_LEVELS: '市場分析深度層數',
+  MARKET_ANALYSIS_MACD_LONG_SAMPLES: 'MACD 長週期樣本數',
+  MARKET_ANALYSIS_MACD_LONG_SECONDS: 'MACD 長週期秒數',
+  MARKET_ANALYSIS_MACD_SHORT_SAMPLES: 'MACD 短週期樣本數',
+  MARKET_ANALYSIS_MACD_SHORT_SECONDS: 'MACD 短週期秒數',
+  MARKET_ANALYSIS_MAX_AGE_SECONDS: '市場分析資料最大秒數',
+  MARKET_ANALYSIS_METHOD: '市場分析方法',
+  MARKET_ANALYSIS_MIN_SAMPLES: '市場分析最低樣本數',
+  MARKET_ANALYSIS_MULTIPLIER: '市場分析倍率',
+  MARKET_ANALYSIS_PERCENTILE: '市場分析百分位',
+  MARKET_ANALYSIS_RETENTION_DAYS: '市場分析保留天數',
+  MARKET_RATE_RETENTION_DAYS: '市場利率保留天數',
+  MAX_ACTIVE_AMOUNT: '最大放貸中金額',
+  MAX_AMOUNT_TO_LEND: '最大可放貸金額',
+  MAX_DAILY_RATE: '最高日利率',
+  MAX_PERCENT_TO_LEND: '最大放貸百分比',
+  MAX_SINGLE_OFFER_AMOUNT: '單筆委託上限',
+  MAX_SINGLE_TRANSFER_AMOUNT: '單筆轉帳上限',
+  MAX_TO_LEND: '最大可放貸金額',
+  MAX_TO_LEND_RATE: 'Max-to-lend 啟用利率',
+  MAX_TOTAL_LEND_AMOUNT: '單次執行總放貸上限',
+  MAX_TOTAL_TRANSFER_AMOUNT: '單次執行總轉帳上限',
+  MIN_DAILY_RATE: '最低日利率',
+  MIN_LOAN_SIZE: '最低放貸金額',
+  NOTIFY_CAUGHT_EXCEPTION: '錯誤通知',
+  NOTIFY_PREFIX: '通知前綴',
+  NOTIFY_SUMMARY_MINUTES: '摘要通知間隔分鐘',
+  NOTIFY_XDAY_THRESHOLD: '長天期委託通知',
+  OUTPUT_CURRENCY: '收益換算幣別',
+  RETRY_ATTEMPTS: '重試次數',
+  RETRY_BACKOFF_SECONDS: '重試等待秒數',
+  SMOKE_TEST_CURRENCY: '測試幣別',
+  SPREAD_LEND: '委託拆單數',
+  STRATEGY_DEBUG: '策略除錯模式',
+  TELEGRAM_BOT_TOKEN: 'Telegram Bot Token',
+  TELEGRAM_CHAT_ID: 'Telegram Chat ID',
+  TRANSFERABLE_CURRENCIES: '可轉移幣別',
+  XDAY_SPREAD: '長天期線性區間',
+  XDAY_THRESHOLD: '長天期利率門檻',
+  XDAYS: '長天期天數',
+}
+
+const choiceLabels: Record<string, string> = {
+  false: '否',
+  true: '是',
+  mock: '模擬交易所',
+  bitfinex: 'Bitfinex',
+  off: '關閉',
+  raw: '原始深度',
+  relative: '相對比例',
+  raw_btc: 'BTC 原始深度',
+  rawbtc: 'BTC 原始深度',
+  percentile: '百分位',
+  macd: 'MACD 均線',
+}
+
 export function ManagedSettingsPanel({
   adminToken,
   onAdminTokenChange,
@@ -77,7 +160,7 @@ export function ManagedSettingsPanel({
     },
     onSuccess: async (result) => {
       setDraftOverrides({})
-      setMessage(`已儲存 ${result.changed_count} 個設定。下一次 API 動作或 bot loop 會套用。`)
+      setMessage(`已儲存 ${result.changed_count} 個設定。下一次 API 動作或 bot 迴圈會套用。`)
       setError(null)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
@@ -110,7 +193,7 @@ export function ManagedSettingsPanel({
     mutationFn: exportManagedSettings,
     onSuccess: (result) => {
       downloadSettingsExport(result)
-      setMessage('已匯出設定 JSON。Secret 欄位不會包含在匯出檔。')
+      setMessage('已匯出設定 JSON。密鑰欄位不會包含在匯出檔。')
       setError(null)
     },
     onError: (mutationError) => {
@@ -160,12 +243,12 @@ export function ManagedSettingsPanel({
     <section className="managed-settings-panel" id="managed-settings">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">SaaS Settings</p>
+          <p className="eyebrow">SaaS 設定</p>
           <h2>Bot 設定管理</h2>
-          <p>讀取 SQLite 中的覆寫值；儲存後會在下一次 API 動作或 bot loop 熱更新。</p>
+          <p>讀取 SQLite 中的覆寫值；儲存後會在下一次 API 動作或 bot 迴圈熱更新。</p>
         </div>
         <label className="admin-token-field">
-          <span>Admin Token</span>
+          <span>管理權杖</span>
           <input
             type="password"
             value={adminToken}
@@ -175,7 +258,7 @@ export function ManagedSettingsPanel({
         </label>
       </div>
 
-      {isLoading ? <p className="settings-state">讀取設定 schema...</p> : null}
+      {isLoading ? <p className="settings-state">讀取設定結構...</p> : null}
       {queryError ? <p className="settings-state error">{(queryError as Error).message}</p> : null}
 
       {data ? (
@@ -186,7 +269,7 @@ export function ManagedSettingsPanel({
               <input
                 type="search"
                 value={searchText}
-                placeholder="例如 BOT_DRY_RUN、rate、telegram"
+                placeholder="例如 模擬、利率、Telegram"
                 onChange={(event) => setSearchText(event.currentTarget.value)}
               />
             </label>
@@ -217,7 +300,7 @@ export function ManagedSettingsPanel({
             <strong>安全提醒</strong>
             <span>
               高風險與關鍵風險設定會影響 live 放貸、取消委託或資金轉移。後端仍會套用 safety guard，
-              但請先保持 BOT_DRY_RUN=true 完成驗證。
+              但請先保持「模擬模式 = 是」完成驗證。
             </span>
           </div>
           {visibleGroups.map(([category, definitions]) => (
@@ -320,19 +403,20 @@ function SettingField({
   return (
     <label className={`settings-field danger-${definition.danger_level}`}>
       <span className="settings-field-heading">
-        <strong>{definition.key}</strong>
+        <strong>{settingLabel(definition.key)}</strong>
         <small>{dangerLabels[definition.danger_level]}</small>
       </span>
+      <span className="settings-field-key">{definition.key}</span>
       {valueType === 'bool' ? (
         <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
-          <option value="true">true</option>
-          <option value="false">false</option>
+          <option value="true">是</option>
+          <option value="false">否</option>
         </select>
       ) : valueType === 'enum' && definition.choices.length ? (
         <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
           {definition.choices.map((choice) => (
             <option value={choice} key={choice}>
-              {choice}
+              {choiceLabels[choice] ?? choice}
             </option>
           ))}
         </select>
@@ -347,7 +431,7 @@ function SettingField({
         />
       )}
       <span className="settings-field-meta">
-        {definition.secret && storedValue?.is_set ? '已設定 secret；留空代表不變。' : `預設值：${definition.default || '(空值)'}`}
+        {definition.secret && storedValue?.is_set ? '已設定密鑰；留空代表不變。' : `預設值：${defaultDisplayValue(definition)}`}
       </span>
       <button type="button" className="settings-reset-button" disabled={disabled || !stored} onClick={onReset}>
         重設此項
@@ -418,10 +502,29 @@ function shouldShowDefinition(
     return true
   }
 
-  return [definition.key, definition.category, definition.value_type, definition.description]
+  return [
+    definition.key,
+    settingLabel(definition.key),
+    definition.category,
+    categoryLabels[definition.category],
+    definition.value_type,
+    definition.description,
+  ]
     .join(' ')
     .toLowerCase()
     .includes(normalizedSearch)
+}
+
+function settingLabel(key: string): string {
+  return settingLabels[key] ?? key
+}
+
+function defaultDisplayValue(definition: ManagedSettingDefinition): string {
+  if (!definition.default) {
+    return '(空值)'
+  }
+
+  return choiceLabels[definition.default] ?? definition.default
 }
 
 function inputTypeFor(valueType: string): string {

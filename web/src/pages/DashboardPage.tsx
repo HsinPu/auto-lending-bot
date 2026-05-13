@@ -95,7 +95,7 @@ export function DashboardPage() {
           <div className="dashboard-content">
             <section className="console-intro mika-intro">
               <div>
-                <p className="eyebrow">Lending Console</p>
+                <p className="eyebrow">放貸控制台</p>
                 <h1>{pageTitle(activePage, data?.status.label)}</h1>
                 <p className="lede">{pageDescription(activePage)}</p>
               </div>
@@ -115,7 +115,7 @@ export function DashboardPage() {
         <>
           <section className="quick-actions" aria-label="Primary bot controls">
             <div>
-              <p className="eyebrow">Bot Controls</p>
+                <p className="eyebrow">Bot 控制</p>
               <h2>前端控制</h2>
               <p>
                 目前是 {data.status.dry_run ? '模擬模式' : 'Live 模式'}。按鈕會呼叫後端 API，
@@ -153,7 +153,7 @@ export function DashboardPage() {
                   value={data.status.dry_run ? '模擬模式' : 'Live 模式'}
                   tone={data.status.dry_run ? 'safe' : 'danger'}
                 />
-                <StatusCard label="Bot runs" value={data.status.counts.bot_runs} />
+                <StatusCard label="執行次數" value={data.status.counts.bot_runs} />
                 <StatusCard label="貸出委託" value={data.status.counts.loan_offers} />
                 <StatusCard label="目前放貸中" value={data.status.counts.active_loans} />
                 <StatusCard label="收益紀錄" value={data.status.counts.lending_history} />
@@ -175,24 +175,24 @@ export function DashboardPage() {
                 <div>
                   <h2>策略設定預覽</h2>
                   <p>
-                    {data.settings.smoke_test_currency} | strategy debug:{' '}
-                    {data.settings.strategy_debug ? 'on' : 'off'}
+                    {data.settings.smoke_test_currency} | 策略除錯：
+                    {data.settings.strategy_debug ? '開啟' : '關閉'}
                   </p>
                 </div>
                 <dl>
                   <div>
-                    <dt>market_analysis_suggested_min_daily_rate</dt>
+                    <dt>市場分析建議最低日利率</dt>
                     <dd>{rate(data.settings.market_analysis_suggested_min_daily_rate)}</dd>
                   </div>
                   <div>
-                    <dt>effective_min_daily_rate</dt>
+                    <dt>有效最低日利率</dt>
                     <dd>{rate(data.settings.effective_min_daily_rate)}</dd>
                   </div>
                 </dl>
                 <dl>
                   {Object.entries(data.settings.strategy).map(([key, value]) => (
                     <div key={key}>
-                      <dt>{key}</dt>
+                      <dt>{strategyLabel(key)}</dt>
                       <dd>{String(value)}</dd>
                     </div>
                   ))}
@@ -207,7 +207,7 @@ export function DashboardPage() {
           <CurrencyOverview details={data.currencyDetails} />
           <DataTable<StrategyDecision>
             title="策略決策表"
-            description="每個幣別目前套用的策略、利率門檻與預計建立的 offer。"
+            description="每個幣別目前套用的策略、利率門檻與預計建立的委託。"
             rows={data.strategyDecisions}
             columns={strategyDecisionColumns}
           />
@@ -230,7 +230,7 @@ export function DashboardPage() {
         <div className="page-stack">
           <PageActionStrip
             title="市場分析操作"
-            description="記錄 lendbook 深度後，後端會更新 suggested / effective min daily rate。"
+            description="記錄放貸簿深度後，後端會更新建議與有效最低日利率。"
             actionNames={['record-market-analysis']}
             isPending={actionMutation.isPending}
             onRunAction={(action) => runAction(action, data.status.dry_run)}
@@ -249,28 +249,28 @@ export function DashboardPage() {
             </div>
             <dl>
               <div>
-                <dt>suggested min daily rate</dt>
+                  <dt>建議最低日利率</dt>
                 <dd>{rate(data.settings.market_analysis_suggested_min_daily_rate)}</dd>
               </div>
               <div>
-                <dt>effective min daily rate</dt>
+                  <dt>有效最低日利率</dt>
                 <dd>{rate(data.settings.effective_min_daily_rate)}</dd>
               </div>
               <div>
-                <dt>market analysis levels</dt>
+                  <dt>市場分析深度層數</dt>
                 <dd>{data.settings.market_analysis_levels}</dd>
               </div>
             </dl>
           </section>
           <DataTable<MarketRate>
             title="市場利率"
-            description="最近記錄的 lendbook rate snapshot。"
+            description="最近記錄的放貸簿利率快照。"
             rows={data.marketRates}
             columns={marketRateColumns(displayTimeZone)}
           />
           <DataTable<MarketAnalysisRate>
             title="市場分析紀錄"
-            description="由 record-market-analysis 記錄的 lendbook depth levels。"
+            description="由市場分析操作記錄的放貸簿深度資料。"
             rows={data.marketAnalysisRates}
             columns={marketAnalysisColumns(displayTimeZone)}
           />
@@ -287,13 +287,13 @@ export function DashboardPage() {
           />
           <DataTable<LoanOffer>
             title="貸出委託"
-            description="本地紀錄的 dry-run/live offer intent 與結果。"
+            description="本地紀錄的模擬或 Live 委託意圖與結果。"
             rows={data.offers}
             columns={offerColumns}
           />
           <DataTable<LoanOffer>
             title="交易所未成交委託"
-            description="由 sync-open-offers 取得的 read-only snapshot。"
+            description="由同步委託取得的唯讀快照。"
             rows={data.openOffers}
             columns={openOfferColumns(displayTimeZone)}
           />
@@ -303,14 +303,14 @@ export function DashboardPage() {
         <div className="page-stack">
           <section className="safety-action-header">
             <div>
-              <p className="eyebrow">Protected Operations</p>
+              <p className="eyebrow">受保護操作</p>
               <h2>安全操作中心</h2>
               <p>
-                Live 模式操作需要 Admin Token 與後端 confirm guard。Dry-run 模式仍可用來驗證流程。
+                Live 模式操作需要管理權杖與後端二次確認。模擬模式仍可用來驗證流程。
               </p>
             </div>
             <label className="admin-token-field">
-              <span>Admin Token</span>
+              <span>管理權杖</span>
               <input
                 type="password"
                 value={adminToken}
@@ -325,7 +325,7 @@ export function DashboardPage() {
           {!data.status.dry_run ? (
             <section className="live-warning-panel">
               <strong>Live 模式警示</strong>
-              <p>Transfer funds、Cancel open offers、Run once 可能執行真實交易所操作。</p>
+              <p>執行轉帳、取消委託、執行一次可能會送出真實交易所操作。</p>
             </section>
           ) : null}
           <LiveReadinessPanel readiness={data.liveReadiness} />
@@ -358,13 +358,13 @@ export function DashboardPage() {
           />
           <DataTable<BotRun>
             title="最近執行"
-            description="Bot run 狀態與訊息。"
+            description="Bot 執行狀態與訊息。"
             rows={data.runs}
             columns={runColumns(displayTimeZone)}
           />
           <DataTable<LoanOffer>
             title="最近貸出活動"
-            description="本地紀錄的 offer intent、dry-run 或 live 結果。"
+            description="本地紀錄的委託意圖、模擬或 Live 結果。"
             rows={data.offers}
             columns={offerColumns}
           />
@@ -393,12 +393,12 @@ type PageKey =
 const pageItems: Array<{ key: PageKey; label: string; description: string }> = [
   { key: 'overview', label: '總覽', description: '核心狀態與常用操作' },
   { key: 'currencies', label: '幣種狀態', description: '餘額、放貸中與幣種摘要' },
-  { key: 'earnings', label: '收益與歷史', description: '收益圖表與 lending history' },
+  { key: 'earnings', label: '收益與歷史', description: '收益圖表與放貸歷史' },
   { key: 'market', label: '市場分析', description: '利率紀錄與建議門檻' },
   { key: 'offers', label: '委託管理', description: '本地與交易所委託' },
   { key: 'actions', label: '安全操作', description: '同步、轉移、取消與 run once' },
-  { key: 'settings', label: 'Bot 設定', description: 'SQLite managed settings' },
-  { key: 'logs', label: '執行紀錄', description: 'Bot runs 與操作結果' },
+  { key: 'settings', label: 'Bot 設定', description: 'SQLite 設定覆寫' },
+  { key: 'logs', label: '執行紀錄', description: 'Bot 執行與操作結果' },
 ]
 
 function SidebarNavigation({
@@ -432,7 +432,7 @@ function SidebarNavigation({
       </nav>
       <div className={`sidebar-admin-state ${adminToken ? 'enabled' : ''}`}>
         <strong>{adminToken ? '管理權限已啟用' : '管理權限未啟用'}</strong>
-        <span>{adminToken ? 'Live actions / settings writes 可送出 token' : '安全操作與設定寫入需要 Admin Token'}</span>
+        <span>{adminToken ? 'Live 操作與設定寫入可送出權杖' : '安全操作與設定寫入需要管理權杖'}</span>
       </div>
     </aside>
   )
@@ -443,7 +443,7 @@ function PagePlaceholder({ page }: { page: PageKey }) {
 
   return (
     <section className="page-placeholder">
-      <p className="eyebrow">Coming Next</p>
+        <p className="eyebrow">即將開放</p>
       <h2>{item?.label}</h2>
       <p>{item?.description} 會在下一個 phase 開始從總覽頁拆出來。</p>
     </section>
@@ -466,7 +466,7 @@ function PageActionStrip({
   return (
     <section className="quick-actions">
       <div>
-        <p className="eyebrow">Page Controls</p>
+        <p className="eyebrow">頁面操作</p>
         <h2>{title}</h2>
         <p>{description}</p>
       </div>
@@ -498,9 +498,9 @@ function LiveReadinessPanel({ readiness }: { readiness: LiveReadiness }) {
   return (
     <section className="settings-panel">
       <div>
-        <p className="eyebrow">Live Readiness</p>
-        <h2>Live 設定 Checklist</h2>
-        <p>{readiness.note}</p>
+        <p className="eyebrow">Live 就緒檢查</p>
+        <h2>Live 設定檢查清單</h2>
+        <p>{readinessNote(readiness.note)}</p>
       </div>
       <div className="settings-grid two-column">
         <LiveReadinessSectionView title="Live 放貸" section={readiness.live_offers} />
@@ -523,7 +523,7 @@ function LiveReadinessSectionView({
       <ul>
         {section.items.map((item) => (
           <li key={item.label} className={item.ok ? 'ok' : 'missing'}>
-            {item.ok ? 'OK' : '缺少'}: {item.label}
+            {item.ok ? '通過' : '缺少'}：{readinessLabel(item.label)}
           </li>
         ))}
       </ul>
@@ -605,6 +605,103 @@ const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).t
 const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
 const yesNo = (value: unknown) => (value ? '是' : '否')
 
+const strategyLabels: Record<string, string> = {
+  min_daily_rate: '最低日利率',
+  max_daily_rate: '最高日利率',
+  min_loan_size: '最低放貸金額',
+  spread_lend: '委託拆單數',
+  gap_mode: 'Gap 模式',
+  gap_bottom: 'Gap 下緣深度',
+  gap_top: 'Gap 上緣深度',
+  xday_threshold: '長天期利率門檻',
+  xdays: '長天期天數',
+  xday_spread: '長天期線性區間',
+  frr_as_min: '使用 FRR 作為最低利率',
+  frr_delta: 'FRR 調整值',
+  max_percent_to_lend: '最大放貸百分比',
+  max_amount_to_lend: '最大可放貸金額',
+  max_active_amount: '最大放貸中金額',
+  max_to_lend_rate: 'Max-to-lend 啟用利率',
+  end_date: '停止放貸日期',
+  hide_coins: '低於最低利率時保留資金',
+}
+
+const readinessLabels: Record<string, string> = {
+  'EXCHANGE=bitfinex': '交易所設定為 Bitfinex',
+  'BOT_DRY_RUN=false': '模擬模式關閉',
+  'ALLOW_LIVE_TRADING=true': '允許 Live 交易',
+  'ALLOW_BALANCE_TRANSFERS=true': '允許資金轉移',
+  'BITFINEX_ENABLE_LIVE_OFFERS=true': '啟用 Bitfinex Live 放貸',
+  'BITFINEX_ENABLE_LIVE_TRANSFERS=true': '啟用 Bitfinex Live 轉帳',
+  'EXCHANGE_API_KEY is set': '已設定交易所 API Key',
+  'EXCHANGE_API_SECRET is set': '已設定交易所 API Secret',
+  'MAX_TOTAL_LEND_AMOUNT is set': '已設定單次執行總放貸上限',
+  'MAX_SINGLE_OFFER_AMOUNT is set': '已設定單筆委託上限',
+  'MAX_TOTAL_TRANSFER_AMOUNT is set': '已設定單次執行總轉帳上限',
+  'MAX_SINGLE_TRANSFER_AMOUNT is set': '已設定單筆轉帳上限',
+}
+
+const reasonLabels: Record<string, string> = {
+  'Created lending offers from available balance.': '已依可用餘額建立預計委託。',
+  'No loan orders are available.': '目前沒有可參考的放貸簿委託。',
+  'Available balance is below the minimum loan size.': '可用餘額低於最低放貸金額。',
+  'Active lending amount is at or above the configured maximum.': '放貸中金額已達或超過設定上限。',
+  'Best daily rate is below the configured minimum.': '最佳日利率低於設定的最低日利率。',
+  'End date is too close to create new lending offers.': '停止放貸日期太近，不能建立新委託。',
+  'Market analysis is disabled.': '市場分析已關閉。',
+  'No market analysis samples have been recorded.': '尚未記錄市場分析樣本。',
+  'Latest market analysis sample is older than the configured max age.': '最新市場分析資料已超過設定最大年齡。',
+  'Not enough samples to calculate a suggestion.': '樣本數不足，無法計算建議利率。',
+  'No suggested rate is available for the configured method.': '目前方法沒有可用的建議利率。',
+  'Market analysis suggestion is available.': '市場分析建議利率可用。',
+}
+
+const statusLabels: Record<string, string> = {
+  completed: '完成',
+  failed: '失敗',
+  running: '執行中',
+  dry_run: '模擬',
+  intent: '準備建立',
+  created: '已建立',
+  recorded: '已記錄',
+}
+
+function strategyLabel(key: string): string {
+  return strategyLabels[key] ?? key
+}
+
+function readinessLabel(label: string): string {
+  return readinessLabels[label] ?? label
+}
+
+function readinessNote(note: string): string {
+  if (note === 'API keys should not include withdrawal permissions.') {
+    return 'API key 不應包含提領權限。'
+  }
+
+  return note
+}
+
+function reasonLabel(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '-'
+  }
+
+  return reasonLabels[value] ?? value
+}
+
+function statusLabel(value: unknown): string {
+  if (typeof value !== 'string') {
+    return '-'
+  }
+
+  return statusLabels[value] ?? value
+}
+
+function dryRunLabel(value: unknown): string {
+  return value ? '是' : '否'
+}
+
 const historyColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
@@ -616,8 +713,8 @@ const historyColumns = (timeZone: string) => [
 
 const runColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
-  { key: 'status', label: '狀態' },
-  { key: 'dry_run', label: '模擬' },
+  { key: 'status', label: '狀態', format: statusLabel },
+  { key: 'dry_run', label: '模擬', format: dryRunLabel },
   { key: 'started_at', label: '開始時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
   { key: 'finished_at', label: '結束時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
   { key: 'message', label: '訊息' },
@@ -629,7 +726,7 @@ const offerColumns = [
   { key: 'amount', label: '數量', format: amount },
   { key: 'daily_rate', label: '日利率', format: rate },
   { key: 'duration_days', label: '天數' },
-  { key: 'status', label: '狀態' },
+  { key: 'status', label: '狀態', format: statusLabel },
   { key: 'external_offer_id', label: '交易所編號' },
 ] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
 
@@ -654,7 +751,7 @@ const marketRateColumns = (timeZone: string) => [
 const marketAnalysisColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
-  { key: 'level', label: 'Level' },
+  { key: 'level', label: '層級' },
   { key: 'daily_rate', label: '日利率', format: rate },
   { key: 'available_amount', label: '可用數量', format: amount },
   { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
@@ -664,14 +761,14 @@ const marketAnalysisStatusColumns = (timeZone: string) => [
   { key: 'currency', label: '幣種' },
   { key: 'method', label: '方法' },
   { key: 'sample_count', label: '樣本數' },
-  { key: 'top_level_sample_count', label: 'Top samples' },
+  { key: 'top_level_sample_count', label: '第一層樣本' },
   { key: 'min_samples', label: '最低樣本' },
   { key: 'max_age_seconds', label: '最大年齡秒數' },
   { key: 'latest_captured_at', label: '最新資料', format: (value: unknown) => formatTimestamp(value, timeZone) },
   { key: 'is_stale', label: '過期', format: yesNo },
   { key: 'has_enough_samples', label: '樣本足夠', format: yesNo },
   { key: 'suggested_min_daily_rate', label: '建議日利率', format: rate },
-  { key: 'reason', label: '狀態原因' },
+  { key: 'reason', label: '狀態原因', format: reasonLabel },
 ] satisfies Parameters<typeof DataTable<MarketAnalysisStatus>>[0]['columns']
 
 const strategyDecisionColumns = [
@@ -682,11 +779,11 @@ const strategyDecisionColumns = [
   { key: 'best_market_rate', label: '最佳市場日利率', format: rate },
   { key: 'effective_min_daily_rate', label: '有效最低日利率', format: rate },
   { key: 'max_daily_rate', label: '最高日利率', format: rate },
-  { key: 'max_to_lend', label: 'Max to lend', format: amount },
-  { key: 'max_active_amount', label: 'Max active', format: amount },
+  { key: 'max_to_lend', label: '最大可放貸', format: amount },
+  { key: 'max_active_amount', label: '最大放貸中', format: amount },
   { key: 'offer_count', label: '預計委託數' },
   { key: 'offers', label: '預計委託', format: formatDecisionOffers },
-  { key: 'reason', label: '原因' },
+  { key: 'reason', label: '原因', format: reasonLabel },
 ] satisfies Parameters<typeof DataTable<StrategyDecision>>[0]['columns']
 
 function formatDecisionOffers(value: unknown): string {

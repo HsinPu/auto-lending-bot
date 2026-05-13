@@ -909,6 +909,13 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.settings-field-key {
+  color: #60a5fa;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .settings-field-heading small {
   border-radius: 999px;
   padding: 3px 8px;

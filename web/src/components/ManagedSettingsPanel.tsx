@@ -190,7 +190,7 @@ const settingHelp: Record<string, string> = {
 }
 
 const settingHints: Record<string, string> = {
-  DISPLAY_TIMEZONE: '範例：Asia/Taipei、UTC',
+  DISPLAY_TIMEZONE: '選擇 Dashboard 顯示時間；資料庫仍保存 UTC。',
   END_DATE: '格式：YYYY-MM-DD，例如 2026-12-31',
   FRR_DELTA: '日利率小數，例如 0.00001 = 0.001%',
   GAP_BOTTOM: '依 Gap 模式代表金額、BTC 金額或百分比',
@@ -208,6 +208,23 @@ const settingHints: Record<string, string> = {
   TELEGRAM_CHAT_ID: '可以是數字 chat id 或 @channel',
   TRANSFERABLE_CURRENCIES: '逗號分隔，例如 BTC,ETH',
   XDAY_THRESHOLD: '日利率小數，例如 0.002 = 0.2%',
+}
+
+const preferredTimeZones = [
+  'Asia/Taipei',
+  'UTC',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Asia/Hong_Kong',
+  'Asia/Singapore',
+  'Asia/Shanghai',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Europe/London',
+]
+
+type IntlWithSupportedValues = typeof Intl & {
+  supportedValuesOf?: (key: 'timeZone') => string[]
 }
 
 const commonSettingSections: Array<{
@@ -601,6 +618,14 @@ function SettingField({
             </option>
           ))}
         </select>
+      ) : valueType === 'timezone' ? (
+        <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
+          {timeZoneOptions(value).map((timeZone) => (
+            <option value={timeZone} key={timeZone}>
+              {timeZoneLabel(timeZone)}
+            </option>
+          ))}
+        </select>
       ) : (
         <input
           type={valueType === 'secret' ? 'password' : inputTypeFor(valueType)}
@@ -768,6 +793,22 @@ function inputTypeFor(valueType: string): string {
   }
 
   return 'text'
+}
+
+function timeZoneOptions(currentValue: string): string[] {
+  const supportedValues = (Intl as IntlWithSupportedValues).supportedValuesOf?.('timeZone') ?? []
+  return Array.from(new Set([currentValue, ...preferredTimeZones, ...supportedValues])).filter(Boolean)
+}
+
+function timeZoneLabel(timeZone: string): string {
+  if (timeZone === 'UTC') {
+    return 'UTC / 世界標準時間'
+  }
+  if (timeZone === 'Asia/Taipei') {
+    return 'Asia/Taipei / 台北時間'
+  }
+
+  return timeZone
 }
 
 function placeholderFor(

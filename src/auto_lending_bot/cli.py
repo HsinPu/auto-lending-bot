@@ -20,6 +20,7 @@ from auto_lending_bot.persistence.repository import (
     LoanOfferRepository,
     MarketAnalysisRateRepository,
     MarketRateRepository,
+    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 from auto_lending_bot.safety import SafetyError, validate_run_settings
@@ -211,6 +212,8 @@ def _create_runner(settings: Settings) -> BotRunner:
         loan_offers=LoanOfferRepository(settings.database_url),
         active_loans=ActiveLoanRepository(settings.database_url),
         open_offers=OpenLoanOfferRepository(settings.database_url),
+        lending_history=LendingHistoryRepository(settings.database_url),
+        notification_state=NotificationStateRepository(settings.database_url),
         market_analysis_rates=MarketAnalysisRateRepository(settings.database_url),
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
         notifier=Notifier(settings=settings),

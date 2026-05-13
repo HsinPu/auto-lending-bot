@@ -9,6 +9,7 @@ from auto_lending_bot.persistence.repository import (
     LoanOfferRepository,
     MarketAnalysisRateRepository,
     MarketRateRepository,
+    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 
@@ -154,6 +155,18 @@ def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
         repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)])
 
     assert repository.macd_rate("BTC", short_samples=2, long_samples=5) == pytest.approx(0.00012)
+
+
+def test_notification_state_repository_stores_float_values(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = NotificationStateRepository(database_url)
+
+    assert repository.get_float("summary") is None
+
+    repository.set_float("summary", 123.5)
+
+    assert repository.get_float("summary") == 123.5
 
 
 def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:

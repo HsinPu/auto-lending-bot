@@ -13,6 +13,7 @@ from auto_lending_bot.persistence.repository import (
     LoanOfferRepository,
     MarketAnalysisRateRepository,
     MarketRateRepository,
+    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 from auto_lending_bot.safety import SafetyError, validate_run_settings
@@ -28,6 +29,7 @@ def create_api_router(settings: Settings) -> APIRouter:
     active_loans = ActiveLoanRepository(settings.database_url)
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
+    notification_state = NotificationStateRepository(settings.database_url)
 
     @router.get("/status")
     def status() -> dict[str, object]:
@@ -222,6 +224,8 @@ def create_api_router(settings: Settings) -> APIRouter:
             loan_offers=loan_offers,
             active_loans=active_loans,
             open_offers=open_offers,
+            lending_history=lending_history,
+            notification_state=notification_state,
             market_analysis_rates=market_analysis_rates,
             market_recorder=MarketRecorder(market_rates),
             notifier=Notifier(settings=settings),

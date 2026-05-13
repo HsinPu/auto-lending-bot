@@ -13,9 +13,11 @@ from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
     MarketRateRepository,
+    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 
@@ -35,6 +37,8 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
         loan_offers=loan_offers,
         active_loans=active_loans,
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -59,6 +63,8 @@ def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -84,6 +90,8 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -114,6 +122,8 @@ def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) ->
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=open_offers,
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -143,6 +153,8 @@ def test_runner_uses_percentile_market_analysis_minimum(tmp_path) -> None:
         loan_offers=loan_offers,
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=market_analysis_rates,
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -178,6 +190,8 @@ def test_runner_uses_macd_market_analysis_minimum(tmp_path) -> None:
         loan_offers=loan_offers,
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=market_analysis_rates,
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -202,6 +216,8 @@ def test_runner_passes_active_amount_to_strategy_cap(tmp_path, monkeypatch) -> N
         loan_offers=loan_offers,
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=Notifier(),
@@ -237,6 +253,8 @@ def test_runner_notifies_new_active_loans_after_initial_snapshot(tmp_path) -> No
         loan_offers=LoanOfferRepository(database_url),
         active_loans=active_loans,
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=notifier,
@@ -246,6 +264,33 @@ def test_runner_notifies_new_active_loans_after_initial_snapshot(tmp_path) -> No
 
     assert notifier.filled_loan_ids == ["loan-new"]
     assert notifier.summaries == [(0, 2, True)]
+
+
+def test_runner_sends_periodic_summary_when_interval_is_due(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    notification_state = NotificationStateRepository(database_url)
+    notifier = SpyNotifier()
+
+    runner = BotRunner(
+        settings=_settings(database_url, notify_summary_minutes=60),
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=notification_state,
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=notifier,
+    )
+
+    runner.run_once()
+    runner.run_once()
+
+    assert len(notifier.periodic_summaries) == 1
+    assert "active_loans=1" in notifier.periodic_summaries[0]
 
 
 def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
@@ -259,6 +304,8 @@ def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
         notifier=SpyNotifier(),
@@ -280,6 +327,7 @@ def _settings(
     dry_run: bool = True,
     max_total_lend_amount: float | None = None,
     max_active_amount: float | None = None,
+    notify_summary_minutes: int = 0,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -307,6 +355,7 @@ def _settings(
         strategy_debug=strategy_debug,
         telegram_bot_token="",
         telegram_chat_id="",
+        notify_summary_minutes=notify_summary_minutes,
         hide_coins=hide_coins,
         gap_mode="off",
         gap_bottom=0,
@@ -361,6 +410,7 @@ class SpyNotifier:
         self.errors: list[str] = []
         self.filled_loan_ids: list[str] = []
         self.infos: list[str] = []
+        self.periodic_summaries: list[str] = []
         self.summaries: list[tuple[int, int, bool]] = []
 
     def info(self, message: str) -> None:
@@ -374,6 +424,9 @@ class SpyNotifier:
 
     def loan_filled(self, active_loan: ActiveLoan) -> None:
         self.filled_loan_ids.append(active_loan.external_loan_id)
+
+    def periodic_summary(self, message: str) -> None:
+        self.periodic_summaries.append(message)
 
 
 class NewActiveLoanExchange:

@@ -108,6 +108,35 @@ class BotRunRepository:
             return [dict(row) for row in rows]
 
 
+class NotificationStateRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def get_float(self, key: str) -> float | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                "SELECT value FROM notification_state WHERE key = ?",
+                (key,),
+            ).fetchone()
+            if row is None:
+                return None
+
+            return float(row["value"])
+
+    def set_float(self, key: str, value: float) -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                INSERT INTO notification_state (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (key, str(value)),
+            )
+
+
 class LoanOfferRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

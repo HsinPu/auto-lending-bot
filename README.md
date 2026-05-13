@@ -198,10 +198,12 @@ Global settings:
 - `STRATEGY_DEBUG`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
+- `NOTIFY_SUMMARY_MINUTES`
 
 Telegram notifications are disabled unless both Telegram settings are present. When enabled,
 the bot sends run summaries, live offer creation failures, live offer creation confirmations,
-and newly detected filled-loan messages.
+newly detected filled-loan messages, and periodic lending summaries when
+`NOTIFY_SUMMARY_MINUTES` is greater than `0`.
 
 Per-currency overrides use the currency symbol as a prefix:
 

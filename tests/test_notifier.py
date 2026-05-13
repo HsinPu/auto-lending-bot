@@ -117,6 +117,7 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         strategy_debug=False,
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,
+        notify_summary_minutes=0,
         hide_coins=True,
         gap_mode="off",
         gap_bottom=0,

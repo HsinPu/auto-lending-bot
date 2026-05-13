@@ -130,6 +130,7 @@ def _settings(
         strategy_debug=False,
         telegram_bot_token="",
         telegram_chat_id="",
+        notify_summary_minutes=0,
         hide_coins=True,
         gap_mode="off",
         gap_bottom=0,

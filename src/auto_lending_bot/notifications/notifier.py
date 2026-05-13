@@ -34,6 +34,9 @@ class Notifier:
             f"for {active_loan.duration_days} day(s)."
         )
 
+    def periodic_summary(self, message: str) -> None:
+        self.info(message)
+
     def _send_telegram(self, message: str) -> None:
         if self._settings is None:
             return

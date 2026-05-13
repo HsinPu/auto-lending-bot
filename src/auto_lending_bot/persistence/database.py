@@ -90,6 +90,12 @@ CREATE TABLE IF NOT EXISTS market_analysis_rates (
     available_amount REAL NOT NULL,
     captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS notification_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

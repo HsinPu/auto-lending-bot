@@ -38,6 +38,7 @@ class Settings:
     strategy_debug: bool
     telegram_bot_token: str
     telegram_chat_id: str
+    notify_summary_minutes: int
     hide_coins: bool
     gap_mode: str
     gap_bottom: float
@@ -94,6 +95,7 @@ def load_settings() -> Settings:
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
+        notify_summary_minutes=_get_int("NOTIFY_SUMMARY_MINUTES", default=0),
         hide_coins=_get_bool("HIDE_COINS", default=True),
         gap_mode=os.getenv("GAP_MODE", "off"),
         gap_bottom=_get_float("GAP_BOTTOM", default=0.0),

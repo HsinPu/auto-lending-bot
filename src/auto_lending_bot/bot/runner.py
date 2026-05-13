@@ -11,8 +11,10 @@ from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
+    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 
@@ -28,6 +30,8 @@ class BotRunner:
         loan_offers: LoanOfferRepository,
         active_loans: ActiveLoanRepository,
         open_offers: OpenLoanOfferRepository,
+        lending_history: LendingHistoryRepository,
+        notification_state: NotificationStateRepository,
         market_analysis_rates: MarketAnalysisRateRepository,
         market_recorder: MarketRecorder,
         notifier: Notifier,
@@ -38,6 +42,8 @@ class BotRunner:
         self._loan_offers = loan_offers
         self._active_loans = active_loans
         self._open_offers = open_offers
+        self._lending_history = lending_history
+        self._notification_state = notification_state
         self._market_analysis_rates = market_analysis_rates
         self._market_recorder = market_recorder
         self._notifier = notifier
@@ -150,6 +156,7 @@ class BotRunner:
                 active_loans=len(active_loans),
                 dry_run=self._settings.dry_run,
             )
+            self._maybe_send_periodic_summary(active_loans)
         except Exception as error:
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
             self._notifier.error(str(error))
@@ -232,6 +239,28 @@ class BotRunner:
             decision.reason,
         )
 
+    def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> None:
+        if self._settings.notify_summary_minutes <= 0:
+            return
+
+        now = time.time()
+        state_key = "telegram_summary_last_sent_at"
+        last_sent_at = self._notification_state.get_float(state_key)
+        interval_seconds = self._settings.notify_summary_minutes * 60
+        if last_sent_at is not None and now - last_sent_at < interval_seconds:
+            return
+
+        open_offers = self._open_offers.recent(1000)
+        earnings = self._lending_history.earnings_summary_by_currency()
+        self._notifier.periodic_summary(
+            _summary_message(
+                active_loans=active_loans,
+                open_offers=open_offers,
+                earnings=earnings,
+            )
+        )
+        self._notification_state.set_float(state_key, now)
+
     def _notify_new_active_loans(
         self,
         previous_active_loan_ids: set[str],
@@ -243,3 +272,20 @@ class BotRunner:
         for active_loan in active_loans:
             if active_loan.external_loan_id not in previous_active_loan_ids:
                 self._notifier.loan_filled(active_loan)
+
+
+def _summary_message(
+    active_loans: list[ActiveLoan],
+    open_offers: list[dict[str, object]],
+    earnings: list[dict[str, object]],
+) -> str:
+    active_amount = sum(active_loan.amount for active_loan in active_loans)
+    open_offer_amount = sum(float(row["amount"]) for row in open_offers)
+    today_earned = sum(float(row["today_earned"]) for row in earnings)
+    total_earned = sum(float(row["total_earned"]) for row in earnings)
+    return (
+        "Lending summary: "
+        f"active_loans={len(active_loans)}, active_amount={active_amount:.8f}, "
+        f"open_offers={len(open_offers)}, open_offer_amount={open_offer_amount:.8f}, "
+        f"today_earned={today_earned:.8f}, total_earned={total_earned:.8f}."
+    )

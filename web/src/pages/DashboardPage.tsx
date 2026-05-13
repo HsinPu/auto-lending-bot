@@ -49,10 +49,10 @@ export function DashboardPage() {
   const actionMutation = useMutation({
     mutationFn: ({ action, confirmLive }: { action: SafeActionName; confirmLive?: boolean }) =>
       runSafeAction(action, { adminToken, confirmLive }),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       setLatestResult(result)
       setLatestError(null)
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
     onError: (mutationError) => {
       setLatestResult(null)

@@ -2,7 +2,7 @@ import logging
 import time
 
 from auto_lending_bot.config import Settings, strategy_config_for
-from auto_lending_bot.domain.models import ActiveLoan, LoanOffer
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.exchange import ExchangeClient
@@ -89,8 +89,8 @@ class BotRunner:
             active_loans = self._exchange.get_active_loans()
             self._active_loans.replace_all(active_loans)
             self._notify_new_active_loans(previous_active_loan_ids, active_loans)
-            self._rebalance_open_offers()
             balances = self._exchange.get_lending_balances()
+            self._rebalance_open_offers(balances)
             for balance in balances:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._market_recorder.record_orders(orders)
@@ -182,7 +182,7 @@ class BotRunner:
                 msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)
 
-    def _rebalance_open_offers(self) -> None:
+    def _rebalance_open_offers(self, balances: list[CurrencyBalance]) -> None:
         if not self._settings.auto_rebalance_open_offers:
             return
 
@@ -191,10 +191,30 @@ class BotRunner:
         if self._settings.dry_run or not self._settings.auto_cancel_open_offers:
             return
 
+        kept_offers = []
         for offer in offers:
+            if self._keep_stuck_offer(offer, offers, balances):
+                kept_offers.append(offer)
+                continue
             if offer.external_offer_id:
                 self._exchange.cancel_loan_offer(offer.external_offer_id)
-        self._open_offers.replace_all([])
+        self._open_offers.replace_all(kept_offers)
+
+    def _keep_stuck_offer(
+        self,
+        offer: LoanOffer,
+        offers: list[LoanOffer],
+        balances: list[CurrencyBalance],
+    ) -> bool:
+        if not self._settings.keep_stuck_orders:
+            return False
+
+        currency = offer.currency.upper()
+        total_available_after_cancel = sum(
+            balance.amount for balance in balances if balance.currency.upper() == currency
+        ) + sum(open_offer.amount for open_offer in offers if open_offer.currency.upper() == currency)
+        strategy = strategy_config_for(self._settings, currency)
+        return total_available_after_cancel < strategy.min_loan_size
 
     def _frr_daily_rate(self, currency: str, frr_as_min: bool) -> float | None:
         if not frr_as_min:

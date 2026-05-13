@@ -164,6 +164,38 @@ def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) ->
     assert open_offers.count() == 1
 
 
+def test_runner_keeps_stuck_open_offers_during_live_rebalance(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    exchange = StuckOfferExchange()
+    open_offers = OpenLoanOfferRepository(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            dry_run=False,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            keep_stuck_orders=True,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=open_offers,
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.canceled_offer_ids == []
+    assert open_offers.count() == 1
+
+
 def test_runner_uses_percentile_market_analysis_minimum(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -379,6 +411,7 @@ def _settings(
     strategy_debug: bool = False,
     auto_rebalance_open_offers: bool = False,
     auto_cancel_open_offers: bool = False,
+    keep_stuck_orders: bool = True,
     market_analysis_method: str = "off",
     hide_coins: bool = True,
     market_analysis_macd_short_samples: int = 3,
@@ -404,6 +437,7 @@ def _settings(
         bot_inactive_sleep_seconds=bot_inactive_sleep_seconds,
         auto_rebalance_open_offers=auto_rebalance_open_offers,
         auto_cancel_open_offers=auto_cancel_open_offers,
+        keep_stuck_orders=keep_stuck_orders,
         dry_run=dry_run,
         exchange="mock",
         http_timeout_seconds=30,
@@ -553,3 +587,34 @@ class NoOfferExchange:
 
     def cancel_loan_offer(self, offer_id: str):
         return None
+
+
+class StuckOfferExchange:
+    def __init__(self) -> None:
+        self.canceled_offer_ids: list[str] = []
+
+    def get_active_loans(self):
+        return []
+
+    def get_lending_balances(self):
+        return []
+
+    def get_loan_orders(self, currency: str):
+        return []
+
+    def get_open_loan_offers(self):
+        return [
+            LoanOffer(
+                currency="BTC",
+                amount=0.005,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_offer_id="offer-stuck",
+            )
+        ]
+
+    def create_loan_offer(self, offer):
+        return ""
+
+    def cancel_loan_offer(self, offer_id: str):
+        self.canceled_offer_ids.append(offer_id)

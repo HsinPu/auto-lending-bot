@@ -120,6 +120,7 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         bot_inactive_sleep_seconds=300,
         auto_rebalance_open_offers=False,
         auto_cancel_open_offers=False,
+        keep_stuck_orders=True,
         dry_run=True,
         exchange="mock",
         http_timeout_seconds=30,

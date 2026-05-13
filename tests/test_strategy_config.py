@@ -10,6 +10,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("END_DATE", "2027-01-15")
     monkeypatch.setenv("OUTPUT_CURRENCY", "usd")
     monkeypatch.setenv("BOT_INACTIVE_SLEEP_SECONDS", "900")
+    monkeypatch.setenv("KEEP_STUCK_ORDERS", "false")
     monkeypatch.setenv("MARKET_ANALYSIS_METHOD", "percentile")
     monkeypatch.setenv("MARKET_ANALYSIS_PERCENTILE", "80")
     monkeypatch.setenv("MARKET_ANALYSIS_MACD_SHORT_SAMPLES", "4")
@@ -29,6 +30,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
 
     assert settings.output_currency == "USD"
     assert settings.bot_inactive_sleep_seconds == 900
+    assert settings.keep_stuck_orders is False
     assert settings.market_analysis_method == "percentile"
     assert settings.market_analysis_percentile == 80
     assert settings.market_analysis_macd_short_samples == 4

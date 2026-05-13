@@ -23,6 +23,7 @@ def _settings(exchange: str) -> Settings:
         bot_inactive_sleep_seconds=300,
         auto_rebalance_open_offers=False,
         auto_cancel_open_offers=False,
+        keep_stuck_orders=True,
         dry_run=True,
         exchange=exchange,
         http_timeout_seconds=30,

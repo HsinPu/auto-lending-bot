@@ -387,6 +387,7 @@ function SidebarNavigation({
             type="button"
             key={item.key}
             className={item.key === activePage ? 'active' : ''}
+            aria-current={item.key === activePage ? 'page' : undefined}
             onClick={() => onChange(item.key)}
           >
             <strong>{item.label}</strong>

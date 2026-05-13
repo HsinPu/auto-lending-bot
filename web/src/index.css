@@ -122,6 +122,35 @@ button {
   line-height: 1.45;
 }
 
+.sidebar-admin-state {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(253, 164, 175, 0.28);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(76, 5, 25, 0.22);
+}
+
+.sidebar-admin-state.enabled {
+  border-color: rgba(134, 239, 172, 0.28);
+  background: rgba(5, 46, 22, 0.26);
+}
+
+.sidebar-admin-state strong {
+  color: #fecdd3;
+  font-size: 13px;
+}
+
+.sidebar-admin-state.enabled strong {
+  color: #86efac;
+}
+
+.sidebar-admin-state span {
+  color: #bfdbfe;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .page-placeholder {
   margin-top: 20px;
   border: 1px dashed rgba(147, 197, 253, 0.28);

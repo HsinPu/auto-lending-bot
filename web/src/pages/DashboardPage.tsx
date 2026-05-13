@@ -84,7 +84,7 @@ export function DashboardPage() {
 
       <main className={`shell with-top-bar ${displaySettings.compactLayout ? 'compact-layout' : ''}`}>
         <div className="dashboard-layout">
-          <SidebarNavigation activePage={activePage} onChange={changePage} />
+          <SidebarNavigation activePage={activePage} adminToken={adminToken} onChange={changePage} />
 
           <div className="dashboard-content">
             <section className="console-intro mika-intro">
@@ -382,9 +382,11 @@ const pageItems: Array<{ key: PageKey; label: string; description: string }> = [
 
 function SidebarNavigation({
   activePage,
+  adminToken,
   onChange,
 }: {
   activePage: PageKey
+  adminToken: string
   onChange: (page: PageKey) => void
 }) {
   return (
@@ -407,6 +409,10 @@ function SidebarNavigation({
           </button>
         ))}
       </nav>
+      <div className={`sidebar-admin-state ${adminToken ? 'enabled' : ''}`}>
+        <strong>{adminToken ? '管理權限已啟用' : '管理權限未啟用'}</strong>
+        <span>{adminToken ? 'Live actions / settings writes 可送出 token' : '安全操作與設定寫入需要 Admin Token'}</span>
+      </div>
     </aside>
   )
 }

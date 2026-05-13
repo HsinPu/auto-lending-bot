@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from auto_lending_bot.api.app import create_app
@@ -115,6 +116,7 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
 
 def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
     monkeypatch.setenv("DATABASE_URL", database_url)
     monkeypatch.setenv("SETTINGS_ENCRYPTION_KEY", "test-key")
     client = TestClient(create_app())
@@ -125,6 +127,7 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
 
     update_response = client.put(
         "/api/settings/values",
+        headers=_admin_headers(),
         json={"values": {"BOT_LABEL": "Managed Bot", "EXCHANGE_API_SECRET": "secret"}},
     )
     assert update_response.status_code == 200
@@ -143,9 +146,46 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     assert audit_response.status_code == 200
     assert len(audit_response.json()) >= 2
 
-    reset_response = client.post("/api/settings/reset", json={"key": "BOT_LABEL"})
+    reset_response = client.post(
+        "/api/settings/reset",
+        headers=_admin_headers(),
+        json={"key": "BOT_LABEL"},
+    )
     assert reset_response.status_code == 200
     assert reset_response.json()["reset_count"] == 1
+
+
+def test_api_settings_write_requires_admin_token(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(create_app())
+
+    missing_response = client.put("/api/settings/values", json={"BOT_LABEL": "Managed Bot"})
+    wrong_response = client.post(
+        "/api/settings/reset",
+        headers={"Authorization": "Bearer wrong-token"},
+        json={"key": "BOT_LABEL"},
+    )
+
+    assert missing_response.status_code == 401
+    assert wrong_response.status_code == 401
+
+
+def test_api_settings_write_requires_configured_admin_token(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(create_app())
+
+    response = client.put(
+        "/api/settings/values",
+        headers={"Authorization": "Bearer admin-token"},
+        json={"BOT_LABEL": "Managed Bot"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "ADMIN_AUTH_TOKEN is not configured."
 
 
 def test_api_settings_uses_hot_reloaded_database_overrides(tmp_path, monkeypatch) -> None:
@@ -266,8 +306,9 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["latest_run"]["status"] == "completed"
 
 
-def test_api_run_once_requires_live_confirmation(tmp_path) -> None:
+def test_api_run_once_requires_live_confirmation(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
     settings = _settings(
         database_url,
         exchange="bitfinex",
@@ -282,14 +323,15 @@ def test_api_run_once_requires_live_confirmation(tmp_path) -> None:
 
     client = TestClient(create_app(settings))
 
-    response = client.post("/api/actions/run-once")
+    response = client.post("/api/actions/run-once", headers=_admin_headers())
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Live run requires confirm_live=true."
 
 
-def test_api_cancel_open_offers_requires_live_confirmation(tmp_path) -> None:
+def test_api_cancel_open_offers_requires_live_confirmation(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
     settings = _settings(
         database_url,
         exchange="bitfinex",
@@ -304,10 +346,71 @@ def test_api_cancel_open_offers_requires_live_confirmation(tmp_path) -> None:
 
     client = TestClient(create_app(settings))
 
-    response = client.post("/api/actions/cancel-open-offers")
+    response = client.post("/api/actions/cancel-open-offers", headers=_admin_headers())
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Live cancel requires confirm_live=true."
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "settings_kwargs"),
+    [
+        (
+            "/api/actions/run-once",
+            {
+                "bitfinex_enable_live_offers": True,
+                "max_total_lend_amount": 1,
+                "max_single_offer_amount": 1,
+            },
+        ),
+        (
+            "/api/actions/cancel-open-offers",
+            {
+                "bitfinex_enable_live_offers": True,
+                "max_total_lend_amount": 1,
+                "max_single_offer_amount": 1,
+            },
+        ),
+        (
+            "/api/actions/transfer-funds",
+            {
+                "allow_balance_transfers": True,
+                "bitfinex_enable_live_transfers": True,
+                "max_total_transfer_amount": 1,
+                "max_single_transfer_amount": 1,
+            },
+        ),
+    ],
+)
+def test_api_live_actions_require_admin_authorization(
+    tmp_path,
+    monkeypatch,
+    endpoint: str,
+    settings_kwargs: dict[str, object],
+) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    settings = _settings(
+        database_url,
+        exchange="bitfinex",
+        api_key="key",
+        api_secret="secret",
+        dry_run=False,
+        allow_live_trading=True,
+        **settings_kwargs,
+    )
+
+    client = TestClient(create_app(settings))
+
+    missing_response = client.post(endpoint, json={"confirm_live": True})
+    wrong_response = client.post(
+        endpoint,
+        headers={"Authorization": "Bearer wrong-token"},
+        json={"confirm_live": True},
+    )
+
+    assert missing_response.status_code == 401
+    assert wrong_response.status_code == 401
 
 
 def _seed_database(database_url: str) -> None:
@@ -368,22 +471,26 @@ def _settings(
     database_url: str,
     dry_run: bool = True,
     allow_live_trading: bool = False,
+    allow_balance_transfers: bool = False,
     exchange: str = "mock",
     api_key: str = "",
     api_secret: str = "",
     bitfinex_enable_live_offers: bool = False,
+    bitfinex_enable_live_transfers: bool = False,
     max_total_lend_amount: float | None = None,
     max_single_offer_amount: float | None = None,
+    max_total_transfer_amount: float | None = None,
+    max_single_transfer_amount: float | None = None,
     market_analysis_currencies: tuple[str, ...] = (),
     market_analysis_method: str = "off",
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
-        allow_balance_transfers=False,
+        allow_balance_transfers=allow_balance_transfers,
         api_key=api_key,
         api_secret=api_secret,
         bitfinex_enable_live_offers=bitfinex_enable_live_offers,
-        bitfinex_enable_live_transfers=False,
+        bitfinex_enable_live_transfers=bitfinex_enable_live_transfers,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         bot_inactive_sleep_seconds=300,
@@ -430,9 +537,9 @@ def _settings(
         frr_delta=0,
         max_amount_to_lend=None,
         max_active_amount=None,
-        max_single_transfer_amount=None,
+        max_single_transfer_amount=max_single_transfer_amount,
         max_single_offer_amount=max_single_offer_amount,
-        max_total_transfer_amount=None,
+        max_total_transfer_amount=max_total_transfer_amount,
         max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,
@@ -444,3 +551,7 @@ def _settings(
         database_url=database_url,
         log_level="INFO",
     )
+
+
+def _admin_headers() -> dict[str, str]:
+    return {"Authorization": "Bearer admin-token"}

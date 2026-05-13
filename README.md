@@ -280,6 +280,9 @@ Live transfers require `BOT_DRY_RUN=false`, `ALLOW_LIVE_TRADING=true`,
 `MAX_TOTAL_TRANSFER_AMOUNT`, `MAX_SINGLE_TRANSFER_AMOUNT`, and an explicit API/CLI live
 confirmation.
 
+Managed settings writes and live actions require `ADMIN_AUTH_TOKEN` via
+`Authorization: Bearer <token>`.
+
 ## Operations
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.

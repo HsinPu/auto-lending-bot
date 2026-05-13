@@ -1,10 +1,11 @@
 from collections.abc import Callable
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import (
     Settings,
+    admin_auth_token,
     settings_encryption_key,
     sqlite_path_from_url,
     strategy_config_for,
@@ -68,7 +69,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         return _app_settings(settings).get_many()
 
     @router.put("/settings/values")
-    def update_settings_values(payload: dict[str, object]) -> dict[str, object]:
+    def update_settings_values(
+        payload: dict[str, object],
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_admin(authorization)
         values = payload.get("values", payload)
         if not isinstance(values, dict):
             raise HTTPException(status_code=400, detail="Settings values must be an object.")
@@ -82,7 +87,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         return {"ok": True, "changed_count": len(values)}
 
     @router.post("/settings/reset")
-    def reset_settings(payload: dict[str, object] | None = None) -> dict[str, object]:
+    def reset_settings(
+        payload: dict[str, object] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_admin(authorization)
         payload = payload or {}
         key = payload.get("key")
         repository = _app_settings(settings)
@@ -247,8 +256,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         }
 
     @router.post("/actions/transfer-funds")
-    def transfer_funds(payload: dict[str, bool] | None = None) -> dict[str, object]:
+    def transfer_funds(
+        payload: dict[str, bool] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
         _validate_transfer_action_settings(settings)
+        if not settings.dry_run:
+            _require_admin(authorization)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live transfer requires confirm_live=true.")
 
@@ -297,8 +311,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         }
 
     @router.post("/actions/cancel-open-offers")
-    def cancel_open_offers(payload: dict[str, bool] | None = None) -> dict[str, object]:
+    def cancel_open_offers(
+        payload: dict[str, bool] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
         _validate_safe_action_settings(settings)
+        if not settings.dry_run:
+            _require_admin(authorization)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
 
@@ -340,8 +359,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         }
 
     @router.post("/actions/run-once")
-    def run_once(payload: dict[str, bool] | None = None) -> dict[str, object]:
+    def run_once(
+        payload: dict[str, bool] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
         _validate_safe_action_settings(settings)
+        if not settings.dry_run:
+            _require_admin(authorization)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
 
@@ -377,6 +401,14 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _require_admin(authorization: str | None) -> None:
+    token = admin_auth_token()
+    if not token:
+        raise HTTPException(status_code=403, detail="ADMIN_AUTH_TOKEN is not configured.")
+    if authorization != f"Bearer {token}":
+        raise HTTPException(status_code=401, detail="Admin authorization is required.")
 
 
 def _validate_transfer_action_settings(settings: Settings) -> None:

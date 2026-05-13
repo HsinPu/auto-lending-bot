@@ -4,7 +4,7 @@ import pytest
 
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings
-from auto_lending_bot.domain.models import ActiveLoan, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -370,6 +370,23 @@ def test_runner_sends_periodic_summary_when_interval_is_due(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
     notification_state = NotificationStateRepository(database_url)
+    lending_history = LendingHistoryRepository(database_url)
+    lending_history.upsert_many(
+        [
+            LendingHistoryEntry(
+                currency="BTC",
+                amount=0.05,
+                daily_rate=0.00008,
+                duration_days=2,
+                interest=0.00001,
+                fee=-0.0000015,
+                earned=0.0000085,
+                opened_at="2026-05-11 00:00:00",
+                closed_at="2026-05-12 00:00:00",
+                external_entry_id="history-1",
+            )
+        ]
+    )
     notifier = SpyNotifier()
 
     runner = BotRunner(
@@ -379,7 +396,7 @@ def test_runner_sends_periodic_summary_when_interval_is_due(tmp_path) -> None:
         loan_offers=LoanOfferRepository(database_url),
         active_loans=ActiveLoanRepository(database_url),
         open_offers=OpenLoanOfferRepository(database_url),
-        lending_history=LendingHistoryRepository(database_url),
+        lending_history=lending_history,
         notification_state=notification_state,
         market_analysis_rates=MarketAnalysisRateRepository(database_url),
         market_recorder=MarketRecorder(MarketRateRepository(database_url)),
@@ -391,6 +408,59 @@ def test_runner_sends_periodic_summary_when_interval_is_due(tmp_path) -> None:
 
     assert len(notifier.periodic_summaries) == 1
     assert "active_loans=1" in notifier.periodic_summaries[0]
+    assert "Earnings by currency:" in notifier.periodic_summaries[0]
+    assert "BTC: today=" in notifier.periodic_summaries[0]
+    assert "total=0.00000850" in notifier.periodic_summaries[0]
+
+
+def test_runner_skips_exception_notification_by_default(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    notifier = SpyNotifier()
+
+    runner = BotRunner(
+        settings=_settings(database_url),
+        exchange=AuthFailingExchange(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=notifier,
+    )
+
+    with pytest.raises(ExchangeAuthenticationError):
+        runner.run_once()
+
+    assert notifier.errors == []
+
+
+def test_runner_sends_exception_notification_when_enabled(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    notifier = SpyNotifier()
+
+    runner = BotRunner(
+        settings=_settings(database_url, notify_caught_exception=True),
+        exchange=AuthFailingExchange(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=notifier,
+    )
+
+    with pytest.raises(ExchangeAuthenticationError):
+        runner.run_once()
+
+    assert notifier.errors == ["invalid key"]
 
 
 def test_runner_notifies_xday_offers_when_enabled(tmp_path) -> None:
@@ -462,6 +532,7 @@ def _settings(
     max_active_amount: float | None = None,
     notify_summary_minutes: int = 0,
     notify_xday_threshold: bool = False,
+    notify_caught_exception: bool = False,
     xday_threshold: float = 0,
     xdays: int = 2,
     max_loops: int = 1,
@@ -499,6 +570,8 @@ def _settings(
         strategy_debug=strategy_debug,
         telegram_bot_token="",
         telegram_chat_id="",
+        notify_prefix="",
+        notify_caught_exception=notify_caught_exception,
         notify_summary_minutes=notify_summary_minutes,
         notify_xday_threshold=notify_xday_threshold,
         hide_coins=hide_coins,

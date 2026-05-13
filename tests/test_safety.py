@@ -135,6 +135,8 @@ def _settings(
         strategy_debug=False,
         telegram_bot_token="",
         telegram_chat_id="",
+        notify_prefix="",
+        notify_caught_exception=False,
         notify_summary_minutes=0,
         notify_xday_threshold=False,
         hide_coins=True,

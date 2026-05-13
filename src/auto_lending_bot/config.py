@@ -43,6 +43,8 @@ class Settings:
     strategy_debug: bool
     telegram_bot_token: str
     telegram_chat_id: str
+    notify_prefix: str
+    notify_caught_exception: bool
     notify_summary_minutes: int
     notify_xday_threshold: bool
     hide_coins: bool
@@ -106,6 +108,8 @@ def load_settings() -> Settings:
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
+        notify_prefix=os.getenv("NOTIFY_PREFIX", ""),
+        notify_caught_exception=_get_bool("NOTIFY_CAUGHT_EXCEPTION", default=False),
         notify_summary_minutes=_get_int("NOTIFY_SUMMARY_MINUTES", default=0),
         notify_xday_threshold=_get_bool("NOTIFY_XDAY_THRESHOLD", default=False),
         hide_coins=_get_bool("HIDE_COINS", default=True),

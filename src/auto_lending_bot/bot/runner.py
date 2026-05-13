@@ -144,7 +144,7 @@ class BotRunner:
                                 status="failed",
                                 message=str(error),
                             )
-                            self._notifier.error(
+                            self._notify_caught_exception(
                                 f"Failed to create {offer.currency} loan offer: {error}"
                             )
                             raise
@@ -162,7 +162,7 @@ class BotRunner:
             return created_offers
         except Exception as error:
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
-            self._notifier.error(str(error))
+            self._notify_caught_exception(str(error))
             raise
 
     def _sleep_seconds(self, created_offers: int) -> int:
@@ -322,6 +322,10 @@ class BotRunner:
             if active_loan.external_loan_id not in previous_active_loan_ids:
                 self._notifier.loan_filled(active_loan)
 
+    def _notify_caught_exception(self, message: str) -> None:
+        if self._settings.notify_caught_exception:
+            self._notifier.error(message)
+
 
 def _summary_message(
     active_loans: list[ActiveLoan],
@@ -332,9 +336,21 @@ def _summary_message(
     open_offer_amount = sum(float(row["amount"]) for row in open_offers)
     today_earned = sum(float(row["today_earned"]) for row in earnings)
     total_earned = sum(float(row["total_earned"]) for row in earnings)
-    return (
+    lines = [
         "Lending summary: "
         f"active_loans={len(active_loans)}, active_amount={active_amount:.8f}, "
         f"open_offers={len(open_offers)}, open_offer_amount={open_offer_amount:.8f}, "
         f"today_earned={today_earned:.8f}, total_earned={total_earned:.8f}."
-    )
+    ]
+    if not earnings:
+        lines.append("Earnings: no lending history yet.")
+        return "\n".join(lines)
+
+    lines.append("Earnings by currency:")
+    for row in sorted(earnings, key=lambda item: str(item["currency"])):
+        lines.append(
+            f"{row['currency']}: today={float(row['today_earned']):.8f}, "
+            f"yesterday={float(row['yesterday_earned']):.8f}, "
+            f"total={float(row['total_earned']):.8f}."
+        )
+    return "\n".join(lines)

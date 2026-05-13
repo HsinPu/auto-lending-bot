@@ -18,6 +18,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MARKET_ANALYSIS_MACD_SHORT_SECONDS", "150")
     monkeypatch.setenv("MARKET_ANALYSIS_MACD_LONG_SECONDS", "1800")
     monkeypatch.setenv("MARKET_ANALYSIS_MULTIPLIER", "1.05")
+    monkeypatch.setenv("NOTIFY_PREFIX", "[Bot]")
+    monkeypatch.setenv("NOTIFY_CAUGHT_EXCEPTION", "true")
     monkeypatch.setenv("NOTIFY_SUMMARY_MINUTES", "120")
     monkeypatch.setenv("NOTIFY_XDAY_THRESHOLD", "true")
     monkeypatch.setenv("GAP_MODE", "raw")
@@ -41,6 +43,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert settings.market_analysis_macd_short_seconds == 150
     assert settings.market_analysis_macd_long_seconds == 1800
     assert settings.market_analysis_multiplier == 1.05
+    assert settings.notify_prefix == "[Bot]"
+    assert settings.notify_caught_exception is True
     assert settings.notify_summary_minutes == 120
     assert settings.notify_xday_threshold is True
     assert strategy.min_daily_rate == 0.00007

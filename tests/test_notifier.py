@@ -29,6 +29,22 @@ def test_notifier_sends_telegram_message() -> None:
     assert request["body"] == "chat_id=chat&text=hello+world"
 
 
+def test_notifier_prefixes_telegram_message() -> None:
+    http_client = FakeHttpClient()
+    notifier = Notifier(
+        settings=_settings(
+            telegram_bot_token="token",
+            telegram_chat_id="chat",
+            notify_prefix="[Bot]",
+        ),
+        http_client=http_client,
+    )
+
+    notifier.info("hello world")
+
+    assert http_client.requests[0]["body"] == "chat_id=chat&text=%5BBot%5D+hello+world"
+
+
 def test_notifier_sends_run_summary() -> None:
     http_client = FakeHttpClient()
     notifier = Notifier(
@@ -109,7 +125,11 @@ class FakeHttpClient:
         return HttpResponse(status_code=200, body='{"ok":true}')
 
 
-def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Settings:
+def _settings(
+    telegram_bot_token: str = "",
+    telegram_chat_id: str = "",
+    notify_prefix: str = "",
+) -> Settings:
     return Settings(
         allow_live_trading=False,
         api_key="",
@@ -141,6 +161,8 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         strategy_debug=False,
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,
+        notify_prefix=notify_prefix,
+        notify_caught_exception=False,
         notify_summary_minutes=0,
         notify_xday_threshold=False,
         hide_coins=True,

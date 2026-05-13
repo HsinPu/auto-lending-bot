@@ -50,7 +50,9 @@ class Notifier:
         if not self._settings.telegram_bot_token or not self._settings.telegram_chat_id:
             return
 
-        body = urlencode({"chat_id": self._settings.telegram_chat_id, "text": message})
+        body = urlencode(
+            {"chat_id": self._settings.telegram_chat_id, "text": self._message(message)}
+        )
         try:
             self._http_client.request(
                 method="POST",
@@ -61,3 +63,9 @@ class Notifier:
             )
         except Exception:
             self._logger.exception("Failed to send Telegram notification.")
+
+    def _message(self, message: str) -> str:
+        if self._settings is None or not self._settings.notify_prefix:
+            return message
+
+        return f"{self._settings.notify_prefix} {message}"

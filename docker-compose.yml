@@ -6,6 +6,8 @@ services:
       EXCHANGE: mock
       DATABASE_URL: sqlite:////app/data/auto_lending_bot.db
       BOT_MAX_LOOPS: "1"
+      ADMIN_AUTH_TOKEN: ${ADMIN_AUTH_TOKEN:-}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
     volumes:
       - ./data:/app/data
 
@@ -16,6 +18,8 @@ services:
       BOT_DRY_RUN: "true"
       EXCHANGE: mock
       DATABASE_URL: sqlite:////app/data/auto_lending_bot.db
+      ADMIN_AUTH_TOKEN: ${ADMIN_AUTH_TOKEN:-}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
     ports:
       - "8000:8000"
     volumes:

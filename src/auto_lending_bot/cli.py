@@ -12,7 +12,7 @@ from auto_lending_bot.logging import configure_logging
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.notifications.notifier import Notifier
-from auto_lending_bot.operations.transfers import build_transfer_preview
+from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
@@ -24,7 +24,12 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
-from auto_lending_bot.safety import SafetyError, validate_run_settings
+from auto_lending_bot.safety import (
+    SafetyError,
+    validate_run_settings,
+    validate_transfer_limits,
+    validate_transfer_settings,
+)
 
 
 def main() -> None:
@@ -95,17 +100,13 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "transfer-preview":
         try:
-            validate_run_settings(settings)
+            validate_transfer_settings(settings)
         except SafetyError as error:
             print(f"Safety check failed: {error}", file=sys.stderr)
             return 2
 
         exchange = create_exchange_client(settings)
-        previews = build_transfer_preview(
-            exchange_balances=exchange.get_exchange_balances(),
-            lending_balances=exchange.get_lending_balances(),
-            transferable_currencies=settings.transferable_currencies,
-        )
+        previews = _transfer_previews(settings, exchange)
         if not previews:
             print("No exchange balances match TRANSFERABLE_CURRENCIES.")
             return 0
@@ -114,6 +115,33 @@ def run_cli(argv: list[str] | None = None) -> int:
                 f"Would transfer {preview.amount:g} {preview.currency} "
                 f"from {preview.source} to {preview.destination}."
             )
+        return 0
+
+    if args.command == "transfer-funds":
+        try:
+            validate_transfer_settings(settings)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        if not settings.dry_run and not args.confirm_live:
+            print("Live transfer requires --confirm-live.", file=sys.stderr)
+            return 2
+
+        exchange = create_exchange_client(settings)
+        previews = _transfer_previews(settings, exchange)
+        try:
+            validate_transfer_limits(settings, previews)
+        except SafetyError as error:
+            print(f"Safety check failed: {error}", file=sys.stderr)
+            return 2
+
+        if settings.dry_run:
+            print(f"Dry run: would transfer {len(previews)} balance(s).")
+            return 0
+
+        results = execute_transfers(exchange, previews)
+        print(f"Transferred {len(results)} balance(s) to lending wallet.")
         return 0
 
     if args.command == "record-market-analysis":
@@ -219,6 +247,14 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("sync-history", help="Sync lending history from the exchange.")
     subparsers.add_parser("sync-open-offers", help="Sync open loan offers from the exchange.")
     subparsers.add_parser("transfer-preview", help="Preview exchange-to-lending transfers.")
+    transfer_parser = subparsers.add_parser(
+        "transfer-funds", help="Transfer exchange balances to lending after safety confirmation."
+    )
+    transfer_parser.add_argument(
+        "--confirm-live",
+        action="store_true",
+        help="Required when BOT_DRY_RUN=false because real balances will be transferred.",
+    )
     market_analysis_parser = subparsers.add_parser(
         "record-market-analysis", help="Record lendbook levels for market analysis."
     )
@@ -254,6 +290,14 @@ def _market_analysis_currencies(
     if settings.market_analysis_currencies:
         return settings.market_analysis_currencies
     return (settings.smoke_test_currency.upper(),)
+
+
+def _transfer_previews(settings: Settings, exchange) -> list:
+    return build_transfer_preview(
+        exchange_balances=exchange.get_exchange_balances(),
+        lending_balances=exchange.get_lending_balances(),
+        transferable_currencies=settings.transferable_currencies,
+    )
 
 
 def _create_runner(settings: Settings) -> BotRunner:

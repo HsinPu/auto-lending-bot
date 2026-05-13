@@ -151,6 +151,7 @@ export type SafeActionName =
   | 'sync-history'
   | 'sync-open-offers'
   | 'transfer-preview'
+  | 'transfer-funds'
   | 'cancel-open-offers'
   | 'record-market-analysis'
   | 'cleanup'

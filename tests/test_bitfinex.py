@@ -245,6 +245,18 @@ def test_bitfinex_client_cancels_loan_offer() -> None:
     client.cancel_loan_offer("123")
 
 
+def test_bitfinex_client_transfers_to_lending() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient('{"id": 456}'),
+    )
+
+    transfer_id = client.transfer_to_lending("BTC", 0.1)
+
+    assert transfer_id == "456"
+
+
 def test_bitfinex_client_raises_exchange_error_for_api_message() -> None:
     client = BitfinexClient(
         api_key="key",

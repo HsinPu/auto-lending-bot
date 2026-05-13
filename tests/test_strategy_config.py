@@ -10,6 +10,10 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("END_DATE", "2027-01-15")
     monkeypatch.setenv("OUTPUT_CURRENCY", "usd")
     monkeypatch.setenv("TRANSFERABLE_CURRENCIES", "btc,ACTIVE")
+    monkeypatch.setenv("ALLOW_BALANCE_TRANSFERS", "true")
+    monkeypatch.setenv("BITFINEX_ENABLE_LIVE_TRANSFERS", "true")
+    monkeypatch.setenv("MAX_SINGLE_TRANSFER_AMOUNT", "0.25")
+    monkeypatch.setenv("MAX_TOTAL_TRANSFER_AMOUNT", "0.5")
     monkeypatch.setenv("BOT_INACTIVE_SLEEP_SECONDS", "900")
     monkeypatch.setenv("KEEP_STUCK_ORDERS", "false")
     monkeypatch.setenv("MARKET_ANALYSIS_RETENTION_DAYS", "14")
@@ -40,6 +44,10 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
 
     assert settings.output_currency == "USD"
     assert settings.transferable_currencies == ("BTC", "ACTIVE")
+    assert settings.allow_balance_transfers is True
+    assert settings.bitfinex_enable_live_transfers is True
+    assert settings.max_single_transfer_amount == 0.25
+    assert settings.max_total_transfer_amount == 0.5
     assert settings.bot_inactive_sleep_seconds == 900
     assert settings.keep_stuck_orders is False
     assert settings.market_analysis_retention_days == 14

@@ -39,3 +39,6 @@ class ExchangeClient(Protocol):
 
     def cancel_loan_offer(self, offer_id: str) -> None:
         pass
+
+    def transfer_to_lending(self, currency: str, amount: float) -> str:
+        pass

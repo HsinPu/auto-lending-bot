@@ -10,6 +10,7 @@ from auto_lending_bot.domain.models import (
 class MockExchangeClient:
     def __init__(self) -> None:
         self._created_offers: list[LoanOffer] = []
+        self._transfers: list[tuple[str, float]] = []
 
     def get_lending_balances(self) -> list[CurrencyBalance]:
         return [
@@ -84,3 +85,7 @@ class MockExchangeClient:
 
     def cancel_loan_offer(self, offer_id: str) -> None:
         return None
+
+    def transfer_to_lending(self, currency: str, amount: float) -> str:
+        self._transfers.append((currency.upper(), amount))
+        return f"mock-transfer-{len(self._transfers)}"

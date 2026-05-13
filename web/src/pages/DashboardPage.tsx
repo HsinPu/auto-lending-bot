@@ -317,7 +317,7 @@ function ErrorState({ message }: { message: string }) {
 }
 
 function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
-  return ['run-once', 'cancel-open-offers'].includes(action) && !dryRun
+  return ['run-once', 'cancel-open-offers', 'transfer-funds'].includes(action) && !dryRun
 }
 
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')

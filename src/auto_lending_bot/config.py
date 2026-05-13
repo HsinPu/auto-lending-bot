@@ -14,9 +14,11 @@ except ImportError:  # pragma: no cover - used before dependencies are installed
 @dataclass(frozen=True)
 class Settings:
     allow_live_trading: bool
+    allow_balance_transfers: bool
     api_key: str
     api_secret: str
     bitfinex_enable_live_offers: bool
+    bitfinex_enable_live_transfers: bool
     bot_label: str
     bot_sleep_seconds: int
     bot_inactive_sleep_seconds: int
@@ -63,7 +65,9 @@ class Settings:
     frr_delta: float
     max_amount_to_lend: float | None
     max_active_amount: float | None
+    max_single_transfer_amount: float | None
     max_single_offer_amount: float | None
+    max_total_transfer_amount: float | None
     max_total_lend_amount: float | None
     min_daily_rate: float
     max_daily_rate: float
@@ -82,9 +86,13 @@ def load_settings() -> Settings:
 
     return Settings(
         allow_live_trading=_get_bool("ALLOW_LIVE_TRADING", default=False),
+        allow_balance_transfers=_get_bool("ALLOW_BALANCE_TRANSFERS", default=False),
         api_key=os.getenv("EXCHANGE_API_KEY", ""),
         api_secret=os.getenv("EXCHANGE_API_SECRET", ""),
         bitfinex_enable_live_offers=_get_bool("BITFINEX_ENABLE_LIVE_OFFERS", default=False),
+        bitfinex_enable_live_transfers=_get_bool(
+            "BITFINEX_ENABLE_LIVE_TRANSFERS", default=False
+        ),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
         bot_inactive_sleep_seconds=_get_int("BOT_INACTIVE_SLEEP_SECONDS", default=300),
@@ -139,7 +147,9 @@ def load_settings() -> Settings:
         if os.getenv("MAX_TO_LEND") is not None
         else _get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_active_amount=_get_optional_float("MAX_ACTIVE_AMOUNT"),
+        max_single_transfer_amount=_get_optional_float("MAX_SINGLE_TRANSFER_AMOUNT"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
+        max_total_transfer_amount=_get_optional_float("MAX_TOTAL_TRANSFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
         min_daily_rate=_get_float("MIN_DAILY_RATE", default=0.00005),
         max_daily_rate=_get_float("MAX_DAILY_RATE", default=0.05),

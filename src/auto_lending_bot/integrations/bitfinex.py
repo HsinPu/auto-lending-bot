@@ -225,6 +225,21 @@ class BitfinexClient:
     def cancel_loan_offer(self, offer_id: str) -> None:
         self._private_query("/v1/offer/cancel", {"offer_id": offer_id})
 
+    def transfer_to_lending(self, currency: str, amount: float) -> str:
+        response = self._private_query(
+            "/v1/transfer",
+            {
+                "amount": str(amount),
+                "currency": currency.upper(),
+                "walletfrom": "exchange",
+                "walletto": "deposit",
+            },
+        )
+        if not isinstance(response, dict):
+            return ""
+
+        return str(response.get("id", response.get("transfer_id", "")))
+
     def build_signed_headers(self, payload: dict[str, object]) -> dict[str, str]:
         encoded_payload = _encode_payload(payload)
         signature = hmac.new(

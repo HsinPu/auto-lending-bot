@@ -580,9 +580,11 @@ def _settings(
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
+        allow_balance_transfers=False,
         api_key="",
         api_secret="",
         bitfinex_enable_live_offers=False,
+        bitfinex_enable_live_transfers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=bot_sleep_seconds,
         bot_inactive_sleep_seconds=bot_inactive_sleep_seconds,
@@ -629,7 +631,9 @@ def _settings(
         frr_delta=0,
         max_amount_to_lend=None,
         max_active_amount=max_active_amount,
+        max_single_transfer_amount=None,
         max_single_offer_amount=None,
+        max_total_transfer_amount=None,
         max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,

@@ -6,7 +6,7 @@ from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.notifications.notifier import Notifier
-from auto_lending_bot.operations.transfers import build_transfer_preview
+from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
@@ -17,7 +17,12 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
-from auto_lending_bot.safety import SafetyError, validate_run_settings
+from auto_lending_bot.safety import (
+    SafetyError,
+    validate_run_settings,
+    validate_transfer_limits,
+    validate_transfer_settings,
+)
 
 
 def create_api_router(settings: Settings) -> APIRouter:
@@ -170,19 +175,44 @@ def create_api_router(settings: Settings) -> APIRouter:
 
     @router.post("/actions/transfer-preview")
     def transfer_preview() -> dict[str, object]:
-        _validate_safe_action_settings(settings)
+        _validate_transfer_action_settings(settings)
         exchange = create_exchange_client(settings)
-        previews = build_transfer_preview(
-            exchange_balances=exchange.get_exchange_balances(),
-            lending_balances=exchange.get_lending_balances(),
-            transferable_currencies=settings.transferable_currencies,
-        )
+        previews = _transfer_previews(settings, exchange)
         return {
             "action": "transfer-preview",
             "ok": True,
             "dry_run": True,
             "transfer_count": len(previews),
             "transfers": [preview.__dict__ for preview in previews],
+        }
+
+    @router.post("/actions/transfer-funds")
+    def transfer_funds(payload: dict[str, bool] | None = None) -> dict[str, object]:
+        _validate_transfer_action_settings(settings)
+        if not settings.dry_run and not (payload or {}).get("confirm_live", False):
+            raise HTTPException(status_code=400, detail="Live transfer requires confirm_live=true.")
+
+        exchange = create_exchange_client(settings)
+        previews = _transfer_previews(settings, exchange)
+        _validate_transfer_limits(settings, previews)
+        if settings.dry_run:
+            return {
+                "action": "transfer-funds",
+                "ok": True,
+                "dry_run": True,
+                "transferred_count": 0,
+                "would_transfer_count": len(previews),
+                "transfers": [preview.__dict__ for preview in previews],
+            }
+
+        results = execute_transfers(exchange, previews)
+        return {
+            "action": "transfer-funds",
+            "ok": True,
+            "dry_run": False,
+            "transferred_count": len(results),
+            "would_transfer_count": len(previews),
+            "transfers": [result.__dict__ for result in results],
         }
 
     @router.post("/actions/record-market-analysis")
@@ -289,6 +319,20 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
+def _validate_transfer_action_settings(settings: Settings) -> None:
+    try:
+        validate_transfer_settings(settings)
+    except SafetyError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _validate_transfer_limits(settings: Settings, transfers: list[object]) -> None:
+    try:
+        validate_transfer_limits(settings, transfers)
+    except SafetyError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
 def _cancel_open_offers(exchange, offers: list[object]) -> int:
     canceled_count = 0
     for offer in offers:
@@ -309,6 +353,14 @@ def _market_analysis_currencies(
     if settings.market_analysis_currencies:
         return settings.market_analysis_currencies
     return (settings.smoke_test_currency.upper(),)
+
+
+def _transfer_previews(settings: Settings, exchange) -> list:
+    return build_transfer_preview(
+        exchange_balances=exchange.get_exchange_balances(),
+        lending_balances=exchange.get_lending_balances(),
+        transferable_currencies=settings.transferable_currencies,
+    )
 
 
 def _suggested_min_daily_rate(

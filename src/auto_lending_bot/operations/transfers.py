@@ -15,6 +15,22 @@ def build_transfer_preview(
     return previews
 
 
+def execute_transfers(exchange, previews: list[TransferPreview]) -> list[TransferPreview]:
+    results = []
+    for preview in previews:
+        external_transfer_id = exchange.transfer_to_lending(preview.currency, preview.amount)
+        results.append(
+            TransferPreview(
+                currency=preview.currency,
+                amount=preview.amount,
+                source=preview.source,
+                destination=preview.destination,
+                external_transfer_id=external_transfer_id,
+            )
+        )
+    return results
+
+
 def _target_currencies(
     exchange_balances: list[CurrencyBalance],
     lending_balances: list[CurrencyBalance],

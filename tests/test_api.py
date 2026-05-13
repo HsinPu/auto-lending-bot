@@ -154,6 +154,11 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     assert transfer_preview_response.json()["dry_run"] is True
     assert transfer_preview_response.json()["transfer_count"] == 0
 
+    transfer_funds_response = client.post("/api/actions/transfer-funds")
+    assert transfer_funds_response.status_code == 200
+    assert transfer_funds_response.json()["dry_run"] is True
+    assert transfer_funds_response.json()["transferred_count"] == 0
+
     market_analysis_response = client.post("/api/actions/record-market-analysis")
     assert market_analysis_response.status_code == 200
     assert market_analysis_response.json()["changed_count"] == 1
@@ -325,9 +330,11 @@ def _settings(
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
+        allow_balance_transfers=False,
         api_key=api_key,
         api_secret=api_secret,
         bitfinex_enable_live_offers=bitfinex_enable_live_offers,
+        bitfinex_enable_live_transfers=False,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         bot_inactive_sleep_seconds=300,
@@ -374,7 +381,9 @@ def _settings(
         frr_delta=0,
         max_amount_to_lend=None,
         max_active_amount=None,
+        max_single_transfer_amount=None,
         max_single_offer_amount=max_single_offer_amount,
+        max_total_transfer_amount=None,
         max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,

@@ -1,7 +1,11 @@
 import pytest
 
 from auto_lending_bot.config import Settings
-from auto_lending_bot.safety import SafetyError, validate_run_settings
+from auto_lending_bot.safety import (
+    SafetyError,
+    validate_run_settings,
+    validate_transfer_settings,
+)
 
 
 def test_validate_run_settings_allows_mock_dry_run() -> None:
@@ -94,6 +98,35 @@ def test_validate_run_settings_allows_bitfinex_dry_run_with_credentials() -> Non
     )
 
 
+def test_validate_transfer_settings_rejects_live_without_transfer_guards() -> None:
+    with pytest.raises(SafetyError, match="ALLOW_BALANCE_TRANSFERS"):
+        validate_transfer_settings(
+            _settings(
+                exchange="bitfinex",
+                dry_run=False,
+                allow_live_trading=True,
+                api_key="key",
+                api_secret="secret",
+            )
+        )
+
+
+def test_validate_transfer_settings_allows_live_with_all_guards() -> None:
+    validate_transfer_settings(
+        _settings(
+            exchange="bitfinex",
+            dry_run=False,
+            allow_live_trading=True,
+            api_key="key",
+            api_secret="secret",
+            allow_balance_transfers=True,
+            bitfinex_enable_live_transfers=True,
+            max_single_transfer_amount=0.1,
+            max_total_transfer_amount=1.0,
+        )
+    )
+
+
 def _settings(
     exchange: str,
     dry_run: bool,
@@ -101,14 +134,20 @@ def _settings(
     api_key: str = "",
     api_secret: str = "",
     bitfinex_enable_live_offers: bool = False,
+    bitfinex_enable_live_transfers: bool = False,
+    allow_balance_transfers: bool = False,
     max_single_offer_amount: float | None = None,
     max_total_lend_amount: float | None = None,
+    max_single_transfer_amount: float | None = None,
+    max_total_transfer_amount: float | None = None,
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
+        allow_balance_transfers=allow_balance_transfers,
         api_key=api_key,
         api_secret=api_secret,
         bitfinex_enable_live_offers=bitfinex_enable_live_offers,
+        bitfinex_enable_live_transfers=bitfinex_enable_live_transfers,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
         bot_inactive_sleep_seconds=300,
@@ -155,7 +194,9 @@ def _settings(
         frr_delta=0,
         max_amount_to_lend=None,
         max_active_amount=None,
+        max_single_transfer_amount=max_single_transfer_amount,
         max_single_offer_amount=max_single_offer_amount,
+        max_total_transfer_amount=max_total_transfer_amount,
         max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,
         max_daily_rate=0.05,

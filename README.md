@@ -168,6 +168,7 @@ Current API endpoints:
 - `POST /api/actions/sync-history`
 - `POST /api/actions/sync-open-offers`
 - `POST /api/actions/transfer-preview`
+- `POST /api/actions/transfer-funds`
 - `POST /api/actions/cancel-open-offers`
 - `POST /api/actions/cleanup`
 - `POST /api/actions/run-once`
@@ -267,6 +268,11 @@ daily rate for `SMOKE_TEST_CURRENCY`, which the dashboard shows in the strategy 
 `TRANSFERABLE_CURRENCIES=BTC,ETH` enables transfer previews from exchange balances to the
 lending wallet. `ALL` targets every exchange balance, and `ACTIVE` targets currencies that
 already exist in the lending wallet. Phase 66 only previews transfers; it does not move funds.
+
+Live transfers require `BOT_DRY_RUN=false`, `ALLOW_LIVE_TRADING=true`,
+`ALLOW_BALANCE_TRANSFERS=true`, `BITFINEX_ENABLE_LIVE_TRANSFERS=true`,
+`MAX_TOTAL_TRANSFER_AMOUNT`, `MAX_SINGLE_TRANSFER_AMOUNT`, and an explicit API/CLI live
+confirmation.
 
 ## Operations
 

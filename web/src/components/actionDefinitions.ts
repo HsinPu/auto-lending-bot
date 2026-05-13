@@ -22,6 +22,11 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     description: '預覽 exchange 到 lending 的轉帳，不會移動資金。',
   },
   {
+    action: 'transfer-funds',
+    label: '執行轉帳',
+    description: '依安全限制轉帳到 lending；Live 模式需要二次確認。',
+  },
+  {
     action: 'record-market-analysis',
     label: '記錄市場分析',
     description: '記錄設定幣種清單的 lendbook levels。',

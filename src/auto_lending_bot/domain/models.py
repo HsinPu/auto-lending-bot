@@ -27,6 +27,7 @@ class TransferPreview:
     amount: float
     source: str = "exchange"
     destination: str = "lending"
+    external_transfer_id: str = ""
 
 
 @dataclass(frozen=True)

@@ -121,6 +121,21 @@ def test_cli_transfer_preview_reports_matching_balances(tmp_path, monkeypatch, c
     assert "Would transfer 0.25 BTC from exchange to lending." in output
 
 
+def test_cli_transfer_funds_dry_run_does_not_transfer(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setenv("TRANSFERABLE_CURRENCIES", "BTC")
+    exchange = FakeExchange()
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: exchange)
+
+    exit_code = run_cli(["transfer-funds"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Dry run: would transfer 1 balance(s)." in output
+    assert exchange.transfer_calls == []
+
+
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("BOT_DRY_RUN", "false")
@@ -149,6 +164,7 @@ def test_cli_smoke_exchange_prints_read_only_summary(monkeypatch, capsys) -> Non
 class FakeExchange:
     def __init__(self) -> None:
         self.canceled_offer_ids = []
+        self.transfer_calls = []
 
     def get_lending_balances(self):
         return [CurrencyBalance(currency="BTC", amount=0.1)]
@@ -184,3 +200,7 @@ class FakeExchange:
 
     def cancel_loan_offer(self, offer_id: str):
         self.canceled_offer_ids.append(offer_id)
+
+    def transfer_to_lending(self, currency: str, amount: float):
+        self.transfer_calls.append((currency, amount))
+        return "transfer-1"

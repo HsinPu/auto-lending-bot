@@ -218,6 +218,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "allow_live_trading": settings.allow_live_trading,
             "bitfinex_enable_live_offers": settings.bitfinex_enable_live_offers,
             "output_currency": settings.output_currency,
+            "display_timezone": settings.display_timezone,
             "market_analysis_currencies": settings.market_analysis_currencies,
             "market_analysis_levels": settings.market_analysis_levels,
             "market_analysis_suggested_min_daily_rate": suggested_min_daily_rate,

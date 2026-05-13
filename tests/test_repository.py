@@ -284,6 +284,8 @@ def test_app_setting_repository_rejects_invalid_setting_values(tmp_path) -> None
         repository.set_many({"MIN_DAILY_RATE": "fast"})
     with pytest.raises(ValueError, match="EXCHANGE must be one of"):
         repository.set_many({"EXCHANGE": "kraken"})
+    with pytest.raises(ValueError, match="DISPLAY_TIMEZONE must be a valid IANA timezone"):
+        repository.set_many({"DISPLAY_TIMEZONE": "Taipei"})
 
 
 def test_app_setting_repository_resets_values(tmp_path) -> None:

@@ -27,6 +27,7 @@ import type {
   SafeActionName,
   SafeActionResponse,
 } from '../types/api'
+import { formatTimestamp } from '../utils/time'
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
@@ -39,6 +40,7 @@ export function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
   })
+  const displayTimeZone = data?.settings.display_timezone ?? 'UTC'
   const actionMutation = useMutation({
     mutationFn: ({ action, confirmLive }: { action: SafeActionName; confirmLive?: boolean }) =>
       runSafeAction(action, { adminToken, confirmLive }),
@@ -160,6 +162,7 @@ export function DashboardPage() {
                 offers={data.offers}
                 latestResult={latestResult}
                 latestError={latestError}
+                timeZone={displayTimeZone}
               />
             </div>
 
@@ -204,12 +207,12 @@ export function DashboardPage() {
       {data && activePage === 'earnings' ? (
         <div className="page-stack">
           <ConvertedEarningsPanel rows={data.convertedEarnings} btcUnit={displaySettings.btcUnit} />
-          <ProfitCharts history={data.lendingHistory} />
+          <ProfitCharts history={data.lendingHistory} timeZone={displayTimeZone} />
           <DataTable<LendingHistoryEntry>
             title="收益明細"
             description="最近同步的 lending history。"
             rows={data.lendingHistory}
-            columns={historyColumns}
+            columns={historyColumns(displayTimeZone)}
           />
         </div>
       ) : null}
@@ -247,13 +250,13 @@ export function DashboardPage() {
             title="市場利率"
             description="最近記錄的 lendbook rate snapshot。"
             rows={data.marketRates}
-            columns={marketRateColumns}
+            columns={marketRateColumns(displayTimeZone)}
           />
           <DataTable<MarketAnalysisRate>
             title="市場分析紀錄"
             description="由 record-market-analysis 記錄的 lendbook depth levels。"
             rows={data.marketAnalysisRates}
-            columns={marketAnalysisColumns}
+            columns={marketAnalysisColumns(displayTimeZone)}
           />
         </div>
       ) : null}
@@ -276,7 +279,7 @@ export function DashboardPage() {
             title="交易所未成交委託"
             description="由 sync-open-offers 取得的 read-only snapshot。"
             rows={data.openOffers}
-            columns={openOfferColumns}
+            columns={openOfferColumns(displayTimeZone)}
           />
         </div>
       ) : null}
@@ -334,12 +337,13 @@ export function DashboardPage() {
             offers={data.offers}
             latestResult={latestResult}
             latestError={latestError}
+            timeZone={displayTimeZone}
           />
           <DataTable<BotRun>
             title="最近執行"
             description="Bot run 狀態與訊息。"
             rows={data.runs}
-            columns={runColumns}
+            columns={runColumns(displayTimeZone)}
           />
           <DataTable<LoanOffer>
             title="最近貸出活動"
@@ -546,21 +550,21 @@ function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')
 const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
 
-const historyColumns = [
+const historyColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
   { key: 'interest', label: '利息', format: amount },
   { key: 'fee', label: '手續費', format: amount },
   { key: 'earned', label: '實收', format: amount },
-  { key: 'closed_at', label: '結束時間' },
+  { key: 'closed_at', label: '結束時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<LendingHistoryEntry>>[0]['columns']
 
-const runColumns = [
+const runColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'status', label: '狀態' },
   { key: 'dry_run', label: '模擬' },
-  { key: 'started_at', label: '開始時間' },
-  { key: 'finished_at', label: '結束時間' },
+  { key: 'started_at', label: '開始時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
+  { key: 'finished_at', label: '結束時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
   { key: 'message', label: '訊息' },
 ] satisfies Parameters<typeof DataTable<BotRun>>[0]['columns']
 
@@ -574,29 +578,29 @@ const offerColumns = [
   { key: 'external_offer_id', label: '交易所編號' },
 ] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
 
-const openOfferColumns = [
+const openOfferColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
   { key: 'amount', label: '數量', format: amount },
   { key: 'daily_rate', label: '日利率', format: rate },
   { key: 'duration_days', label: '天數' },
   { key: 'external_offer_id', label: '交易所編號' },
-  { key: 'captured_at', label: '擷取時間' },
+  { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
 
-const marketRateColumns = [
+const marketRateColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
   { key: 'daily_rate', label: '日利率', format: rate },
   { key: 'available_amount', label: '可用數量', format: amount },
-  { key: 'captured_at', label: '擷取時間' },
+  { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<MarketRate>>[0]['columns']
 
-const marketAnalysisColumns = [
+const marketAnalysisColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
   { key: 'level', label: 'Level' },
   { key: 'daily_rate', label: '日利率', format: rate },
   { key: 'available_amount', label: '可用數量', format: amount },
-  { key: 'captured_at', label: '擷取時間' },
+  { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']

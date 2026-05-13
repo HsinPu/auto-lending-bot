@@ -11,6 +11,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MAX_TO_LEND_RATE", "0.00008")
     monkeypatch.setenv("END_DATE", "2027-01-15")
     monkeypatch.setenv("OUTPUT_CURRENCY", "usd")
+    monkeypatch.setenv("DISPLAY_TIMEZONE", "Asia/Taipei")
     monkeypatch.setenv("TRANSFERABLE_CURRENCIES", "btc,ACTIVE")
     monkeypatch.setenv("ALLOW_BALANCE_TRANSFERS", "true")
     monkeypatch.setenv("BITFINEX_ENABLE_LIVE_TRANSFERS", "true")
@@ -45,6 +46,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     strategy = strategy_config_for(settings, "BTC")
 
     assert settings.output_currency == "USD"
+    assert settings.display_timezone == "Asia/Taipei"
     assert settings.transferable_currencies == ("BTC", "ACTIVE")
     assert settings.allow_balance_transfers is True
     assert settings.bitfinex_enable_live_transfers is True
@@ -119,8 +121,11 @@ def test_load_effective_settings_uses_database_overrides(tmp_path, monkeypatch) 
     monkeypatch.setenv("DATABASE_URL", database_url)
     monkeypatch.setenv("BOT_LABEL", "Env Bot")
     initialize_database(database_url)
-    AppSettingRepository(database_url).set_many({"BOT_LABEL": "DB Bot"})
+    AppSettingRepository(database_url).set_many(
+        {"BOT_LABEL": "DB Bot", "DISPLAY_TIMEZONE": "Asia/Taipei"}
+    )
 
     settings = load_effective_settings(database_url)
 
     assert settings.bot_label == "DB Bot"
+    assert settings.display_timezone == "Asia/Taipei"

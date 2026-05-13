@@ -1,10 +1,12 @@
 import type { BotRun, LoanOffer, SafeActionResponse } from '../types/api'
+import { formatTimestamp } from '../utils/time'
 
 type ActivityLogProps = {
   runs: BotRun[]
   offers: LoanOffer[]
   latestResult: SafeActionResponse | null
   latestError: string | null
+  timeZone: string
 }
 
 type ActivityItem = {
@@ -15,8 +17,8 @@ type ActivityItem = {
   tone?: 'ok' | 'error'
 }
 
-export function ActivityLog({ runs, offers, latestResult, latestError }: ActivityLogProps) {
-  const items = buildActivityItems({ runs, offers, latestResult, latestError })
+export function ActivityLog({ runs, offers, latestResult, latestError, timeZone }: ActivityLogProps) {
+  const items = buildActivityItems({ runs, offers, latestResult, latestError, timeZone })
 
   return (
     <section className="activity-panel" id="logs">
@@ -52,6 +54,7 @@ function buildActivityItems({
   offers,
   latestResult,
   latestError,
+  timeZone,
 }: ActivityLogProps): ActivityItem[] {
   const actionItems: ActivityItem[] = []
   if (latestError) {
@@ -75,7 +78,7 @@ function buildActivityItems({
 
   const runItems: ActivityItem[] = runs.slice(0, 5).map((run) => ({
     id: `run-${run.id}`,
-    time: formatTime(run.finished_at ?? run.started_at),
+    time: formatTimestamp(run.finished_at ?? run.started_at, timeZone),
     title: `Run #${run.id} ${run.status}`,
     detail: run.message || 'No message',
     tone: run.status === 'completed' ? 'ok' : run.status === 'failed' ? 'error' : undefined,
@@ -83,17 +86,13 @@ function buildActivityItems({
 
   const offerItems: ActivityItem[] = offers.slice(0, 5).map((offer) => ({
     id: `offer-${offer.id}`,
-    time: formatTime(offer.created_at),
+    time: formatTimestamp(offer.created_at, timeZone),
     title: `${offer.currency} offer ${offer.status ?? 'recorded'}`,
     detail: `${amount(offer.amount)} at ${rate(offer.daily_rate)} for ${offer.duration_days} days`,
     tone: offer.status === 'failed' ? 'error' : 'ok',
   }))
 
   return [...actionItems, ...runItems, ...offerItems].slice(0, 10)
-}
-
-function formatTime(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '-'
 }
 
 const rate = (value: number) => `${(value * 100).toFixed(4)}%`

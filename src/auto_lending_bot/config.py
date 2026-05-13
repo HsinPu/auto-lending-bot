@@ -81,6 +81,7 @@ class Settings:
     spread_lend: int
     database_url: str
     log_level: str
+    display_timezone: str = "UTC"
 
 
 def load_settings() -> Settings:
@@ -163,6 +164,7 @@ def load_settings() -> Settings:
         spread_lend=_get_int("SPREAD_LEND", default=3),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
+        display_timezone=os.getenv("DISPLAY_TIMEZONE", "UTC"),
     )
 
 

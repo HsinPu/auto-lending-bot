@@ -116,6 +116,7 @@ export type SettingsResponse = {
   allow_live_trading: boolean
   bitfinex_enable_live_offers: boolean
   output_currency: string
+  display_timezone: string
   market_analysis_currencies: string[]
   market_analysis_levels: number
   market_analysis_suggested_min_daily_rate: number | null

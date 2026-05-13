@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("BITFINEX_ENABLE_LIVE_TRANSFERS", "Safety", "bool", "false", danger_level="critical"),
     SettingDefinition("HTTP_TIMEOUT_SECONDS", "Exchange", "int", "30"),
     SettingDefinition("OUTPUT_CURRENCY", "General", "string", "BTC"),
+    SettingDefinition("DISPLAY_TIMEZONE", "General", "timezone", "UTC"),
     SettingDefinition("TRANSFERABLE_CURRENCIES", "Transfers", "csv", ""),
     SettingDefinition("SMOKE_TEST_CURRENCY", "General", "string", "BTC"),
     SettingDefinition("STRATEGY_DEBUG", "Advanced", "bool", "false"),
@@ -148,6 +150,13 @@ def validate_setting_value(definition: SettingDefinition, value: str) -> str:
             date.fromisoformat(value)
         except ValueError as error:
             msg = f"{definition.key} must use YYYY-MM-DD format."
+            raise ValueError(msg) from error
+        return value
+    if definition.value_type == "timezone":
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as error:
+            msg = f"{definition.key} must be a valid IANA timezone, such as UTC or Asia/Taipei."
             raise ValueError(msg) from error
         return value
     if definition.value_type == "enum":

@@ -1,7 +1,9 @@
 import type { LendingHistoryEntry } from '../types/api'
+import { formatTimestampDay } from '../utils/time'
 
 type ProfitChartsProps = {
   history: LendingHistoryEntry[]
+  timeZone: string
 }
 
 type ProfitPoint = {
@@ -10,8 +12,8 @@ type ProfitPoint = {
   cumulative: number
 }
 
-export function ProfitCharts({ history }: ProfitChartsProps) {
-  const points = buildProfitPoints(history)
+export function ProfitCharts({ history, timeZone }: ProfitChartsProps) {
+  const points = buildProfitPoints(history, timeZone)
   const maxDaily = Math.max(...points.map((point) => point.earned), 0)
   const maxCumulative = Math.max(...points.map((point) => point.cumulative), 0)
 
@@ -67,10 +69,10 @@ function ProfitBarChart({
   )
 }
 
-function buildProfitPoints(history: LendingHistoryEntry[]): ProfitPoint[] {
+function buildProfitPoints(history: LendingHistoryEntry[], timeZone: string): ProfitPoint[] {
   const daily = new Map<string, number>()
   for (const entry of history) {
-    const day = entry.closed_at.slice(0, 10)
+    const day = formatTimestampDay(entry.closed_at, timeZone)
     daily.set(day, (daily.get(day) ?? 0) + entry.earned)
   }
 

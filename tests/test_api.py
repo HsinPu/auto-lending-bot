@@ -112,6 +112,7 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["output_currency"] == "BTC"
+    assert body["display_timezone"] == "UTC"
     assert body["smoke_test_currency"] == "BTC"
     assert body["market_analysis_suggested_min_daily_rate"] is None
     assert body["effective_min_daily_rate"] == 0.00005
@@ -133,10 +134,16 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     update_response = client.put(
         "/api/settings/values",
         headers=_admin_headers(),
-        json={"values": {"BOT_LABEL": "Managed Bot", "EXCHANGE_API_SECRET": "secret"}},
+        json={
+            "values": {
+                "BOT_LABEL": "Managed Bot",
+                "DISPLAY_TIMEZONE": "Asia/Taipei",
+                "EXCHANGE_API_SECRET": "secret",
+            }
+        },
     )
     assert update_response.status_code == 200
-    assert update_response.json()["changed_count"] == 2
+    assert update_response.json()["changed_count"] == 3
 
     values_response = client.get("/api/settings/values")
     assert values_response.status_code == 200
@@ -146,6 +153,7 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     effective_response = client.get("/api/settings/effective")
     assert effective_response.status_code == 200
     assert effective_response.json()["label"] == "Managed Bot"
+    assert effective_response.json()["display_timezone"] == "Asia/Taipei"
 
     audit_response = client.get("/api/settings/audit-log")
     assert audit_response.status_code == 200

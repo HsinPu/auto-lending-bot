@@ -45,6 +45,9 @@ export function ManagedSettingsPanel({
   const [draftOverrides, setDraftOverrides] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [searchText, setSearchText] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [showOnlyOverrides, setShowOnlyOverrides] = useState(false)
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['managed-settings'],
     queryFn: getManagedSettings,
@@ -137,6 +140,21 @@ export function ManagedSettingsPanel({
     resetMutation.isPending ||
     exportMutation.isPending ||
     importMutation.isPending
+  const visibleGroups = data
+    ? groupByCategory(
+        data.schema.filter((definition) =>
+          shouldShowDefinition(
+            definition,
+            data.values[definition.key],
+            draftOverrides,
+            searchText,
+            selectedCategory,
+            showOnlyOverrides,
+          ),
+        ),
+      )
+    : []
+  const categories = data ? Array.from(new Set(data.schema.map((definition) => definition.category))) : []
 
   return (
     <section className="managed-settings-panel" id="managed-settings">
@@ -162,6 +180,39 @@ export function ManagedSettingsPanel({
 
       {data ? (
         <div className="settings-editor">
+          <div className="settings-filter-bar">
+            <label>
+              <span>搜尋設定</span>
+              <input
+                type="search"
+                value={searchText}
+                placeholder="例如 BOT_DRY_RUN、rate、telegram"
+                onChange={(event) => setSearchText(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              <span>分類</span>
+              <select
+                value={selectedCategory}
+                onChange={(event) => setSelectedCategory(event.currentTarget.value)}
+              >
+                <option value="all">全部分類</option>
+                {categories.map((category) => (
+                  <option value={category} key={category}>
+                    {categoryLabels[category] ?? category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-override-toggle">
+              <input
+                type="checkbox"
+                checked={showOnlyOverrides}
+                onChange={(event) => setShowOnlyOverrides(event.currentTarget.checked)}
+              />
+              只顯示已覆寫或已修改
+            </label>
+          </div>
           <div className="settings-safety-note">
             <strong>安全提醒</strong>
             <span>
@@ -169,7 +220,7 @@ export function ManagedSettingsPanel({
               但請先保持 BOT_DRY_RUN=true 完成驗證。
             </span>
           </div>
-          {groupByCategory(data.schema).map(([category, definitions]) => (
+          {visibleGroups.map(([category, definitions]) => (
             <fieldset className="settings-category" key={category}>
               <legend>{categoryLabels[category] ?? category}</legend>
               <div className="settings-field-grid">
@@ -189,6 +240,9 @@ export function ManagedSettingsPanel({
               </div>
             </fieldset>
           ))}
+          {visibleGroups.length === 0 ? (
+            <p className="settings-state">沒有符合條件的設定。</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -342,6 +396,32 @@ function shouldSave(
   }
 
   return draftValue !== currentValue(definition, storedValue)
+}
+
+function shouldShowDefinition(
+  definition: ManagedSettingDefinition,
+  storedValue: ManagedSettingValue | undefined,
+  draftOverrides: Record<string, string>,
+  searchText: string,
+  selectedCategory: string,
+  showOnlyOverrides: boolean,
+): boolean {
+  if (selectedCategory !== 'all' && definition.category !== selectedCategory) {
+    return false
+  }
+  if (showOnlyOverrides && !storedValue && !Object.hasOwn(draftOverrides, definition.key)) {
+    return false
+  }
+
+  const normalizedSearch = searchText.trim().toLowerCase()
+  if (!normalizedSearch) {
+    return true
+  }
+
+  return [definition.key, definition.category, definition.value_type, definition.description]
+    .join(' ')
+    .toLowerCase()
+    .includes(normalizedSearch)
 }
 
 function inputTypeFor(valueType: string): string {

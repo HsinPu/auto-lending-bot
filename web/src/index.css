@@ -771,6 +771,48 @@ h1 {
   padding: 0 24px 24px;
 }
 
+.settings-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 220px auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.settings-filter-bar label {
+  display: grid;
+  gap: 7px;
+  color: #93c5fd;
+  font-size: 13px;
+}
+
+.settings-filter-bar input[type='search'],
+.settings-filter-bar select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #dbeafe;
+  background: rgba(2, 6, 23, 0.48);
+}
+
+.settings-filter-bar .settings-override-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  color: #dbeafe;
+}
+
+.settings-override-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
 .settings-category {
   display: grid;
   gap: 14px;
@@ -1443,7 +1485,8 @@ td {
 
   .settings-panel,
   .settings-panel dl,
-  .settings-field-grid {
+  .settings-field-grid,
+  .settings-filter-bar {
     grid-template-columns: 1fr;
   }
 

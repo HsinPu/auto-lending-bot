@@ -14,6 +14,7 @@ import {
   type DisplaySettings,
 } from '../components/DisplaySettingsModal'
 import { EarningsForecast } from '../components/EarningsForecast'
+import { ManagedSettingsPanel } from '../components/ManagedSettingsPanel'
 import { MiniCharts } from '../components/MiniCharts'
 import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
@@ -35,13 +36,14 @@ export function DashboardPage() {
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
+  const [adminToken, setAdminToken] = useState(loadAdminToken)
   const { data, error, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboardData,
   })
   const actionMutation = useMutation({
     mutationFn: ({ action, confirmLive }: { action: SafeActionName; confirmLive?: boolean }) =>
-      runSafeAction(action, { confirmLive }),
+      runSafeAction(action, { adminToken, confirmLive }),
     onSuccess: async (result) => {
       setLatestResult(result)
       setLatestError(null)
@@ -123,6 +125,14 @@ export function DashboardPage() {
               })}
             </div>
           </section>
+
+          <ManagedSettingsPanel
+            adminToken={adminToken}
+            onAdminTokenChange={(token) => {
+              setAdminToken(token)
+              sessionStorage.setItem(adminTokenKey, token)
+            }}
+          />
 
           <div className="mika-console-layout">
             <div className="mika-main-column">
@@ -288,6 +298,7 @@ const primaryActions: SafeActionName[] = [
 ]
 
 const displaySettingsKey = 'auto-lending-bot.displaySettings'
+const adminTokenKey = 'auto-lending-bot.adminToken'
 const defaultDisplaySettings: DisplaySettings = {
   compactLayout: false,
   showRawTables: true,
@@ -305,6 +316,10 @@ function loadDisplaySettings(): DisplaySettings {
   } catch {
     return defaultDisplaySettings
   }
+}
+
+function loadAdminToken(): string {
+  return sessionStorage.getItem(adminTokenKey) ?? ''
 }
 
 function ErrorState({ message }: { message: string }) {

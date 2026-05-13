@@ -120,6 +120,31 @@ export type SettingsResponse = {
   strategy: Record<string, string | number | boolean | null>
 }
 
+export type ManagedSettingDefinition = {
+  key: string
+  category: string
+  value_type: string
+  default: string
+  secret: boolean
+  danger_level: 'normal' | 'high' | 'critical'
+  hot_reload: boolean
+  description: string
+}
+
+export type ManagedSettingValue = {
+  key: string
+  value: string
+  value_type: string
+  is_secret: number
+  updated_at: string
+  is_set?: boolean
+}
+
+export type ManagedSettingsData = {
+  schema: ManagedSettingDefinition[]
+  values: Record<string, ManagedSettingValue>
+}
+
 export type CurrencyDetail = {
   currency: string
   active_amount: number

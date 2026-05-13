@@ -1,6 +1,7 @@
 const links = [
   ['status', '狀態'],
   ['actions', '操作'],
+  ['managed-settings', '設定'],
   ['coins', '幣種'],
   ['forecast', '推估'],
   ['charts', '摘要'],

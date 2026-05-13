@@ -9,6 +9,9 @@ import type {
   LoanOffer,
   MarketAnalysisRate,
   MarketRate,
+  ManagedSettingsData,
+  ManagedSettingDefinition,
+  ManagedSettingValue,
   SafeActionName,
   SafeActionResponse,
   SettingsResponse,
@@ -68,10 +71,41 @@ export async function getDashboardData(): Promise<DashboardData> {
 
 export async function runSafeAction(
   action: SafeActionName,
-  options: { confirmLive?: boolean } = {},
+  options: { adminToken?: string; confirmLive?: boolean } = {},
 ): Promise<SafeActionResponse> {
   const body = options.confirmLive ? { confirm_live: true } : undefined
-  return postJson<SafeActionResponse>(`/api/actions/${action}`, body)
+  return postJson<SafeActionResponse>(`/api/actions/${action}`, body, options.adminToken)
+}
+
+export async function getManagedSettings(): Promise<ManagedSettingsData> {
+  const [schema, values] = await Promise.all([
+    getJson<ManagedSettingDefinition[]>('/api/settings/schema'),
+    getJson<Record<string, ManagedSettingValue>>('/api/settings/values'),
+  ])
+
+  return { schema, values }
+}
+
+export async function updateManagedSettings(
+  values: Record<string, string>,
+  adminToken: string,
+): Promise<{ ok: boolean; changed_count: number }> {
+  return putJson<{ ok: boolean; changed_count: number }>(
+    '/api/settings/values',
+    { values },
+    adminToken,
+  )
+}
+
+export async function resetManagedSetting(
+  key: string | null,
+  adminToken: string,
+): Promise<{ ok: boolean; reset_count: number }> {
+  return postJson<{ ok: boolean; reset_count: number }>(
+    '/api/settings/reset',
+    key ? { key } : {},
+    adminToken,
+  )
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -83,12 +117,45 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
-async function postJson<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+async function postJson<T>(
+  path: string,
+  body?: Record<string, unknown>,
+  adminToken?: string,
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: requestHeaders(body, adminToken),
     body: body ? JSON.stringify(body) : undefined,
   })
+  return parseJsonResponse<T>(response)
+}
+
+async function putJson<T>(
+  path: string,
+  body: Record<string, unknown>,
+  adminToken?: string,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: requestHeaders(body, adminToken),
+    body: JSON.stringify(body),
+  })
+  return parseJsonResponse<T>(response)
+}
+
+function requestHeaders(body?: Record<string, unknown>, adminToken?: string): HeadersInit | undefined {
+  const headers: Record<string, string> = {}
+  if (body) {
+    headers['Content-Type'] = 'application/json'
+  }
+  if (adminToken) {
+    headers.Authorization = `Bearer ${adminToken}`
+  }
+
+  return Object.keys(headers).length ? headers : undefined
+}
+
+async function parseJsonResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const detail = await response.json().catch(() => null)
     throw new Error(detail?.detail ?? `API request failed with ${response.status}`)

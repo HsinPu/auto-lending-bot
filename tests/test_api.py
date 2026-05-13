@@ -144,6 +144,23 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     assert body["strategy"]["spread_lend"] == 3
 
 
+def test_api_live_readiness_reports_missing_live_settings(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/live-readiness")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["live_offers"]["ready"] is False
+    assert "EXCHANGE=bitfinex" in body["live_offers"]["missing"]
+    assert "BOT_DRY_RUN=false" in body["live_offers"]["missing"]
+    assert body["live_transfers"]["ready"] is False
+    assert body["note"] == "API keys should not include withdrawal permissions."
+
+
 def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")

@@ -21,6 +21,8 @@ import { TopStatusBar } from '../components/TopStatusBar'
 import type {
   BotRun,
   LendingHistoryEntry,
+  LiveReadiness,
+  LiveReadinessSection,
   LoanOffer,
   MarketAnalysisRate,
   MarketAnalysisStatus,
@@ -326,6 +328,7 @@ export function DashboardPage() {
               <p>Transfer funds、Cancel open offers、Run once 可能執行真實交易所操作。</p>
             </section>
           ) : null}
+          <LiveReadinessPanel readiness={data.liveReadiness} />
           <ActionPanel
             dryRun={data.status.dry_run}
             isPending={actionMutation.isPending}
@@ -488,6 +491,43 @@ function PageActionStrip({
         })}
       </div>
     </section>
+  )
+}
+
+function LiveReadinessPanel({ readiness }: { readiness: LiveReadiness }) {
+  return (
+    <section className="settings-panel">
+      <div>
+        <p className="eyebrow">Live Readiness</p>
+        <h2>Live 設定 Checklist</h2>
+        <p>{readiness.note}</p>
+      </div>
+      <div className="settings-grid two-column">
+        <LiveReadinessSectionView title="Live 放貸" section={readiness.live_offers} />
+        <LiveReadinessSectionView title="Live 轉帳" section={readiness.live_transfers} />
+      </div>
+    </section>
+  )
+}
+
+function LiveReadinessSectionView({
+  title,
+  section,
+}: {
+  title: string
+  section: LiveReadinessSection
+}) {
+  return (
+    <div className={`readiness-card ${section.ready ? 'ready' : 'blocked'}`}>
+      <strong>{title}: {section.ready ? '已就緒' : '尚未就緒'}</strong>
+      <ul>
+        {section.items.map((item) => (
+          <li key={item.label} className={item.ok ? 'ok' : 'missing'}>
+            {item.ok ? 'OK' : '缺少'}: {item.label}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

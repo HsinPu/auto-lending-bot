@@ -28,6 +28,23 @@ export type StatusResponse = {
   }
 }
 
+export type LiveReadinessItem = {
+  label: string
+  ok: boolean
+}
+
+export type LiveReadinessSection = {
+  ready: boolean
+  items: LiveReadinessItem[]
+  missing: string[]
+}
+
+export type LiveReadiness = {
+  live_offers: LiveReadinessSection
+  live_transfers: LiveReadinessSection
+  note: string
+}
+
 export type BotRun = {
   id: number
   started_at: string
@@ -212,6 +229,7 @@ export type StrategyDecision = {
 
 export type DashboardData = {
   status: StatusResponse
+  liveReadiness: LiveReadiness
   runs: BotRun[]
   offers: LoanOffer[]
   openOffers: LoanOffer[]

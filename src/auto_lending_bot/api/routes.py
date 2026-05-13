@@ -165,6 +165,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "latest_run": bot_runs.latest(),
         }
 
+    @router.get("/live-readiness")
+    def live_readiness() -> dict[str, object]:
+        return _live_readiness(settings)
+
     @router.get("/runs")
     def runs() -> list[dict[str, object]]:
         return bot_runs.recent()
@@ -484,6 +488,66 @@ def _settings_runtime(settings: Settings) -> dict[str, object]:
         "hot_reload": True,
         "managed_override_count": len(values),
         "last_updated_at": max(updated_at_values) if updated_at_values else None,
+    }
+
+
+def _live_readiness(settings: Settings) -> dict[str, object]:
+    offer_items = [
+        _check_item("EXCHANGE=bitfinex", settings.exchange == "bitfinex"),
+        _check_item("BOT_DRY_RUN=false", not settings.dry_run),
+        _check_item("ALLOW_LIVE_TRADING=true", settings.allow_live_trading),
+        _check_item(
+            "BITFINEX_ENABLE_LIVE_OFFERS=true",
+            settings.bitfinex_enable_live_offers,
+        ),
+        _check_item("EXCHANGE_API_KEY is set", bool(settings.api_key)),
+        _check_item("EXCHANGE_API_SECRET is set", bool(settings.api_secret)),
+        _check_item(
+            "MAX_TOTAL_LEND_AMOUNT is set",
+            settings.max_total_lend_amount is not None,
+        ),
+        _check_item(
+            "MAX_SINGLE_OFFER_AMOUNT is set",
+            settings.max_single_offer_amount is not None,
+        ),
+    ]
+    transfer_items = [
+        _check_item("EXCHANGE=bitfinex", settings.exchange == "bitfinex"),
+        _check_item("BOT_DRY_RUN=false", not settings.dry_run),
+        _check_item("ALLOW_LIVE_TRADING=true", settings.allow_live_trading),
+        _check_item("ALLOW_BALANCE_TRANSFERS=true", settings.allow_balance_transfers),
+        _check_item(
+            "BITFINEX_ENABLE_LIVE_TRANSFERS=true",
+            settings.bitfinex_enable_live_transfers,
+        ),
+        _check_item("EXCHANGE_API_KEY is set", bool(settings.api_key)),
+        _check_item("EXCHANGE_API_SECRET is set", bool(settings.api_secret)),
+        _check_item(
+            "MAX_TOTAL_TRANSFER_AMOUNT is set",
+            settings.max_total_transfer_amount is not None,
+        ),
+        _check_item(
+            "MAX_SINGLE_TRANSFER_AMOUNT is set",
+            settings.max_single_transfer_amount is not None,
+        ),
+    ]
+    return {
+        "live_offers": _readiness_section(offer_items),
+        "live_transfers": _readiness_section(transfer_items),
+        "note": "API keys should not include withdrawal permissions.",
+    }
+
+
+def _check_item(label: str, ok: bool) -> dict[str, object]:
+    return {"label": label, "ok": ok}
+
+
+def _readiness_section(items: list[dict[str, object]]) -> dict[str, object]:
+    missing = [str(item["label"]) for item in items if not item["ok"]]
+    return {
+        "ready": not missing,
+        "items": items,
+        "missing": missing,
     }
 
 

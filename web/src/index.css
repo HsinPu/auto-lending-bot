@@ -740,6 +740,7 @@ h1 {
 .table-section,
 .action-panel,
 .currency-overview,
+.strategy-decision-panel,
 .forecast-panel,
 .activity-panel,
 .profit-panel,
@@ -1291,6 +1292,150 @@ h1 {
   padding: 0 24px 24px;
 }
 
+.strategy-decision-list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0 24px 24px;
+  list-style: none;
+}
+
+.strategy-decision-row {
+  display: grid;
+  grid-template-columns: 150px minmax(360px, 1fr) minmax(260px, 0.72fr) minmax(180px, 0.45fr);
+  gap: 16px;
+  align-items: stretch;
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 22px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.08), transparent 42%),
+    rgba(2, 6, 23, 0.3);
+}
+
+.strategy-card-header {
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+}
+
+.strategy-card-header h3 {
+  margin: 4px 0 0;
+  color: #f8fafc;
+  font-size: 30px;
+  letter-spacing: 0.02em;
+}
+
+.offer-badge {
+  flex: 0 0 auto;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #fde68a;
+  background: rgba(113, 63, 18, 0.22);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.offer-badge.active {
+  border-color: rgba(134, 239, 172, 0.34);
+  color: #bbf7d0;
+  background: rgba(5, 46, 22, 0.42);
+}
+
+.strategy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.strategy-metric {
+  min-width: 0;
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: rgba(15, 23, 42, 0.66);
+}
+
+.strategy-metric span,
+.strategy-metric strong {
+  display: block;
+}
+
+.strategy-metric span {
+  color: #93c5fd;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.strategy-metric strong {
+  margin-top: 7px;
+  color: #f8fafc;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.strategy-offers-block {
+  min-width: 0;
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.44);
+}
+
+.strategy-offers-block > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #bfdbfe;
+}
+
+.strategy-offer-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strategy-offer-list li {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 86px 54px;
+  gap: 10px;
+  align-items: center;
+  border-radius: 12px;
+  padding: 9px 10px;
+  color: #e0f2fe;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.strategy-offer-list li span:nth-child(2),
+.strategy-offer-list li span:nth-child(3) {
+  color: #bbf7d0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.strategy-offer-empty {
+  color: #93c5fd;
+}
+
+.strategy-reason {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  border-left: 3px solid rgba(147, 197, 253, 0.34);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #bfdbfe;
+  background: rgba(2, 6, 23, 0.24);
+  line-height: 1.55;
+}
+
+.strategy-empty {
+  margin: 0;
+  padding: 0 24px 24px;
+  color: #bfdbfe;
+}
+
 .forecast-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1691,6 +1836,14 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .strategy-decision-row {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .forecast-card,
   .forecast-metrics,
   .activity-list li {
@@ -1701,5 +1854,23 @@ td {
 @media (max-width: 480px) {
   .sidebar-nav {
     grid-template-columns: 1fr;
+  }
+
+  .strategy-card-header,
+  .strategy-offer-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-card-header {
+    display: grid;
+  }
+
+  .strategy-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-offer-list li span:nth-child(2),
+  .strategy-offer-list li span:nth-child(3) {
+    text-align: left;
   }
 }

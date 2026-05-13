@@ -30,6 +30,7 @@ import type {
   SafeActionName,
   SafeActionResponse,
   StrategyDecision,
+  StrategyDecisionOffer,
 } from '../types/api'
 import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
@@ -175,12 +176,7 @@ export function DashboardPage() {
       {data && activePage === 'currencies' ? (
         <div className="page-stack">
           <CurrencyOverview details={data.currencyDetails} />
-          <DataTable<StrategyDecision>
-            title="策略決策表"
-            description="每個幣別目前套用的策略、利率門檻與預計建立的委託。"
-            rows={data.strategyDecisions}
-            columns={strategyDecisionColumns}
-          />
+          <StrategyDecisionPanel decisions={data.strategyDecisions} />
           <EarningsForecast details={data.currencyDetails} />
         </div>
       ) : null}
@@ -500,6 +496,85 @@ function PageActionStrip({
   )
 }
 
+function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] }) {
+  return (
+    <section className="strategy-decision-panel">
+      <div className="section-heading">
+        <div>
+          <h2>策略決策</h2>
+          <p>每個幣別目前套用的策略、利率門檻與預計建立的委託。</p>
+        </div>
+        <span>{decisions.length} 筆</span>
+      </div>
+
+      {decisions.length === 0 ? (
+        <p className="strategy-empty">目前沒有策略決策資料</p>
+      ) : (
+        <ul className="strategy-decision-list">
+          {decisions.map((decision) => (
+            <li className="strategy-decision-row" key={decision.currency}>
+              <div className="strategy-card-header">
+                <div>
+                  <p className="eyebrow">幣種</p>
+                  <h3>{decision.currency}</h3>
+                </div>
+                <span className={decision.offer_count > 0 ? 'offer-badge active' : 'offer-badge'}>
+                  {decision.offer_count > 0 ? `預計 ${decision.offer_count} 筆` : '不建立委託'}
+                </span>
+              </div>
+
+              <div className="strategy-metrics-grid">
+                <Metric label="可用餘額" value={amount(decision.balance)} />
+                <Metric label="放貸中" value={amount(decision.active_amount)} />
+                <Metric label="未成交委託" value={amount(decision.open_offer_amount)} />
+                <Metric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
+                <Metric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                <Metric label="最高日利率" value={rate(decision.max_daily_rate)} />
+                <Metric label="最大可放貸" value={amount(decision.max_to_lend)} />
+                <Metric label="最大放貸中" value={amount(decision.max_active_amount)} />
+              </div>
+
+              <div className="strategy-offers-block">
+                <strong>預計委託</strong>
+                <OfferList offers={decision.offers} />
+              </div>
+
+              <p className="strategy-reason">{reasonLabel(decision.reason)}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="strategy-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function OfferList({ offers }: { offers: StrategyDecisionOffer[] }) {
+  if (offers.length === 0) {
+    return <span className="strategy-offer-empty">-</span>
+  }
+
+  return (
+    <ol className="strategy-offer-list">
+      {offers.map((offer, index) => (
+        <li key={`${offer.currency}-${index}-${offer.amount}-${offer.daily_rate}`}>
+          <span>{amount(offer.amount)}</span>
+          <span>{rate(offer.daily_rate)}</span>
+          <span>{offer.duration_days} 天</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function LiveReadinessPanel({ readiness }: { readiness: LiveReadiness }) {
   return (
     <section className="settings-panel">
@@ -794,38 +869,3 @@ const marketAnalysisStatusColumns = (timeZone: string) => [
   { key: 'suggested_min_daily_rate', label: '建議日利率', format: rate },
   { key: 'reason', label: '狀態原因', format: reasonLabel },
 ] satisfies Parameters<typeof DataTable<MarketAnalysisStatus>>[0]['columns']
-
-const strategyDecisionColumns = [
-  { key: 'currency', label: '幣種' },
-  { key: 'balance', label: '可用餘額', format: amount },
-  { key: 'active_amount', label: '放貸中', format: amount },
-  { key: 'open_offer_amount', label: '未成交委託', format: amount },
-  { key: 'best_market_rate', label: '最佳市場日利率', format: rate },
-  { key: 'effective_min_daily_rate', label: '有效最低日利率', format: rate },
-  { key: 'max_daily_rate', label: '最高日利率', format: rate },
-  { key: 'max_to_lend', label: '最大可放貸', format: amount },
-  { key: 'max_active_amount', label: '最大放貸中', format: amount },
-  { key: 'offer_count', label: '預計委託數' },
-  { key: 'offers', label: '預計委託', format: formatDecisionOffers },
-  { key: 'reason', label: '原因', format: reasonLabel },
-] satisfies Parameters<typeof DataTable<StrategyDecision>>[0]['columns']
-
-function formatDecisionOffers(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) {
-    return '-'
-  }
-
-  return value
-    .map((offer) => {
-      if (!offer || typeof offer !== 'object') {
-        return ''
-      }
-      const item = offer as { amount?: number; daily_rate?: number; duration_days?: number }
-      const offerAmount = typeof item.amount === 'number' ? formatAmount(item.amount) : '-'
-      const offerRate = typeof item.daily_rate === 'number' ? formatRate(item.daily_rate) : '-'
-      const days = typeof item.duration_days === 'number' ? item.duration_days : '-'
-      return `${offerAmount} @ ${offerRate} / ${days} 天`
-    })
-    .filter(Boolean)
-    .join('；')
-}

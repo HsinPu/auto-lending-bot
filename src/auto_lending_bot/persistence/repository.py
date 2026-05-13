@@ -7,7 +7,7 @@ from auto_lending_bot.domain.models import (
 )
 from auto_lending_bot.persistence.database import connect
 from auto_lending_bot.settings_security import decrypt_secret, encrypt_secret, mask_secret
-from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY
+from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, validate_setting_value
 
 
 class AppSettingRepository:
@@ -56,7 +56,12 @@ class AppSettingRepository:
                     (key,),
                 ).fetchone()
                 old_value = old_row["value"] if old_row is not None else None
-                stored_value = encrypt_secret(value, self._encryption_key) if definition.secret else value
+                validated_value = validate_setting_value(definition, value)
+                stored_value = (
+                    encrypt_secret(validated_value, self._encryption_key)
+                    if definition.secret
+                    else validated_value
+                )
                 connection.execute(
                     """
                     INSERT INTO app_settings (key, value, value_type, is_secret, updated_at)
@@ -70,7 +75,7 @@ class AppSettingRepository:
                     (key, stored_value, definition.value_type, int(definition.secret)),
                 )
                 audit_old_value = "<secret updated>" if definition.secret and old_value else old_value
-                audit_new_value = "<secret updated>" if definition.secret else value
+                audit_new_value = "<secret updated>" if definition.secret else validated_value
                 connection.execute(
                     """
                     INSERT INTO app_setting_audit_log (key, old_value, new_value, source)

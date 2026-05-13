@@ -120,6 +120,13 @@ export function ManagedSettingsPanel({
 
       {data ? (
         <div className="settings-editor">
+          <div className="settings-safety-note">
+            <strong>安全提醒</strong>
+            <span>
+              高風險與關鍵風險設定會影響 live 放貸、取消委託或資金轉移。後端仍會套用 safety guard，
+              但請先保持 BOT_DRY_RUN=true 完成驗證。
+            </span>
+          </div>
           {groupByCategory(data.schema).map(([category, definitions]) => (
             <fieldset className="settings-category" key={category}>
               <legend>{categoryLabels[category] ?? category}</legend>
@@ -202,9 +209,18 @@ function SettingField({
           <option value="true">true</option>
           <option value="false">false</option>
         </select>
+      ) : valueType === 'enum' && definition.choices.length ? (
+        <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
+          {definition.choices.map((choice) => (
+            <option value={choice} key={choice}>
+              {choice}
+            </option>
+          ))}
+        </select>
       ) : (
         <input
           type={valueType === 'secret' ? 'password' : inputTypeFor(valueType)}
+          step={valueType === 'float' || valueType === 'optional_float' ? 'any' : undefined}
           value={value}
           disabled={disabled}
           placeholder={placeholderFor(definition, storedValue)}

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True)
@@ -11,6 +12,7 @@ class SettingDefinition:
     danger_level: str = "normal"
     hot_reload: bool = True
     description: str = ""
+    choices: tuple[str, ...] = ()
 
 
 SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
@@ -26,7 +28,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("BOT_MAX_LOOPS", "General", "int", "1"),
     SettingDefinition("RETRY_ATTEMPTS", "General", "int", "3"),
     SettingDefinition("RETRY_BACKOFF_SECONDS", "General", "int", "30"),
-    SettingDefinition("EXCHANGE", "Exchange", "enum", "mock"),
+    SettingDefinition("EXCHANGE", "Exchange", "enum", "mock", choices=("mock", "bitfinex")),
     SettingDefinition("EXCHANGE_API_KEY", "Exchange", "secret", "", secret=True),
     SettingDefinition("EXCHANGE_API_SECRET", "Exchange", "secret", "", secret=True),
     SettingDefinition("BITFINEX_ENABLE_LIVE_OFFERS", "Safety", "bool", "false", danger_level="critical"),
@@ -50,7 +52,13 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MAX_SINGLE_TRANSFER_AMOUNT", "Safety", "optional_float", "", danger_level="critical"),
     SettingDefinition("HIDE_COINS", "Strategy", "bool", "true"),
     SettingDefinition("SPREAD_LEND", "Strategy", "int", "3"),
-    SettingDefinition("GAP_MODE", "Strategy", "enum", "off"),
+    SettingDefinition(
+        "GAP_MODE",
+        "Strategy",
+        "enum",
+        "off",
+        choices=("off", "raw", "relative", "raw_btc", "rawbtc"),
+    ),
     SettingDefinition("GAP_BOTTOM", "Strategy", "float", "0"),
     SettingDefinition("GAP_TOP", "Strategy", "float", "0"),
     SettingDefinition("XDAY_THRESHOLD", "Strategy", "float", "0"),
@@ -65,7 +73,13 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MARKET_ANALYSIS_LEVELS", "Market Analysis", "int", "10"),
     SettingDefinition("MARKET_ANALYSIS_MIN_SAMPLES", "Market Analysis", "int", "0"),
     SettingDefinition("MARKET_ANALYSIS_MAX_AGE_SECONDS", "Market Analysis", "int", "0"),
-    SettingDefinition("MARKET_ANALYSIS_METHOD", "Market Analysis", "enum", "off"),
+    SettingDefinition(
+        "MARKET_ANALYSIS_METHOD",
+        "Market Analysis",
+        "enum",
+        "off",
+        choices=("off", "percentile", "macd"),
+    ),
     SettingDefinition("MARKET_ANALYSIS_PERCENTILE", "Market Analysis", "float", "75"),
     SettingDefinition("MARKET_ANALYSIS_MACD_SHORT_SAMPLES", "Market Analysis", "int", "3"),
     SettingDefinition("MARKET_ANALYSIS_MACD_LONG_SAMPLES", "Market Analysis", "int", "10"),
@@ -78,7 +92,13 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("NOTIFY_CAUGHT_EXCEPTION", "Notifications", "bool", "false"),
     SettingDefinition("NOTIFY_SUMMARY_MINUTES", "Notifications", "int", "0"),
     SettingDefinition("NOTIFY_XDAY_THRESHOLD", "Notifications", "bool", "false"),
-    SettingDefinition("LOG_LEVEL", "Advanced", "enum", "INFO"),
+    SettingDefinition(
+        "LOG_LEVEL",
+        "Advanced",
+        "enum",
+        "INFO",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+    ),
 )
 
 
@@ -87,3 +107,54 @@ SETTING_DEFINITIONS_BY_KEY = {definition.key: definition for definition in SETTI
 
 def setting_schema() -> list[dict[str, object]]:
     return [definition.__dict__ for definition in SETTING_DEFINITIONS]
+
+
+def validate_setting_value(definition: SettingDefinition, value: str) -> str:
+    value = value.strip() if definition.value_type != "string" else value
+    if definition.value_type in {"string", "secret", "csv"}:
+        return value
+    if definition.value_type == "bool":
+        if value.lower() not in {"true", "false", "1", "0", "yes", "no", "on", "off"}:
+            msg = f"{definition.key} must be a boolean value."
+            raise ValueError(msg)
+        return value.lower()
+    if definition.value_type == "int":
+        try:
+            int(value)
+        except ValueError as error:
+            msg = f"{definition.key} must be an integer."
+            raise ValueError(msg) from error
+        return value
+    if definition.value_type == "float":
+        try:
+            float(value)
+        except ValueError as error:
+            msg = f"{definition.key} must be a number."
+            raise ValueError(msg) from error
+        return value
+    if definition.value_type == "optional_float":
+        if value == "":
+            return value
+        try:
+            float(value)
+        except ValueError as error:
+            msg = f"{definition.key} must be blank or a number."
+            raise ValueError(msg) from error
+        return value
+    if definition.value_type == "date":
+        if value == "":
+            return value
+        try:
+            date.fromisoformat(value)
+        except ValueError as error:
+            msg = f"{definition.key} must use YYYY-MM-DD format."
+            raise ValueError(msg) from error
+        return value
+    if definition.value_type == "enum":
+        if definition.choices and value not in definition.choices:
+            msg = f"{definition.key} must be one of: {', '.join(definition.choices)}."
+            raise ValueError(msg)
+        return value
+
+    msg = f"Unsupported setting type for {definition.key}: {definition.value_type}"
+    raise ValueError(msg)

@@ -619,6 +619,21 @@ h1 {
   background: rgba(2, 6, 23, 0.22);
 }
 
+.settings-safety-note {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(253, 164, 175, 0.32);
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #fecdd3;
+  background: rgba(76, 5, 25, 0.26);
+}
+
+.settings-safety-note span {
+  color: #fed7aa;
+  line-height: 1.6;
+}
+
 .settings-category legend {
   padding: 0 8px;
   color: #86efac;

@@ -271,6 +271,21 @@ def test_app_setting_repository_rejects_unknown_setting(tmp_path) -> None:
         repository.set_many({"UNKNOWN": "value"})
 
 
+def test_app_setting_repository_rejects_invalid_setting_values(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = AppSettingRepository(database_url)
+
+    with pytest.raises(ValueError, match="BOT_DRY_RUN must be a boolean"):
+        repository.set_many({"BOT_DRY_RUN": "maybe"})
+    with pytest.raises(ValueError, match="BOT_SLEEP_SECONDS must be an integer"):
+        repository.set_many({"BOT_SLEEP_SECONDS": "1.5"})
+    with pytest.raises(ValueError, match="MIN_DAILY_RATE must be a number"):
+        repository.set_many({"MIN_DAILY_RATE": "fast"})
+    with pytest.raises(ValueError, match="EXCHANGE must be one of"):
+        repository.set_many({"EXCHANGE": "kraken"})
+
+
 def test_app_setting_repository_resets_values(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

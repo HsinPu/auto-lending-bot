@@ -188,6 +188,22 @@ def test_api_settings_write_requires_configured_admin_token(tmp_path, monkeypatc
     assert response.json()["detail"] == "ADMIN_AUTH_TOKEN is not configured."
 
 
+def test_api_settings_write_rejects_invalid_value(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(create_app())
+
+    response = client.put(
+        "/api/settings/values",
+        headers=_admin_headers(),
+        json={"values": {"BOT_DRY_RUN": "maybe"}},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "BOT_DRY_RUN must be a boolean value."
+
+
 def test_api_settings_uses_hot_reloaded_database_overrides(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("DATABASE_URL", database_url)

@@ -129,6 +129,7 @@ export type ManagedSettingDefinition = {
   danger_level: 'normal' | 'high' | 'critical'
   hot_reload: boolean
   description: string
+  choices: string[]
 }
 
 export type ManagedSettingValue = {

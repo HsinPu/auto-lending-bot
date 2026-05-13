@@ -710,9 +710,14 @@ h1 {
 }
 
 .settings-reset-button:disabled,
-.settings-actions button:disabled {
+.settings-actions button:disabled,
+.settings-file-button.disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.settings-file-button input {
+  display: none;
 }
 
 .settings-actions {

@@ -151,6 +151,13 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     assert audit_response.status_code == 200
     assert len(audit_response.json()) >= 2
 
+    export_response = client.get("/api/settings/export")
+    assert export_response.status_code == 200
+    assert export_response.json()["includes_secrets"] is False
+    assert export_response.json()["values"]["BOT_LABEL"] == "Managed Bot"
+    assert "EXCHANGE_API_SECRET" not in export_response.json()["values"]
+    assert export_response.json()["excluded_secret_keys"] == ["EXCHANGE_API_SECRET"]
+
     reset_response = client.post(
         "/api/settings/reset",
         headers=_admin_headers(),
@@ -207,6 +214,28 @@ def test_api_settings_write_rejects_invalid_value(tmp_path, monkeypatch) -> None
 
     assert response.status_code == 400
     assert response.json()["detail"] == "BOT_DRY_RUN must be a boolean value."
+
+
+def test_api_settings_import_requires_admin_and_updates_values(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(create_app())
+
+    missing_response = client.post(
+        "/api/settings/import",
+        json={"values": {"BOT_LABEL": "Imported Bot"}},
+    )
+    import_response = client.post(
+        "/api/settings/import",
+        headers=_admin_headers(),
+        json={"values": {"BOT_LABEL": "Imported Bot"}},
+    )
+
+    assert missing_response.status_code == 401
+    assert import_response.status_code == 200
+    assert import_response.json()["changed_count"] == 1
+    assert client.get("/api/settings/values").json()["BOT_LABEL"]["value"] == "Imported Bot"
 
 
 def test_api_settings_uses_hot_reloaded_database_overrides(tmp_path, monkeypatch) -> None:

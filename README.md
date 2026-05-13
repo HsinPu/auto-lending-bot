@@ -169,6 +169,8 @@ Current API endpoints:
 - `GET /api/settings/values`
 - `PUT /api/settings/values`
 - `POST /api/settings/reset`
+- `GET /api/settings/export`
+- `POST /api/settings/import`
 - `GET /api/settings/audit-log`
 - `POST /api/actions/smoke-exchange`
 - `POST /api/actions/sync-history`

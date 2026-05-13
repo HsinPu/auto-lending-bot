@@ -1,8 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { getManagedSettings, resetManagedSetting, updateManagedSettings } from '../api/client'
-import type { ManagedSettingDefinition, ManagedSettingValue } from '../types/api'
+import {
+  exportManagedSettings,
+  getManagedSettings,
+  importManagedSettings,
+  resetManagedSetting,
+  updateManagedSettings,
+} from '../api/client'
+import type {
+  ManagedSettingDefinition,
+  ManagedSettingsExport,
+  ManagedSettingValue,
+} from '../types/api'
 
 type ManagedSettingsPanelProps = {
   adminToken: string
@@ -93,8 +103,40 @@ export function ManagedSettingsPanel({
       setError((mutationError as Error).message)
     },
   })
+  const exportMutation = useMutation({
+    mutationFn: exportManagedSettings,
+    onSuccess: (result) => {
+      downloadSettingsExport(result)
+      setMessage('已匯出設定 JSON。Secret 欄位不會包含在匯出檔。')
+      setError(null)
+    },
+    onError: (mutationError) => {
+      setMessage(null)
+      setError((mutationError as Error).message)
+    },
+  })
+  const importMutation = useMutation({
+    mutationFn: (values: Record<string, string>) => importManagedSettings(values, adminToken),
+    onSuccess: async (result) => {
+      setDraftOverrides({})
+      setMessage(`已匯入 ${result.changed_count} 個設定。`)
+      setError(null)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['managed-settings'] }),
+      ])
+    },
+    onError: (mutationError) => {
+      setMessage(null)
+      setError((mutationError as Error).message)
+    },
+  })
 
-  const isPending = saveMutation.isPending || resetMutation.isPending
+  const isPending =
+    saveMutation.isPending ||
+    resetMutation.isPending ||
+    exportMutation.isPending ||
+    importMutation.isPending
 
   return (
     <section className="managed-settings-panel" id="managed-settings">
@@ -159,6 +201,29 @@ export function ManagedSettingsPanel({
         >
           {saveMutation.isPending ? '儲存中...' : '儲存變更'}
         </button>
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={isPending || !data}
+          onClick={() => exportMutation.mutate()}
+        >
+          匯出設定
+        </button>
+        <label
+          className={`secondary-button settings-file-button ${isPending || !adminToken || !data ? 'disabled' : ''}`}
+        >
+          匯入設定
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={isPending || !adminToken || !data}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0]
+              event.currentTarget.value = ''
+              void handleImportFile(file, importMutation.mutate, setError, setMessage)
+            }}
+          />
+        </label>
         <button
           type="button"
           className="secondary-button"
@@ -299,4 +364,48 @@ function placeholderFor(
   }
 
   return definition.default || '(空值)'
+}
+
+async function handleImportFile(
+  file: File | undefined,
+  importValues: (values: Record<string, string>) => void,
+  setError: (message: string | null) => void,
+  setMessage: (message: string | null) => void,
+): Promise<void> {
+  if (!file) {
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(await file.text()) as unknown
+    importValues(valuesFromImport(parsed))
+  } catch (error) {
+    setMessage(null)
+    setError((error as Error).message)
+  }
+}
+
+function valuesFromImport(payload: unknown): Record<string, string> {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('匯入檔必須是 JSON object。')
+  }
+
+  const candidate = 'values' in payload ? payload.values : payload
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new Error('匯入檔必須包含 values object。')
+  }
+
+  return Object.fromEntries(
+    Object.entries(candidate).map(([key, value]) => [key, String(value)]),
+  )
+}
+
+function downloadSettingsExport(payload: ManagedSettingsExport): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'auto-lending-bot-settings.json'
+  link.click()
+  URL.revokeObjectURL(url)
 }

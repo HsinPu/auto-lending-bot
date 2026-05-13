@@ -151,6 +151,13 @@ export type ManagedSettingsData = {
   values: Record<string, ManagedSettingValue>
 }
 
+export type ManagedSettingsExport = {
+  version: number
+  includes_secrets: boolean
+  values: Record<string, string>
+  excluded_secret_keys: string[]
+}
+
 export type CurrencyDetail = {
   currency: string
   active_amount: number

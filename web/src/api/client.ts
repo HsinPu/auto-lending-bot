@@ -9,6 +9,7 @@ import type {
   LoanOffer,
   MarketAnalysisRate,
   MarketRate,
+  ManagedSettingsExport,
   ManagedSettingsData,
   ManagedSettingDefinition,
   ManagedSettingValue,
@@ -104,6 +105,21 @@ export async function resetManagedSetting(
   return postJson<{ ok: boolean; reset_count: number }>(
     '/api/settings/reset',
     key ? { key } : {},
+    adminToken,
+  )
+}
+
+export async function exportManagedSettings(): Promise<ManagedSettingsExport> {
+  return getJson<ManagedSettingsExport>('/api/settings/export')
+}
+
+export async function importManagedSettings(
+  values: Record<string, string>,
+  adminToken: string,
+): Promise<{ ok: boolean; changed_count: number }> {
+  return postJson<{ ok: boolean; changed_count: number }>(
+    '/api/settings/import',
+    { values },
     adminToken,
   )
 }

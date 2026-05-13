@@ -102,6 +102,42 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         repository.reset_all(source="api")
         return {"ok": True, "reset_count": existing_count}
 
+    @router.get("/settings/export")
+    def export_settings() -> dict[str, object]:
+        values = _app_settings(settings).get_many()
+        exported_values = {
+            key: str(row["value"])
+            for key, row in values.items()
+            if not int(row.get("is_secret", 0))
+        }
+        excluded_secret_keys = [
+            key for key, row in values.items() if int(row.get("is_secret", 0))
+        ]
+        return {
+            "version": 1,
+            "includes_secrets": False,
+            "values": exported_values,
+            "excluded_secret_keys": excluded_secret_keys,
+        }
+
+    @router.post("/settings/import")
+    def import_settings(
+        payload: dict[str, object],
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_admin(authorization)
+        values = payload.get("values", payload)
+        if not isinstance(values, dict):
+            raise HTTPException(status_code=400, detail="Settings import values must be an object.")
+        try:
+            _app_settings(settings).set_many(
+                {str(key): str(value) for key, value in values.items()},
+                source="api_import",
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        return {"ok": True, "changed_count": len(values)}
+
     @router.get("/settings/audit-log")
     def settings_audit_log() -> list[dict[str, object]]:
         return _app_settings(settings).audit_log()

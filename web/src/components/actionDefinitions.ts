@@ -32,6 +32,16 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     description: '記錄設定幣種清單的 lendbook levels。',
   },
   {
+    action: 'start-market-analysis',
+    label: '開始收集市場資料',
+    description: '背景定期記錄市場深度，供百分位與 MACD 策略使用。',
+  },
+  {
+    action: 'stop-market-analysis',
+    label: '停止收集市場資料',
+    description: '停止背景市場資料收集。',
+  },
+  {
     action: 'cancel-open-offers',
     label: '取消委託',
     description: '取消未成交委託；Live 模式需要二次確認。',

@@ -72,6 +72,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MARKET_RATE_RETENTION_DAYS", "Market Analysis", "int", "30"),
     SettingDefinition("MARKET_ANALYSIS_RETENTION_DAYS", "Market Analysis", "int", "30"),
     SettingDefinition("MARKET_ANALYSIS_CURRENCIES", "Market Analysis", "csv", ""),
+    SettingDefinition("MARKET_ANALYSIS_INTERVAL_SECONDS", "Market Analysis", "int", "60"),
     SettingDefinition("MARKET_ANALYSIS_LEVELS", "Market Analysis", "int", "10"),
     SettingDefinition("MARKET_ANALYSIS_MIN_SAMPLES", "Market Analysis", "int", "0"),
     SettingDefinition("MARKET_ANALYSIS_MAX_AGE_SECONDS", "Market Analysis", "int", "0"),

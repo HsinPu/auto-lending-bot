@@ -44,6 +44,14 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
         "loops_completed": 0,
         "last_error": None,
     }
+    assert body["market_analysis_collection"] == {
+        "running": False,
+        "started_at": None,
+        "last_run_at": None,
+        "loops_completed": 0,
+        "last_changed_count": 0,
+        "last_error": None,
+    }
     assert body["counts"] == {
         "bot_runs": 1,
         "loan_offers": 1,
@@ -482,6 +490,25 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
     assert "running" in status_response.json()
     assert stop_response.status_code == 200
     assert stop_response.json()["action"] == "stop-loop"
+    assert stop_response.json()["running"] is False
+
+
+def test_api_can_start_and_stop_market_analysis_collection(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    start_response = client.post("/api/actions/start-market-analysis")
+    status_response = client.get("/api/market-analysis-collection")
+    stop_response = client.post("/api/actions/stop-market-analysis")
+
+    assert start_response.status_code == 200
+    assert start_response.json()["action"] == "start-market-analysis"
+    assert status_response.status_code == 200
+    assert "running" in status_response.json()
+    assert stop_response.status_code == 200
+    assert stop_response.json()["action"] == "stop-market-analysis"
     assert stop_response.json()["running"] is False
 
 

@@ -5,6 +5,7 @@ export type StatusResponse = {
   dry_run: boolean
   live_trading_allowed: boolean
   bot_loop: BotLoopStatus
+  market_analysis_collection: MarketAnalysisCollectionStatus
   settings_runtime: {
     hot_reload: boolean
     managed_override_count: number
@@ -27,6 +28,15 @@ export type StatusResponse = {
     dry_run: number
     message: string
   }
+}
+
+export type MarketAnalysisCollectionStatus = {
+  running: boolean
+  started_at: string | null
+  last_run_at: string | null
+  loops_completed: number
+  last_changed_count: number
+  last_error: string | null
 }
 
 export type BotLoopStatus = {
@@ -158,6 +168,7 @@ export type SettingsResponse = {
   output_currency: string
   display_timezone: string
   market_analysis_currencies: string[]
+  market_analysis_interval_seconds: number
   market_analysis_levels: number
   market_analysis_suggested_min_daily_rate: number | null
   effective_min_daily_rate: number
@@ -262,6 +273,8 @@ export type SafeActionName =
   | 'transfer-funds'
   | 'cancel-open-offers'
   | 'record-market-analysis'
+  | 'start-market-analysis'
+  | 'stop-market-analysis'
   | 'cleanup'
   | 'run-once'
   | 'start-loop'

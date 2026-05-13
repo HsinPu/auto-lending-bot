@@ -81,6 +81,7 @@ class Settings:
     spread_lend: int
     database_url: str
     log_level: str
+    market_analysis_interval_seconds: int = 60
     display_timezone: str = "UTC"
 
 
@@ -111,6 +112,9 @@ def load_settings() -> Settings:
             "MARKET_ANALYSIS_RETENTION_DAYS", default=30
         ),
         market_analysis_currencies=_get_csv("MARKET_ANALYSIS_CURRENCIES"),
+        market_analysis_interval_seconds=_get_int(
+            "MARKET_ANALYSIS_INTERVAL_SECONDS", default=60
+        ),
         market_analysis_levels=_get_int("MARKET_ANALYSIS_LEVELS", default=10),
         market_analysis_min_samples=_get_int("MARKET_ANALYSIS_MIN_SAMPLES", default=0),
         market_analysis_max_age_seconds=_get_int(

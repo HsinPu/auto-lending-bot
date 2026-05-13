@@ -71,6 +71,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         market_analysis_rates=market_analysis_rates,
         market_rates=market_rates,
     )
+    market_collection_controller = _MarketAnalysisCollectionController(
+        settings=settings,
+        market_analysis_rates=market_analysis_rates,
+    )
 
     @router.get("/settings/schema")
     def settings_schema() -> list[dict[str, object]]:
@@ -171,6 +175,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "live_trading_allowed": settings.allow_live_trading,
             "settings_runtime": _settings_runtime(settings),
             "bot_loop": loop_controller.status(),
+            "market_analysis_collection": market_collection_controller.status(),
             "counts": {
                 "bot_runs": bot_runs.count(),
                 "loan_offers": loan_offers.count(),
@@ -190,6 +195,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.get("/bot-loop")
     def bot_loop_status() -> dict[str, object]:
         return loop_controller.status()
+
+    @router.get("/market-analysis-collection")
+    def market_analysis_collection_status() -> dict[str, object]:
+        return market_collection_controller.status()
 
     @router.get("/runs")
     def runs() -> list[dict[str, object]]:
@@ -252,6 +261,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "output_currency": settings.output_currency,
             "display_timezone": settings.display_timezone,
             "market_analysis_currencies": settings.market_analysis_currencies,
+            "market_analysis_interval_seconds": settings.market_analysis_interval_seconds,
             "market_analysis_levels": settings.market_analysis_levels,
             "market_analysis_suggested_min_daily_rate": suggested_min_daily_rate,
             "effective_min_daily_rate": max(
@@ -369,13 +379,12 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         _validate_safe_action_settings(settings)
         payload = payload or {}
         currency = payload.get("currency")
-        currencies = _market_analysis_currencies(settings, str(currency) if currency else None)
         levels = int(payload.get("levels") or settings.market_analysis_levels)
-        recorder = MarketAnalysisRecorder(market_analysis_rates)
-        exchange = create_exchange_client(settings)
-        changed_count = sum(
-            recorder.record_currency(exchange=exchange, currency=currency, levels=levels)
-            for currency in currencies
+        currencies, changed_count = _record_market_analysis(
+            settings=settings,
+            market_analysis_rates=market_analysis_rates,
+            currency=str(currency) if currency else None,
+            levels=levels,
         )
         return {
             "action": "record-market-analysis",
@@ -383,6 +392,23 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "currency": currencies[0],
             "currencies": list(currencies),
             "changed_count": changed_count,
+        }
+
+    @router.post("/actions/start-market-analysis")
+    def start_market_analysis() -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        return {
+            "action": "start-market-analysis",
+            "ok": True,
+            **market_collection_controller.start(),
+        }
+
+    @router.post("/actions/stop-market-analysis")
+    def stop_market_analysis() -> dict[str, object]:
+        return {
+            "action": "stop-market-analysis",
+            "ok": True,
+            **market_collection_controller.stop(),
         }
 
     @router.post("/actions/cancel-open-offers")
@@ -589,6 +615,81 @@ class _BotLoopController:
         return max(self._settings.bot_inactive_sleep_seconds, 1)
 
 
+class _MarketAnalysisCollectionController:
+    def __init__(
+        self,
+        settings: Settings,
+        market_analysis_rates: MarketAnalysisRateRepository,
+    ) -> None:
+        self._settings = settings
+        self._market_analysis_rates = market_analysis_rates
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._started_at: str | None = None
+        self._last_run_at: str | None = None
+        self._last_error: str | None = None
+        self._loops_completed = 0
+        self._last_changed_count = 0
+
+    def start(self) -> dict[str, object]:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return self._status_unlocked()
+
+            self._stop_event = threading.Event()
+            self._started_at = _utc_now()
+            self._last_error = None
+            self._loops_completed = 0
+            self._last_changed_count = 0
+            self._thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._thread.start()
+            return self._status_unlocked()
+
+    def stop(self) -> dict[str, object]:
+        with self._lock:
+            self._stop_event.set()
+            thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2)
+        return self.status()
+
+    def status(self) -> dict[str, object]:
+        with self._lock:
+            return self._status_unlocked()
+
+    def _status_unlocked(self) -> dict[str, object]:
+        return {
+            "running": self._thread is not None and self._thread.is_alive(),
+            "started_at": self._started_at,
+            "last_run_at": self._last_run_at,
+            "loops_completed": self._loops_completed,
+            "last_changed_count": self._last_changed_count,
+            "last_error": self._last_error,
+        }
+
+    def _run_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                _, changed_count = _record_market_analysis(
+                    settings=self._settings,
+                    market_analysis_rates=self._market_analysis_rates,
+                )
+                wait_seconds = max(self._settings.market_analysis_interval_seconds, 1)
+                with self._lock:
+                    self._loops_completed += 1
+                    self._last_changed_count = changed_count
+                    self._last_run_at = _utc_now()
+                    self._last_error = None
+            except Exception as error:
+                wait_seconds = max(self._settings.retry_backoff_seconds, 1)
+                with self._lock:
+                    self._last_error = str(error)
+                    self._last_run_at = _utc_now()
+
+            self._stop_event.wait(wait_seconds)
+
+
 def _validate_safe_action_settings(settings: Settings) -> None:
     try:
         validate_run_settings(settings)
@@ -759,6 +860,23 @@ def _market_analysis_currencies(
     if settings.market_analysis_currencies:
         return settings.market_analysis_currencies
     return (settings.smoke_test_currency.upper(),)
+
+
+def _record_market_analysis(
+    settings: Settings,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    currency: str | None = None,
+    levels: int | None = None,
+) -> tuple[tuple[str, ...], int]:
+    currencies = _market_analysis_currencies(settings, currency)
+    recorder = MarketAnalysisRecorder(market_analysis_rates)
+    exchange = create_exchange_client(settings)
+    resolved_levels = levels or settings.market_analysis_levels
+    changed_count = sum(
+        recorder.record_currency(exchange=exchange, currency=currency, levels=resolved_levels)
+        for currency in currencies
+    )
+    return currencies, changed_count
 
 
 def _transfer_previews(settings: Settings, exchange) -> list:

@@ -121,6 +121,8 @@ const actionLabels: Record<string, string> = {
   'run-once': '執行一次',
   'start-loop': '開始持續執行',
   'stop-loop': '停止持續執行',
+  'start-market-analysis': '開始收集市場資料',
+  'stop-market-analysis': '停止收集市場資料',
 }
 
 function statusLabel(status: string): string {

@@ -231,11 +231,45 @@ export function DashboardPage() {
         <div className="page-stack">
           <PageActionStrip
             title="市場分析操作"
-            description="記錄放貸簿深度後，後端會更新建議與有效最低日利率。"
-            actionNames={['record-market-analysis']}
+            description="可手動記錄一次，也可以啟動背景收集，累積資料後用於百分位與 MACD 利率建議。"
+            actionNames={['record-market-analysis', 'start-market-analysis', 'stop-market-analysis']}
             isPending={actionMutation.isPending}
             onRunAction={(action) => runAction(action, data.status.dry_run)}
           />
+          <section className="settings-panel">
+            <div>
+              <h2>市場資料收集</h2>
+              <p>背景收集會定期抓設定幣別的放貸簿深度，資料會寫入市場分析紀錄。</p>
+            </div>
+            <dl>
+              <div>
+                <dt>收集狀態</dt>
+                <dd>{data.status.market_analysis_collection.running ? '收集中' : '未啟動'}</dd>
+              </div>
+              <div>
+                <dt>已完成輪數</dt>
+                <dd>{data.status.market_analysis_collection.loops_completed}</dd>
+              </div>
+              <div>
+                <dt>收集間隔</dt>
+                <dd>{data.settings.market_analysis_interval_seconds} 秒</dd>
+              </div>
+              <div>
+                <dt>上次新增筆數</dt>
+                <dd>{data.status.market_analysis_collection.last_changed_count}</dd>
+              </div>
+              <div>
+                <dt>上次收集時間</dt>
+                <dd>{formatTimestamp(data.status.market_analysis_collection.last_run_at, displayTimeZone)}</dd>
+              </div>
+              {data.status.market_analysis_collection.last_error ? (
+                <div>
+                  <dt>最近錯誤</dt>
+                  <dd>{data.status.market_analysis_collection.last_error}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </section>
           <MiniCharts earnings={data.earnings} marketRates={data.marketRates} offers={data.offers} />
           <DataTable<MarketAnalysisStatus>
             title="市場分析狀態"
@@ -563,6 +597,8 @@ const primaryActions: SafeActionName[] = [
   'run-once',
   'start-loop',
   'stop-loop',
+  'start-market-analysis',
+  'stop-market-analysis',
   'sync-open-offers',
   'record-market-analysis',
   'cancel-open-offers',

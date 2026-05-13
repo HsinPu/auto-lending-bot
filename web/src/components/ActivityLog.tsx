@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import type { BotRun, LoanOffer, SafeActionResponse } from '../types/api'
 import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
@@ -20,6 +22,11 @@ type ActivityItem = {
 
 export function ActivityLog({ runs, offers, latestResult, latestError, timeZone }: ActivityLogProps) {
   const items = buildActivityItems({ runs, offers, latestResult, latestError, timeZone })
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const visibleItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <section className="activity-panel" id="logs">
@@ -32,21 +39,68 @@ export function ActivityLog({ runs, offers, latestResult, latestError, timeZone 
       </div>
 
       {items.length ? (
-        <ol className="activity-list">
-          {items.map((item) => (
-            <li className={item.tone ?? ''} key={item.id}>
-              <time>{item.time}</time>
-              <div>
-                <strong>{item.title}</strong>
-                <p>{item.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <>
+          <ol className="activity-list">
+            {visibleItems.map((item) => (
+              <li className={item.tone ?? ''} key={item.id}>
+                <time>{item.time}</time>
+                <div>
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <ActivityPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalRows={items.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+          />
+        </>
       ) : (
         <p className="empty-hint padded">目前沒有活動紀錄。</p>
       )}
     </section>
+  )
+}
+
+function ActivityPagination({
+  currentPage,
+  totalPages,
+  totalRows,
+  pageSize,
+  onPageChange,
+}: {
+  currentPage: number
+  totalPages: number
+  totalRows: number
+  pageSize: number
+  onPageChange: (page: number) => void
+}) {
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalRows)
+
+  return (
+    <div className="pagination-controls">
+      <span>
+        顯示 {start}-{end} / {totalRows} 筆
+      </span>
+      <div>
+        <button type="button" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          上一頁
+        </button>
+        <strong>{currentPage} / {totalPages}</strong>
+        <button
+          type="button"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+        >
+          下一頁
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -77,7 +131,7 @@ function buildActivityItems({
     })
   }
 
-  const runItems: ActivityItem[] = runs.slice(0, 5).map((run) => ({
+  const runItems: ActivityItem[] = runs.map((run) => ({
     id: `run-${run.id}`,
     time: formatTimestamp(run.finished_at ?? run.started_at, timeZone),
     title: `執行 #${run.id} ${statusLabel(run.status)}`,
@@ -85,7 +139,7 @@ function buildActivityItems({
     tone: run.status === 'completed' ? 'ok' : run.status === 'failed' ? 'error' : undefined,
   }))
 
-  const offerItems: ActivityItem[] = offers.slice(0, 5).map((offer) => ({
+  const offerItems: ActivityItem[] = offers.map((offer) => ({
     id: `offer-${offer.id}`,
     time: formatTimestamp(offer.created_at, timeZone),
     title: `${offer.currency} 委託 ${statusLabel(offer.status ?? 'recorded')}`,
@@ -93,7 +147,7 @@ function buildActivityItems({
     tone: offer.status === 'failed' ? 'error' : 'ok',
   }))
 
-  return [...actionItems, ...runItems, ...offerItems].slice(0, 10)
+  return [...actionItems, ...runItems, ...offerItems]
 }
 
 const rate = formatRate

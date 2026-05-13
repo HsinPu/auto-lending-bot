@@ -17,40 +17,40 @@ export function CurrencyOverview({ details }: CurrencyOverviewProps) {
       </div>
 
       {details.length ? (
-        <ul className="currency-list">
-          {details.map((detail) => (
-            <li className="currency-row" key={detail.currency}>
-              <div className="currency-card-header">
-                <div>
-                  <p className="eyebrow">幣種</p>
-                  <strong>{detail.currency}</strong>
-                </div>
-                <span>{detail.active_loan_count} 筆放貸中</span>
-              </div>
-              <dl>
-                <Metric label="目前放貸" value={amount(detail.active_amount)} />
-                <Metric label="未成交委託" value={amount(detail.open_offer_amount)} />
-                <Metric label="平均日利率" value={rate(detail.average_daily_rate)} />
-                <Metric label="市場日利率" value={rate(detail.latest_market_rate)} />
-                <Metric label="累積收益" value={amount(detail.total_earned)} />
-                <Metric label="委託數" value={String(detail.open_offer_count)} />
-              </dl>
-            </li>
-          ))}
-        </ul>
+        <div className="currency-table-scroll">
+          <table className="currency-table">
+            <thead>
+              <tr>
+                <th>幣種</th>
+                <th>目前放貸</th>
+                <th>放貸筆數</th>
+                <th>未成交委託</th>
+                <th>委託數</th>
+                <th>平均日利率</th>
+                <th>市場日利率</th>
+                <th>累積收益</th>
+              </tr>
+            </thead>
+            <tbody>
+              {details.map((detail) => (
+                <tr key={detail.currency}>
+                  <td>{detail.currency}</td>
+                  <td>{amount(detail.active_amount)}</td>
+                  <td>{detail.active_loan_count}</td>
+                  <td>{amount(detail.open_offer_amount)}</td>
+                  <td>{detail.open_offer_count}</td>
+                  <td>{rate(detail.average_daily_rate)}</td>
+                  <td>{rate(detail.latest_market_rate)}</td>
+                  <td>{amount(detail.total_earned)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className="empty-hint padded">目前沒有可彙整的幣種資料。</p>
       )}
     </section>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
   )
 }
 

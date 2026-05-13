@@ -33,41 +33,46 @@ export function EarningsForecast({ details }: EarningsForecastProps) {
       </div>
 
       {rows.length ? (
-        <ul className="forecast-list">
-          {rows.map((row) => (
-            <li className="forecast-row" key={row.currency}>
-              <div className="forecast-row-header">
-                <p className="eyebrow">幣種</p>
-                <strong>{row.currency}</strong>
-              </div>
-              <div className="forecast-metrics">
-                <Metric label="放貸中" value={amount(row.activeAmount)} />
-                <Metric label="平均日利率" value={percent(row.averageDailyRate)} />
-                <Metric label="扣費後日利率" value={percent(row.netDailyRate)} />
-                <Metric label="每小時" value={amount(row.hourly)} />
-                <Metric label="每日" value={amount(row.daily)} />
-                <Metric label="每週" value={amount(row.weekly)} />
-                <Metric label="每月" value={amount(row.monthly)} />
-                <Metric label="每年" value={amount(row.yearly)} />
-                <Metric label="單利年化" value={percent(row.simpleYearlyRate)} />
-                <Metric label="複利年化" value={percent(row.compoundYearlyRate)} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="forecast-table-scroll">
+          <table className="forecast-table">
+            <thead>
+              <tr>
+                <th>幣種</th>
+                <th>放貸中</th>
+                <th>平均日利率</th>
+                <th>扣費後日利率</th>
+                <th>每小時</th>
+                <th>每日</th>
+                <th>每週</th>
+                <th>每月</th>
+                <th>每年</th>
+                <th>單利年化</th>
+                <th>複利年化</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.currency}>
+                  <td>{row.currency}</td>
+                  <td>{amount(row.activeAmount)}</td>
+                  <td>{percent(row.averageDailyRate)}</td>
+                  <td>{percent(row.netDailyRate)}</td>
+                  <td>{amount(row.hourly)}</td>
+                  <td>{amount(row.daily)}</td>
+                  <td>{amount(row.weekly)}</td>
+                  <td>{amount(row.monthly)}</td>
+                  <td>{amount(row.yearly)}</td>
+                  <td>{percent(row.simpleYearlyRate)}</td>
+                  <td>{percent(row.compoundYearlyRate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className="empty-hint padded">目前沒有放貸中資料可推估收益。</p>
       )}
     </section>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
   )
 }
 

@@ -49,6 +49,7 @@ def _settings(exchange: str) -> Settings:
         frr_as_min=False,
         frr_delta=0,
         max_amount_to_lend=None,
+        max_active_amount=None,
         max_single_offer_amount=None,
         max_total_lend_amount=None,
         min_daily_rate=0.00005,

@@ -1,4 +1,5 @@
 import type { SafeActionName, SafeActionResponse } from '../types/api'
+import { actions } from './actionDefinitions'
 
 type ActionPanelProps = {
   dryRun: boolean
@@ -7,44 +8,6 @@ type ActionPanelProps = {
   latestError: string | null
   onRunAction: (action: SafeActionName) => void
 }
-
-const actions: Array<{ action: SafeActionName; label: string; description: string }> = [
-  {
-    action: 'smoke-exchange',
-    label: 'Smoke Exchange',
-    description: '讀取餘額與 lendbook，不建立委託。',
-  },
-  {
-    action: 'sync-history',
-    label: 'Sync History',
-    description: '同步目前設定幣種的收益紀錄。',
-  },
-  {
-    action: 'sync-open-offers',
-    label: 'Sync Open Offers',
-    description: '同步交易所未成交委託快照。',
-  },
-  {
-    action: 'record-market-analysis',
-    label: 'Record Market Analysis',
-    description: '記錄目前設定幣種的 lendbook levels。',
-  },
-  {
-    action: 'cancel-open-offers',
-    label: 'Cancel Open Offers',
-    description: '取消未成交委託；Live 模式需要二次確認。',
-  },
-  {
-    action: 'cleanup',
-    label: 'Cleanup',
-    description: '清理過期市場利率紀錄。',
-  },
-  {
-    action: 'run-once',
-    label: 'Run Once',
-    description: '觸發一次 bot run；Live 模式需要二次確認。',
-  },
-]
 
 export function ActionPanel({
   dryRun,

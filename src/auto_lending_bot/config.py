@@ -48,6 +48,7 @@ class Settings:
     frr_as_min: bool
     frr_delta: float
     max_amount_to_lend: float | None
+    max_active_amount: float | None
     max_single_offer_amount: float | None
     max_total_lend_amount: float | None
     min_daily_rate: float
@@ -105,6 +106,7 @@ def load_settings() -> Settings:
         max_amount_to_lend=_get_optional_float("MAX_TO_LEND")
         if os.getenv("MAX_TO_LEND") is not None
         else _get_optional_float("MAX_AMOUNT_TO_LEND"),
+        max_active_amount=_get_optional_float("MAX_ACTIVE_AMOUNT"),
         max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
         max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
         min_daily_rate=_get_float("MIN_DAILY_RATE", default=0.00005),
@@ -178,6 +180,9 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),
         max_amount_to_lend=_currency_max_to_lend(prefix, settings),
+        max_active_amount=_get_optional_float(f"{prefix}_MAX_ACTIVE_AMOUNT")
+        if os.getenv(f"{prefix}_MAX_ACTIVE_AMOUNT") is not None
+        else settings.max_active_amount,
         max_to_lend_rate=_get_float(f"{prefix}_MAX_TO_LEND_RATE", settings.max_to_lend_rate),
         end_date=_get_optional_date(f"{prefix}_END_DATE")
         if os.getenv(f"{prefix}_END_DATE") is not None

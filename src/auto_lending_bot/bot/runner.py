@@ -97,6 +97,7 @@ class BotRunner:
                     frr_daily_rate=frr_daily_rate,
                     btc_price=self._btc_price(balance.currency, strategy.gap_mode),
                     suggested_min_daily_rate=self._suggested_min_daily_rate(balance.currency),
+                    active_amount=self._active_amount(active_loans, balance.currency),
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
@@ -207,6 +208,14 @@ class BotRunner:
             )
 
         return None
+
+    @staticmethod
+    def _active_amount(active_loans: list[ActiveLoan], currency: str) -> float:
+        return sum(
+            active_loan.amount
+            for active_loan in active_loans
+            if active_loan.currency.upper() == currency.upper()
+        )
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
         best_rate = max((order.daily_rate for order in orders), default=0)

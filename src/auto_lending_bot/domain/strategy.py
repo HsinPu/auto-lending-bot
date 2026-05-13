@@ -21,6 +21,7 @@ class StrategyConfig:
     frr_delta: float
     max_percent_to_lend: float
     max_amount_to_lend: float | None
+    max_active_amount: float | None
     max_to_lend_rate: float
     end_date: date | None
     hide_coins: bool
@@ -33,6 +34,7 @@ def build_lending_decision(
     frr_daily_rate: float | None = None,
     btc_price: float | None = None,
     suggested_min_daily_rate: float | None = None,
+    active_amount: float = 0.0,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     strategy = _strategy_with_suggested_minimum(strategy, suggested_min_daily_rate)
@@ -45,11 +47,12 @@ def build_lending_decision(
         )
 
     lendable_amount = _lendable_amount(balance.amount, best_order.daily_rate, strategy)
+    lendable_amount = _lendable_amount_with_active_cap(lendable_amount, active_amount, strategy)
     if lendable_amount < strategy.min_loan_size:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
-            reason="Available balance is below the minimum loan size.",
+            reason=_below_minimum_reason(active_amount, strategy),
         )
 
     if best_order.daily_rate < strategy.min_daily_rate and strategy.hide_coins:
@@ -102,6 +105,25 @@ def _lendable_amount(amount: float, best_daily_rate: float, strategy: StrategyCo
         return round(percent_amount, 8)
 
     return round(min(percent_amount, strategy.max_amount_to_lend), 8)
+
+
+def _lendable_amount_with_active_cap(
+    lendable_amount: float,
+    active_amount: float,
+    strategy: StrategyConfig,
+) -> float:
+    if strategy.max_active_amount is None:
+        return lendable_amount
+
+    remaining_amount = max(strategy.max_active_amount - active_amount, 0)
+    return round(min(lendable_amount, remaining_amount), 8)
+
+
+def _below_minimum_reason(active_amount: float, strategy: StrategyConfig) -> str:
+    if strategy.max_active_amount is not None and active_amount >= strategy.max_active_amount:
+        return "Active lending amount is at or above the configured maximum."
+
+    return "Available balance is below the minimum loan size."
 
 
 def _should_restrict_lendable_amount(best_daily_rate: float, strategy: StrategyConfig) -> bool:

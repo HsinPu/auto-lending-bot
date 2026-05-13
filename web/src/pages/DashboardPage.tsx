@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
+import { actions } from '../components/actionDefinitions'
 import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
 import { CurrencyOverview } from '../components/CurrencyOverview'
 import { DataTable } from '../components/DataTable'
@@ -51,6 +52,14 @@ export function DashboardPage() {
       setLatestError((mutationError as Error).message)
     },
   })
+  const runAction = (action: SafeActionName, dryRun: boolean) => {
+    const confirmLive = shouldConfirmLive(action, dryRun)
+    if (confirmLive && !window.confirm('Live 模式會執行真實交易所操作。確定要繼續？')) {
+      return
+    }
+
+    actionMutation.mutate({ action, confirmLive })
+  }
 
   return (
     <>
@@ -84,6 +93,37 @@ export function DashboardPage() {
 
       {data ? (
         <>
+          <section className="quick-actions" aria-label="Primary bot controls">
+            <div>
+              <p className="eyebrow">Bot Controls</p>
+              <h2>前端控制</h2>
+              <p>
+                目前是 {data.status.dry_run ? '模擬模式' : 'Live 模式'}。按鈕會呼叫後端 API，
+                執行後自動更新資料。
+              </p>
+            </div>
+            <div className="quick-action-buttons">
+              {primaryActions.map((action) => {
+                const item = actions.find((entry) => entry.action === action)
+                if (!item) {
+                  return null
+                }
+
+                return (
+                  <button
+                    key={item.action}
+                    type="button"
+                    className={`quick-action-button ${item.action === 'run-once' ? 'primary' : ''}`}
+                    disabled={actionMutation.isPending}
+                    onClick={() => runAction(item.action, data.status.dry_run)}
+                  >
+                    {actionMutation.isPending ? '執行中...' : item.label}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
           <div className="mika-console-layout">
             <div className="mika-main-column">
               <section className="status-grid" id="status" aria-label="Bot status summary">
@@ -134,13 +174,7 @@ export function DashboardPage() {
                 isPending={actionMutation.isPending}
                 latestResult={latestResult}
                 latestError={latestError}
-                onRunAction={(action: SafeActionName) => {
-                  const confirmLive = ['run-once', 'cancel-open-offers'].includes(action) && !data.status.dry_run
-                  if (confirmLive && !window.confirm('Live 模式會執行真實交易所操作。確定要繼續？')) {
-                    return
-                  }
-                  actionMutation.mutate({ action, confirmLive })
-                }}
+                onRunAction={(action: SafeActionName) => runAction(action, data.status.dry_run)}
               />
 
               <EarningsForecast details={data.currencyDetails} />
@@ -236,6 +270,13 @@ export function DashboardPage() {
   )
 }
 
+const primaryActions: SafeActionName[] = [
+  'run-once',
+  'sync-open-offers',
+  'record-market-analysis',
+  'cancel-open-offers',
+]
+
 const displaySettingsKey = 'auto-lending-bot.displaySettings'
 const defaultDisplaySettings: DisplaySettings = {
   compactLayout: false,
@@ -263,6 +304,10 @@ function ErrorState({ message }: { message: string }) {
       <span>{message}</span>
     </section>
   )
+}
+
+function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
+  return ['run-once', 'cancel-open-offers'].includes(action) && !dryRun
 }
 
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')

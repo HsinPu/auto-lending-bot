@@ -4,6 +4,7 @@ from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, Loan
 from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    AppSettingRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -12,6 +13,7 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
+from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, setting_schema
 
 
 def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
@@ -244,6 +246,47 @@ def test_bot_run_repository_recovers_running_runs(tmp_path) -> None:
 
     assert bot_runs.fail_running("recovered") == 1
     assert bot_runs.latest()["status"] == "failed"
+
+
+def test_app_setting_repository_stores_values_and_audit_log(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = AppSettingRepository(database_url)
+
+    repository.set_many({"BOT_LABEL": "Desk Bot", "BOT_DRY_RUN": "true"}, source="test")
+
+    settings = repository.get_many()
+    assert settings["BOT_LABEL"]["value"] == "Desk Bot"
+    assert settings["BOT_LABEL"]["value_type"] == "string"
+    assert settings["BOT_DRY_RUN"]["value_type"] == "bool"
+    assert repository.audit_log()[0]["source"] == "test"
+
+
+def test_app_setting_repository_rejects_unknown_setting(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = AppSettingRepository(database_url)
+
+    with pytest.raises(ValueError, match="Unknown setting"):
+        repository.set_many({"UNKNOWN": "value"})
+
+
+def test_app_setting_repository_resets_values(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = AppSettingRepository(database_url)
+    repository.set_many({"BOT_LABEL": "Desk Bot"})
+
+    repository.reset("BOT_LABEL")
+
+    assert "BOT_LABEL" not in repository.get_many()
+    assert repository.audit_log()[0]["new_value"] is None
+
+
+def test_setting_registry_contains_secret_metadata() -> None:
+    assert SETTING_DEFINITIONS_BY_KEY["EXCHANGE_API_SECRET"].secret is True
+    assert SETTING_DEFINITIONS_BY_KEY["BOT_DRY_RUN"].category == "Safety"
+    assert any(row["key"] == "TELEGRAM_BOT_TOKEN" for row in setting_schema())
 
 
 def _history_entry(external_entry_id: str) -> LendingHistoryEntry:

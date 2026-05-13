@@ -96,6 +96,23 @@ CREATE TABLE IF NOT EXISTS notification_state (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    value_type TEXT NOT NULL,
+    is_secret INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_setting_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source TEXT NOT NULL
+);
 """
 
 

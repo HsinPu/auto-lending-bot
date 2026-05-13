@@ -170,6 +170,32 @@ export type CurrencyDetail = {
   open_offer_count: number
 }
 
+export type StrategyDecisionOffer = {
+  currency: string
+  amount: number
+  daily_rate: number
+  duration_days: number
+  external_offer_id: string
+}
+
+export type StrategyDecision = {
+  currency: string
+  balance: number
+  active_amount: number
+  open_offer_amount: number
+  best_market_rate: number
+  configured_min_daily_rate: number
+  suggested_min_daily_rate: number | null
+  effective_min_daily_rate: number
+  max_daily_rate: number
+  max_to_lend: number | null
+  max_percent_to_lend: number
+  max_active_amount: number | null
+  offer_count: number
+  offers: StrategyDecisionOffer[]
+  reason: string
+}
+
 export type DashboardData = {
   status: StatusResponse
   runs: BotRun[]
@@ -183,6 +209,7 @@ export type DashboardData = {
   marketAnalysisRates: MarketAnalysisRate[]
   settings: SettingsResponse
   currencyDetails: CurrencyDetail[]
+  strategyDecisions: StrategyDecision[]
 }
 
 export type SafeActionName =

@@ -17,6 +17,7 @@ import type {
   SafeActionResponse,
   SettingsResponse,
   StatusResponse,
+  StrategyDecision,
 } from '../types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -39,6 +40,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     marketAnalysisRates,
     settings,
     currencyDetails,
+    strategyDecisions,
   ] = await Promise.all([
     getJson<StatusResponse>('/api/status'),
     getJson<BotRun[]>('/api/runs'),
@@ -52,6 +54,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     getJson<MarketAnalysisRate[]>('/api/market-analysis-rates'),
     getJson<SettingsResponse>('/api/settings'),
     getJson<CurrencyDetail[]>('/api/currency-details'),
+    getJson<StrategyDecision[]>('/api/strategy-decisions'),
   ])
 
   return {
@@ -67,6 +70,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     marketAnalysisRates,
     settings,
     currencyDetails,
+    strategyDecisions,
   }
 }
 

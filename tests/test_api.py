@@ -68,6 +68,7 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         "/api/market-rates",
         "/api/market-analysis-rates",
         "/api/currency-details",
+        "/api/strategy-decisions",
     ]
     for endpoint in endpoints:
         response = client.get(endpoint)
@@ -99,6 +100,28 @@ def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> 
             "open_offer_count": 1,
         }
     ]
+
+
+def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    _seed_database(database_url)
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/strategy-decisions")
+
+    assert response.status_code == 200
+    body = response.json()
+    btc = next(row for row in body if row["currency"] == "BTC")
+    assert btc["balance"] == 0.25
+    assert btc["active_amount"] == 0.05
+    assert btc["open_offer_amount"] == 0.1
+    assert btc["best_market_rate"] == 0.00008
+    assert btc["effective_min_daily_rate"] == 0.00005
+    assert btc["offer_count"] == 3
+    assert btc["offers"][0]["currency"] == "BTC"
 
 
 def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:

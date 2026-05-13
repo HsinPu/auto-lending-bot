@@ -10,6 +10,8 @@ from auto_lending_bot.config import (
     sqlite_path_from_url,
     strategy_config_for,
 )
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
+from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
@@ -239,6 +241,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             earnings_rows=lending_history.earnings_summary_by_currency(),
             market_rate_rows=market_rates.recent(1000),
         )
+
+    @router.get("/strategy-decisions")
+    def strategy_decisions() -> list[dict[str, object]]:
+        return _strategy_decisions(settings, active_loans, open_offers, market_analysis_rates)
 
     @router.post("/actions/smoke-exchange")
     def smoke_exchange() -> dict[str, object]:
@@ -586,6 +592,157 @@ def _currency_details(
             }
         )
     return details
+
+
+def _strategy_decisions(
+    settings: Settings,
+    active_loans: ActiveLoanRepository,
+    open_offers: OpenLoanOfferRepository,
+    market_analysis_rates: MarketAnalysisRateRepository,
+) -> list[dict[str, object]]:
+    exchange = create_exchange_client(settings)
+    errors: dict[str, str] = {}
+    balances = _safe_lending_balances(exchange, errors)
+    active = _safe_active_loans(exchange, active_loans, errors)
+    open_offer_rows = open_offers.recent(1000)
+    currencies = _strategy_decision_currencies(settings, balances, active, open_offer_rows)
+
+    rows = []
+    for currency in currencies:
+        strategy = strategy_config_for(settings, currency)
+        balance = next(
+            (item for item in balances if item.currency.upper() == currency),
+            CurrencyBalance(currency=currency, amount=0.0),
+        )
+        active_amount = sum(
+            item.amount for item in active if item.currency.upper() == currency
+        )
+        open_offer_amount = sum(
+            float(row["amount"])
+            for row in open_offer_rows
+            if str(row["currency"]).upper() == currency
+        )
+        order_book = _safe_loan_orders(exchange, currency, errors)
+        best_market_rate = max((order.daily_rate for order in order_book), default=0.0)
+        suggested_min_daily_rate = _suggested_min_daily_rate(
+            settings,
+            market_analysis_rates,
+            currency,
+        )
+        frr_daily_rate = _safe_frr_rate(exchange, currency, strategy.frr_as_min, errors)
+        btc_price = (
+            _safe_btc_price(exchange, currency)
+            if _uses_raw_btc_gap(strategy.gap_mode)
+            else None
+        )
+        decision = build_lending_decision(
+            balance=balance,
+            order_book=order_book,
+            strategy=strategy,
+            frr_daily_rate=frr_daily_rate,
+            btc_price=btc_price,
+            suggested_min_daily_rate=suggested_min_daily_rate,
+            active_amount=active_amount,
+        )
+
+        rows.append(
+            {
+                "currency": currency,
+                "balance": balance.amount,
+                "active_amount": active_amount,
+                "open_offer_amount": open_offer_amount,
+                "best_market_rate": best_market_rate,
+                "configured_min_daily_rate": strategy.min_daily_rate,
+                "suggested_min_daily_rate": suggested_min_daily_rate,
+                "effective_min_daily_rate": max(
+                    strategy.min_daily_rate,
+                    suggested_min_daily_rate or 0,
+                    frr_daily_rate + strategy.frr_delta if frr_daily_rate is not None else 0,
+                ),
+                "max_daily_rate": strategy.max_daily_rate,
+                "max_to_lend": strategy.max_amount_to_lend,
+                "max_percent_to_lend": strategy.max_percent_to_lend,
+                "max_active_amount": strategy.max_active_amount,
+                "offer_count": len(decision.offers),
+                "offers": [offer.__dict__ for offer in decision.offers],
+                "reason": errors.get(currency, errors.get("*", decision.reason)),
+            }
+        )
+
+    return rows
+
+
+def _safe_lending_balances(exchange, errors: dict[str, str]) -> list[CurrencyBalance]:
+    try:
+        return exchange.get_lending_balances()
+    except Exception as error:
+        errors["*"] = f"Unable to load lending balances: {error}"
+        return []
+
+
+def _safe_active_loans(
+    exchange,
+    active_loans: ActiveLoanRepository,
+    errors: dict[str, str],
+) -> list[ActiveLoan]:
+    try:
+        return exchange.get_active_loans()
+    except Exception as error:
+        errors["*"] = f"Unable to load active loans: {error}"
+        rows = active_loans.recent(1000)
+        return [
+            ActiveLoan(
+                currency=str(row["currency"]),
+                amount=float(row["amount"]),
+                daily_rate=float(row["daily_rate"]),
+                duration_days=int(row["duration_days"]),
+                external_loan_id=str(row["external_loan_id"] or ""),
+            )
+            for row in rows
+        ]
+
+
+def _safe_loan_orders(exchange, currency: str, errors: dict[str, str]) -> list[LoanOrder]:
+    try:
+        return exchange.get_loan_orders(currency)
+    except Exception as error:
+        errors[currency] = f"Unable to load loan orders: {error}"
+        return []
+
+
+def _safe_frr_rate(
+    exchange,
+    currency: str,
+    frr_as_min: bool,
+    errors: dict[str, str],
+) -> float | None:
+    if not frr_as_min:
+        return None
+    try:
+        return exchange.get_frr_rate(currency)
+    except Exception as error:
+        errors[currency] = f"Unable to load FRR rate: {error}"
+        return None
+
+
+def _strategy_decision_currencies(
+    settings: Settings,
+    balances: list[CurrencyBalance],
+    active_loans: list[ActiveLoan],
+    open_offer_rows: list[dict[str, object]],
+) -> list[str]:
+    currencies = {
+        settings.smoke_test_currency.upper(),
+        *(balance.currency.upper() for balance in balances),
+        *(loan.currency.upper() for loan in active_loans),
+        *(str(row["currency"]).upper() for row in open_offer_rows),
+        *settings.market_analysis_currencies,
+    }
+    return sorted(currency for currency in currencies if currency)
+
+
+def _uses_raw_btc_gap(gap_mode: str) -> bool:
+    return gap_mode.lower().replace("-", "_") in {"raw_btc", "rawbtc"}
 
 
 def _converted_earnings(

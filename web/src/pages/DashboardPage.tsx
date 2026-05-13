@@ -26,6 +26,7 @@ import type {
   MarketRate,
   SafeActionName,
   SafeActionResponse,
+  StrategyDecision,
 } from '../types/api'
 import { formatTimestamp } from '../utils/time'
 
@@ -201,6 +202,12 @@ export function DashboardPage() {
       {data && activePage === 'currencies' ? (
         <div className="page-stack">
           <CurrencyOverview details={data.currencyDetails} />
+          <DataTable<StrategyDecision>
+            title="策略決策表"
+            description="每個幣別目前套用的策略、利率門檻與預計建立的 offer。"
+            rows={data.strategyDecisions}
+            columns={strategyDecisionColumns}
+          />
           <EarningsForecast details={data.currencyDetails} />
         </div>
       ) : null}
@@ -604,3 +611,38 @@ const marketAnalysisColumns = (timeZone: string) => [
   { key: 'available_amount', label: '可用數量', format: amount },
   { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']
+
+const strategyDecisionColumns = [
+  { key: 'currency', label: '幣種' },
+  { key: 'balance', label: '可用餘額', format: amount },
+  { key: 'active_amount', label: '放貸中', format: amount },
+  { key: 'open_offer_amount', label: '未成交委託', format: amount },
+  { key: 'best_market_rate', label: '最佳市場日利率', format: rate },
+  { key: 'effective_min_daily_rate', label: '有效最低日利率', format: rate },
+  { key: 'max_daily_rate', label: '最高日利率', format: rate },
+  { key: 'max_to_lend', label: 'Max to lend', format: amount },
+  { key: 'max_active_amount', label: 'Max active', format: amount },
+  { key: 'offer_count', label: '預計委託數' },
+  { key: 'offers', label: '預計委託', format: formatDecisionOffers },
+  { key: 'reason', label: '原因' },
+] satisfies Parameters<typeof DataTable<StrategyDecision>>[0]['columns']
+
+function formatDecisionOffers(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) {
+    return '-'
+  }
+
+  return value
+    .map((offer) => {
+      if (!offer || typeof offer !== 'object') {
+        return ''
+      }
+      const item = offer as { amount?: number; daily_rate?: number; duration_days?: number }
+      const offerAmount = typeof item.amount === 'number' ? item.amount.toPrecision(8) : '-'
+      const offerRate = typeof item.daily_rate === 'number' ? `${(item.daily_rate * 100).toFixed(4)}%` : '-'
+      const days = typeof item.duration_days === 'number' ? item.duration_days : '-'
+      return `${offerAmount} @ ${offerRate} / ${days} 天`
+    })
+    .filter(Boolean)
+    .join('；')
+}

@@ -47,10 +47,20 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "cleanup":
         initialize_database(settings.database_url)
-        deleted_count = MarketRateRepository(settings.database_url).delete_older_than_days(
-            settings.market_rate_retention_days
+        market_rate_deleted_count = MarketRateRepository(
+            settings.database_url
+        ).delete_older_than_days(
+            settings.market_rate_retention_days,
         )
-        print(f"Deleted {deleted_count} old market rate row(s).")
+        market_analysis_deleted_count = MarketAnalysisRateRepository(
+            settings.database_url
+        ).delete_older_than_days(settings.market_analysis_retention_days)
+        deleted_count = market_rate_deleted_count + market_analysis_deleted_count
+        print(
+            f"Deleted {deleted_count} old market data row(s) "
+            f"({market_rate_deleted_count} market rate, "
+            f"{market_analysis_deleted_count} market analysis)."
+        )
         return 0
 
     if args.command == "sync-history":

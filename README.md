@@ -253,6 +253,7 @@ BTC_FRR_DELTA=0.00001
 - Authentication failures are not retried; fix the key/secret or permissions before restarting.
 - On startup, interrupted `running` bot runs are marked as `failed`.
 - Use `auto-lending-bot cleanup` to delete old market-rate rows based on `MARKET_RATE_RETENTION_DAYS`.
+- Market analysis rows are cleaned by the same command based on `MARKET_ANALYSIS_RETENTION_DAYS`.
 - `scripts/dev.ps1` runs `uv sync`, tests, and ruff once `uv` is installed.
 
 ## Project Structure

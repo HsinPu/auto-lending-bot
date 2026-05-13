@@ -80,6 +80,16 @@ def test_cli_record_market_analysis_writes_rows(tmp_path, monkeypatch, capsys) -
     assert "Recorded 1 market analysis rate row(s)." in output
 
 
+def test_cli_cleanup_reports_market_data_counts(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+
+    exit_code = run_cli(["cleanup"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Deleted 0 old market data row(s) (0 market rate, 0 market analysis)." in output
+
+
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("BOT_DRY_RUN", "false")

@@ -140,6 +140,8 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     cleanup_response = client.post("/api/actions/cleanup")
     assert cleanup_response.status_code == 200
     assert cleanup_response.json()["deleted_count"] == 0
+    assert cleanup_response.json()["market_rate_deleted_count"] == 0
+    assert cleanup_response.json()["market_analysis_deleted_count"] == 0
 
 
 def test_api_safe_action_returns_safety_error(tmp_path) -> None:
@@ -294,6 +296,7 @@ def _settings(
         exchange=exchange,
         http_timeout_seconds=30,
         market_rate_retention_days=30,
+        market_analysis_retention_days=30,
         market_analysis_levels=10,
         market_analysis_method="off",
         market_analysis_percentile=75,

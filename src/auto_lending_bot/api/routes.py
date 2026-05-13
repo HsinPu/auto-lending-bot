@@ -203,11 +203,18 @@ def create_api_router(settings: Settings) -> APIRouter:
 
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
-        deleted_count = market_rates.delete_older_than_days(settings.market_rate_retention_days)
+        market_rate_deleted_count = market_rates.delete_older_than_days(
+            settings.market_rate_retention_days
+        )
+        market_analysis_deleted_count = market_analysis_rates.delete_older_than_days(
+            settings.market_analysis_retention_days
+        )
         return {
             "action": "cleanup",
             "ok": True,
-            "deleted_count": deleted_count,
+            "deleted_count": market_rate_deleted_count + market_analysis_deleted_count,
+            "market_rate_deleted_count": market_rate_deleted_count,
+            "market_analysis_deleted_count": market_analysis_deleted_count,
         }
 
     @router.post("/actions/run-once")

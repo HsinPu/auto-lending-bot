@@ -7,4 +7,7 @@ def test_cli_cleanup_runs(tmp_path, monkeypatch, capsys) -> None:
     exit_code = run_cli(["cleanup"])
 
     assert exit_code == 0
-    assert "Deleted 0 old market rate row(s)." in capsys.readouterr().out
+    assert (
+        "Deleted 0 old market data row(s) (0 market rate, 0 market analysis)."
+        in capsys.readouterr().out
+    )

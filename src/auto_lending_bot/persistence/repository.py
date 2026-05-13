@@ -291,6 +291,17 @@ class MarketAnalysisRateRepository:
             ).fetchone()
             return int(row["count"])
 
+    def delete_older_than_days(self, days: int) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM market_analysis_rates
+                WHERE captured_at < datetime('now', ?)
+                """,
+                (f"-{days} days",),
+            )
+            return int(cursor.rowcount)
+
     def recent(self, limit: int = 50) -> list[dict[str, object]]:
         with connect(self._database_url) as connection:
             rows = connection.execute(

@@ -1,7 +1,7 @@
 import pytest
 
 from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
-from auto_lending_bot.persistence.database import initialize_database
+from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
@@ -171,6 +171,28 @@ def test_market_analysis_rate_repository_calculates_macd_rate_by_seconds(tmp_pat
         long_seconds=3600,
         multiplier=1.05,
     ) == pytest.approx(0.0000945)
+
+
+def test_market_analysis_rate_repository_deletes_old_rows(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+    repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008)])
+    repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00009)])
+    with connect(database_url) as connection:
+        connection.execute(
+            """
+            UPDATE market_analysis_rates
+            SET captured_at = datetime('now', '-31 days')
+            WHERE id = 1
+            """
+        )
+
+    assert repository.delete_older_than_days(30) == 1
+
+    rows = repository.recent()
+    assert len(rows) == 1
+    assert rows[0]["daily_rate"] == 0.00009
 
 
 def test_notification_state_repository_stores_float_values(tmp_path) -> None:

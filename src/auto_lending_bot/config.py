@@ -27,6 +27,7 @@ class Settings:
     exchange: str
     http_timeout_seconds: int
     market_rate_retention_days: int
+    market_analysis_retention_days: int
     market_analysis_levels: int
     market_analysis_method: str
     market_analysis_percentile: float
@@ -90,6 +91,9 @@ def load_settings() -> Settings:
         exchange=os.getenv("EXCHANGE", "mock"),
         http_timeout_seconds=_get_int("HTTP_TIMEOUT_SECONDS", default=30),
         market_rate_retention_days=_get_int("MARKET_RATE_RETENTION_DAYS", default=30),
+        market_analysis_retention_days=_get_int(
+            "MARKET_ANALYSIS_RETENTION_DAYS", default=30
+        ),
         market_analysis_levels=_get_int("MARKET_ANALYSIS_LEVELS", default=10),
         market_analysis_method=os.getenv("MARKET_ANALYSIS_METHOD", "off").lower(),
         market_analysis_percentile=_get_float("MARKET_ANALYSIS_PERCENTILE", default=75.0),

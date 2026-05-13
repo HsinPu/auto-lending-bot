@@ -259,6 +259,9 @@ empty, the bot falls back to `SMOKE_TEST_CURRENCY`.
 minimum rates from sparse or stale market-analysis data. Keep both at `0` to disable the
 extra quality gate.
 
+`GET /api/settings` includes the market-analysis suggested minimum and effective minimum
+daily rate for `SMOKE_TEST_CURRENCY`, which the dashboard shows in the strategy preview.
+
 ## Operations
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.

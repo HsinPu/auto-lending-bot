@@ -9,6 +9,7 @@ from auto_lending_bot.persistence.repository import (
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
+    MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
 )
@@ -105,8 +106,28 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     body = response.json()
     assert body["output_currency"] == "BTC"
     assert body["smoke_test_currency"] == "BTC"
+    assert body["market_analysis_suggested_min_daily_rate"] is None
+    assert body["effective_min_daily_rate"] == 0.00005
     assert body["strategy"]["min_daily_rate"] == 0.00005
     assert body["strategy"]["spread_lend"] == 3
+
+
+def test_api_settings_returns_market_analysis_effective_rate(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url, market_analysis_method="percentile")
+    initialize_database(database_url)
+    MarketAnalysisRateRepository(database_url).add_many(
+        [LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00012)]
+    )
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["market_analysis_suggested_min_daily_rate"] == 0.00012
+    assert body["effective_min_daily_rate"] == 0.00012
 
 
 def test_api_safe_actions_update_local_state(tmp_path) -> None:
@@ -295,6 +316,7 @@ def _settings(
     max_total_lend_amount: float | None = None,
     max_single_offer_amount: float | None = None,
     market_analysis_currencies: tuple[str, ...] = (),
+    market_analysis_method: str = "off",
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
@@ -316,7 +338,7 @@ def _settings(
         market_analysis_levels=10,
         market_analysis_min_samples=0,
         market_analysis_max_age_seconds=0,
-        market_analysis_method="off",
+        market_analysis_method=market_analysis_method,
         market_analysis_percentile=75,
         market_analysis_macd_short_samples=3,
         market_analysis_macd_long_samples=10,

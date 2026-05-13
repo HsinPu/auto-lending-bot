@@ -94,6 +94,11 @@ def create_api_router(settings: Settings) -> APIRouter:
     @router.get("/settings")
     def settings_snapshot() -> dict[str, object]:
         strategy = strategy_config_for(settings, settings.smoke_test_currency)
+        suggested_min_daily_rate = _suggested_min_daily_rate(
+            settings,
+            market_analysis_rates,
+            settings.smoke_test_currency,
+        )
         return {
             "label": settings.bot_label,
             "exchange": settings.exchange,
@@ -103,6 +108,11 @@ def create_api_router(settings: Settings) -> APIRouter:
             "output_currency": settings.output_currency,
             "market_analysis_currencies": settings.market_analysis_currencies,
             "market_analysis_levels": settings.market_analysis_levels,
+            "market_analysis_suggested_min_daily_rate": suggested_min_daily_rate,
+            "effective_min_daily_rate": max(
+                strategy.min_daily_rate,
+                suggested_min_daily_rate or 0,
+            ),
             "smoke_test_currency": settings.smoke_test_currency,
             "strategy_debug": settings.strategy_debug,
             "strategy": strategy.__dict__,
@@ -281,6 +291,45 @@ def _market_analysis_currencies(
     if settings.market_analysis_currencies:
         return settings.market_analysis_currencies
     return (settings.smoke_test_currency.upper(),)
+
+
+def _suggested_min_daily_rate(
+    settings: Settings,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    currency: str,
+) -> float | None:
+    if settings.market_analysis_method == "percentile":
+        return market_analysis_rates.percentile_rate(
+            currency,
+            settings.market_analysis_percentile,
+            settings.market_analysis_min_samples,
+            settings.market_analysis_max_age_seconds,
+        )
+
+    if settings.market_analysis_method == "macd":
+        if (
+            settings.market_analysis_macd_short_seconds > 0
+            and settings.market_analysis_macd_long_seconds > 0
+        ):
+            return market_analysis_rates.macd_rate_by_seconds(
+                currency,
+                settings.market_analysis_macd_short_seconds,
+                settings.market_analysis_macd_long_seconds,
+                settings.market_analysis_multiplier,
+                settings.market_analysis_min_samples,
+                settings.market_analysis_max_age_seconds,
+            )
+
+        return market_analysis_rates.macd_rate(
+            currency,
+            settings.market_analysis_macd_short_samples,
+            settings.market_analysis_macd_long_samples,
+            settings.market_analysis_multiplier,
+            settings.market_analysis_min_samples,
+            settings.market_analysis_max_age_seconds,
+        )
+
+    return None
 
 
 def _currency_details(

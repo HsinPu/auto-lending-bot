@@ -160,6 +160,16 @@ export function DashboardPage() {
                   </p>
                 </div>
                 <dl>
+                  <div>
+                    <dt>market_analysis_suggested_min_daily_rate</dt>
+                    <dd>{rate(data.settings.market_analysis_suggested_min_daily_rate)}</dd>
+                  </div>
+                  <div>
+                    <dt>effective_min_daily_rate</dt>
+                    <dd>{rate(data.settings.effective_min_daily_rate)}</dd>
+                  </div>
+                </dl>
+                <dl>
                   {Object.entries(data.settings.strategy).map(([key, value]) => (
                     <div key={key}>
                       <dt>{key}</dt>

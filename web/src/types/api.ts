@@ -113,6 +113,8 @@ export type SettingsResponse = {
   output_currency: string
   market_analysis_currencies: string[]
   market_analysis_levels: number
+  market_analysis_suggested_min_daily_rate: number | null
+  effective_min_daily_rate: number
   smoke_test_currency: string
   strategy_debug: boolean
   strategy: Record<string, string | number | boolean | null>

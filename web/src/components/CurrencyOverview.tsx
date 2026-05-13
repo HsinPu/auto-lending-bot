@@ -17,12 +17,15 @@ export function CurrencyOverview({ details }: CurrencyOverviewProps) {
       </div>
 
       {details.length ? (
-        <div className="currency-grid">
+        <ul className="currency-list">
           {details.map((detail) => (
-            <article className="currency-card" key={detail.currency}>
+            <li className="currency-row" key={detail.currency}>
               <div className="currency-card-header">
-                <strong>{detail.currency}</strong>
-                <span>{detail.active_loan_count} active</span>
+                <div>
+                  <p className="eyebrow">幣種</p>
+                  <strong>{detail.currency}</strong>
+                </div>
+                <span>{detail.active_loan_count} 筆放貸中</span>
               </div>
               <dl>
                 <Metric label="目前放貸" value={amount(detail.active_amount)} />
@@ -32,9 +35,9 @@ export function CurrencyOverview({ details }: CurrencyOverviewProps) {
                 <Metric label="累積收益" value={amount(detail.total_earned)} />
                 <Metric label="委託數" value={String(detail.open_offer_count)} />
               </dl>
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
         <p className="empty-hint padded">目前沒有可彙整的幣種資料。</p>
       )}

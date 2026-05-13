@@ -682,7 +682,7 @@ h1 {
 
 .compact-layout .status-card,
 .compact-layout .chart-card,
-.compact-layout .currency-card,
+.compact-layout .currency-row,
 .compact-layout .forecast-card,
 .compact-layout .settings-panel,
 .compact-layout th,
@@ -1228,63 +1228,76 @@ h1 {
   color: #fecdd3;
 }
 
-.currency-grid {
+.currency-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+  margin: 0;
   padding: 0 24px 24px;
+  list-style: none;
 }
 
-.currency-card {
+.currency-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
   border: 1px solid rgba(147, 197, 253, 0.14);
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 18px;
-  background: rgba(2, 6, 23, 0.26);
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.07), transparent 42%),
+    rgba(2, 6, 23, 0.3);
 }
 
 .currency-card-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  align-content: space-between;
   gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
 }
 
 .currency-card-header strong {
+  display: block;
+  margin-top: 4px;
   color: #f8fafc;
-  font-size: 28px;
+  font-size: 30px;
+  letter-spacing: 0.02em;
 }
 
 .currency-card-header span {
+  width: fit-content;
   border-radius: 999px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   color: #bbf7d0;
   background: rgba(5, 46, 22, 0.48);
   font-size: 12px;
+  font-weight: 700;
 }
 
-.currency-card dl {
+.currency-row dl {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
 
-.currency-card dl div {
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.62);
+.currency-row dl div {
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 15px;
+  background: rgba(15, 23, 42, 0.66);
 }
 
-.currency-card dt {
+.currency-row dt {
   color: #93c5fd;
   font-size: 12px;
+  line-height: 1.35;
 }
 
-.currency-card dd {
-  margin: 6px 0 0;
-  color: #e0f2fe;
+.currency-row dd {
+  margin: 7px 0 0;
+  color: #f8fafc;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .empty-hint.padded {
@@ -1837,10 +1850,17 @@ td {
   }
 
   .chart-grid,
-  .currency-grid,
   .forecast-grid,
   .profit-chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .currency-row {
+    grid-template-columns: 1fr;
+  }
+
+  .currency-row dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .strategy-decision-row {
@@ -1878,6 +1898,10 @@ td {
   }
 
   .strategy-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .currency-row dl {
     grid-template-columns: 1fr;
   }
 

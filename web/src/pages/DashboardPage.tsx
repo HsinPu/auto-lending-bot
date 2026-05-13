@@ -12,10 +12,18 @@ import {
   type DisplaySettings,
 } from '../components/DisplaySettingsModal'
 import { EarningsForecast } from '../components/EarningsForecast'
+import { MiniCharts } from '../components/MiniCharts'
 import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
-import type { LendingHistoryEntry, SafeActionName, SafeActionResponse } from '../types/api'
+import type {
+  LendingHistoryEntry,
+  LoanOffer,
+  MarketAnalysisRate,
+  MarketRate,
+  SafeActionName,
+  SafeActionResponse,
+} from '../types/api'
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
@@ -190,7 +198,74 @@ export function DashboardPage() {
           />
         </div>
       ) : null}
-      {data && !['overview', 'currencies', 'earnings'].includes(activePage) ? (
+      {data && activePage === 'market' ? (
+        <div className="page-stack">
+          <PageActionStrip
+            title="市場分析操作"
+            description="記錄 lendbook 深度後，後端會更新 suggested / effective min daily rate。"
+            actionNames={['record-market-analysis']}
+            isPending={actionMutation.isPending}
+            onRunAction={(action) => runAction(action, data.status.dry_run)}
+          />
+          <MiniCharts earnings={data.earnings} marketRates={data.marketRates} offers={data.offers} />
+          <section className="settings-panel">
+            <div>
+              <h2>利率門檻</h2>
+              <p>{data.settings.smoke_test_currency} 的市場分析建議與實際策略門檻。</p>
+            </div>
+            <dl>
+              <div>
+                <dt>suggested min daily rate</dt>
+                <dd>{rate(data.settings.market_analysis_suggested_min_daily_rate)}</dd>
+              </div>
+              <div>
+                <dt>effective min daily rate</dt>
+                <dd>{rate(data.settings.effective_min_daily_rate)}</dd>
+              </div>
+              <div>
+                <dt>market analysis levels</dt>
+                <dd>{data.settings.market_analysis_levels}</dd>
+              </div>
+            </dl>
+          </section>
+          <DataTable<MarketRate>
+            title="市場利率"
+            description="最近記錄的 lendbook rate snapshot。"
+            rows={data.marketRates}
+            columns={marketRateColumns}
+          />
+          <DataTable<MarketAnalysisRate>
+            title="市場分析紀錄"
+            description="由 record-market-analysis 記錄的 lendbook depth levels。"
+            rows={data.marketAnalysisRates}
+            columns={marketAnalysisColumns}
+          />
+        </div>
+      ) : null}
+      {data && activePage === 'offers' ? (
+        <div className="page-stack">
+          <PageActionStrip
+            title="委託操作"
+            description="同步交易所未成交委託；取消委託會遵守後端 dry-run / live guard。"
+            actionNames={['sync-open-offers', 'cancel-open-offers']}
+            isPending={actionMutation.isPending}
+            onRunAction={(action) => runAction(action, data.status.dry_run)}
+          />
+          <DataTable<LoanOffer>
+            title="貸出委託"
+            description="本地紀錄的 dry-run/live offer intent 與結果。"
+            rows={data.offers}
+            columns={offerColumns}
+          />
+          <DataTable<LoanOffer>
+            title="交易所未成交委託"
+            description="由 sync-open-offers 取得的 read-only snapshot。"
+            rows={data.openOffers}
+            columns={openOfferColumns}
+          />
+        </div>
+      ) : null}
+      {data && !['overview', 'currencies', 'earnings', 'market', 'offers'].includes(activePage) ? (
         <PagePlaceholder page={activePage} />
       ) : null}
           </div>
@@ -259,6 +334,50 @@ function PagePlaceholder({ page }: { page: PageKey }) {
       <p className="eyebrow">Coming Next</p>
       <h2>{item?.label}</h2>
       <p>{item?.description} 會在下一個 phase 開始從總覽頁拆出來。</p>
+    </section>
+  )
+}
+
+function PageActionStrip({
+  title,
+  description,
+  actionNames,
+  isPending,
+  onRunAction,
+}: {
+  title: string
+  description: string
+  actionNames: SafeActionName[]
+  isPending: boolean
+  onRunAction: (action: SafeActionName) => void
+}) {
+  return (
+    <section className="quick-actions">
+      <div>
+        <p className="eyebrow">Page Controls</p>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      <div className="quick-action-buttons">
+        {actionNames.map((actionName) => {
+          const item = actions.find((entry) => entry.action === actionName)
+          if (!item) {
+            return null
+          }
+
+          return (
+            <button
+              type="button"
+              className="quick-action-button"
+              disabled={isPending}
+              onClick={() => onRunAction(item.action)}
+              key={item.action}
+            >
+              {isPending ? '執行中...' : item.label}
+            </button>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -335,3 +454,40 @@ const historyColumns = [
   { key: 'earned', label: '實收', format: amount },
   { key: 'closed_at', label: '結束時間' },
 ] satisfies Parameters<typeof DataTable<LendingHistoryEntry>>[0]['columns']
+
+const offerColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'amount', label: '數量', format: amount },
+  { key: 'daily_rate', label: '日利率', format: rate },
+  { key: 'duration_days', label: '天數' },
+  { key: 'status', label: '狀態' },
+  { key: 'external_offer_id', label: '交易所編號' },
+] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
+
+const openOfferColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'amount', label: '數量', format: amount },
+  { key: 'daily_rate', label: '日利率', format: rate },
+  { key: 'duration_days', label: '天數' },
+  { key: 'external_offer_id', label: '交易所編號' },
+  { key: 'captured_at', label: '擷取時間' },
+] satisfies Parameters<typeof DataTable<LoanOffer>>[0]['columns']
+
+const marketRateColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'daily_rate', label: '日利率', format: rate },
+  { key: 'available_amount', label: '可用數量', format: amount },
+  { key: 'captured_at', label: '擷取時間' },
+] satisfies Parameters<typeof DataTable<MarketRate>>[0]['columns']
+
+const marketAnalysisColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'level', label: 'Level' },
+  { key: 'daily_rate', label: '日利率', format: rate },
+  { key: 'available_amount', label: '可用數量', format: amount },
+  { key: 'captured_at', label: '擷取時間' },
+] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']

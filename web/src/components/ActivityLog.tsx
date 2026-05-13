@@ -1,4 +1,5 @@
 import type { BotRun, LoanOffer, SafeActionResponse } from '../types/api'
+import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
 
 type ActivityLogProps = {
@@ -95,8 +96,8 @@ function buildActivityItems({
   return [...actionItems, ...runItems, ...offerItems].slice(0, 10)
 }
 
-const rate = (value: number) => `${(value * 100).toFixed(4)}%`
-const amount = (value: number) => value.toPrecision(8)
+const rate = formatRate
+const amount = formatAmount
 
 const statusLabels: Record<string, string> = {
   completed: '完成',

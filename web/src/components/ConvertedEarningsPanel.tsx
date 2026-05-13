@@ -1,4 +1,5 @@
 import type { ConvertedEarnings } from '../types/api'
+import { formatAmount } from '../utils/number'
 
 type ConvertedEarningsPanelProps = {
   rows: ConvertedEarnings[]
@@ -56,4 +57,4 @@ function displayAmount(
   return `${amount(value * multipliers[btcUnit])} ${btcUnit}`
 }
 
-const amount = (value: number) => value.toPrecision(8)
+const amount = formatAmount

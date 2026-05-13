@@ -31,6 +31,7 @@ import type {
   SafeActionResponse,
   StrategyDecision,
 } from '../types/api'
+import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
 
 export function DashboardPage() {
@@ -193,7 +194,7 @@ export function DashboardPage() {
                   {Object.entries(data.settings.strategy).map(([key, value]) => (
                     <div key={key}>
                       <dt>{strategyLabel(key)}</dt>
-                      <dd>{String(value)}</dd>
+                      <dd>{formatStrategyValue(key, value)}</dd>
                     </div>
                   ))}
                 </dl>
@@ -601,9 +602,18 @@ function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
   return ['run-once', 'cancel-open-offers', 'transfer-funds'].includes(action) && !dryRun
 }
 
-const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')
-const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
+const rate = (value: unknown) => formatRate(value)
+const amount = (value: unknown) => formatAmount(value)
 const yesNo = (value: unknown) => (value ? '是' : '否')
+
+const percentageStrategyKeys = new Set([
+  'min_daily_rate',
+  'max_daily_rate',
+  'xday_threshold',
+  'frr_delta',
+  'max_percent_to_lend',
+  'max_to_lend_rate',
+])
 
 const strategyLabels: Record<string, string> = {
   min_daily_rate: '最低日利率',
@@ -702,6 +712,22 @@ function dryRunLabel(value: unknown): string {
   return value ? '是' : '否'
 }
 
+function formatStrategyValue(key: string, value: unknown): string {
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否'
+  }
+  if (typeof value === 'number') {
+    if (percentageStrategyKeys.has(key)) {
+      return key === 'max_percent_to_lend' ? `${formatAmount(value)}%` : formatRate(value)
+    }
+    return formatAmount(value)
+  }
+  if (value === null || value === undefined || value === '') {
+    return '-'
+  }
+  return String(value)
+}
+
 const historyColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
   { key: 'currency', label: '幣種' },
@@ -797,8 +823,8 @@ function formatDecisionOffers(value: unknown): string {
         return ''
       }
       const item = offer as { amount?: number; daily_rate?: number; duration_days?: number }
-      const offerAmount = typeof item.amount === 'number' ? item.amount.toPrecision(8) : '-'
-      const offerRate = typeof item.daily_rate === 'number' ? `${(item.daily_rate * 100).toFixed(4)}%` : '-'
+      const offerAmount = typeof item.amount === 'number' ? formatAmount(item.amount) : '-'
+      const offerRate = typeof item.daily_rate === 'number' ? formatRate(item.daily_rate) : '-'
       const days = typeof item.duration_days === 'number' ? item.duration_days : '-'
       return `${offerAmount} @ ${offerRate} / ${days} 天`
     })

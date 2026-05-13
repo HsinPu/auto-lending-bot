@@ -1,4 +1,5 @@
 import type { CurrencyDetail } from '../types/api'
+import { formatAmount, formatPercent } from '../utils/number'
 
 type EarningsForecastProps = {
   details: CurrencyDetail[]
@@ -75,5 +76,5 @@ function netDailyRate(detail: CurrencyDetail) {
   return detail.average_daily_rate * 0.85
 }
 
-const amount = (value: number) => value.toPrecision(8)
-const percent = (value: number) => `${(value * 100).toFixed(4)}%`
+const amount = formatAmount
+const percent = formatPercent

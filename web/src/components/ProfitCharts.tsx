@@ -1,4 +1,5 @@
 import type { LendingHistoryEntry } from '../types/api'
+import { formatAmount } from '../utils/number'
 import { formatTimestampDay } from '../utils/time'
 
 type ProfitChartsProps = {
@@ -85,4 +86,4 @@ function buildProfitPoints(history: LendingHistoryEntry[], timeZone: string): Pr
     })
 }
 
-const amount = (value: number) => value.toPrecision(8)
+const amount = formatAmount

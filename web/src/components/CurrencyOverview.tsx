@@ -1,4 +1,5 @@
 import type { CurrencyDetail } from '../types/api'
+import { formatAmount, formatRate } from '../utils/number'
 
 type CurrencyOverviewProps = {
   details: CurrencyDetail[]
@@ -50,5 +51,5 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
-const rate = (value: number) => `${(value * 100).toFixed(4)}%`
-const amount = (value: number) => value.toPrecision(8)
+const rate = formatRate
+const amount = formatAmount

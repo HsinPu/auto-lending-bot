@@ -1,3 +1,5 @@
+import { formatAmount } from '../utils/number'
+
 type DataTableProps<T extends Record<string, unknown>> = {
   title: string
   description: string
@@ -64,7 +66,7 @@ function formatValue(value: unknown): string {
     return '-'
   }
   if (typeof value === 'number') {
-    return Number.isInteger(value) ? String(value) : value.toPrecision(8)
+    return Number.isInteger(value) ? String(value) : formatAmount(value)
   }
   return String(value)
 }

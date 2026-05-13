@@ -1,4 +1,5 @@
 import type { EarningsSummary, LoanOffer, MarketRate } from '../types/api'
+import { formatAmount, formatRate } from '../utils/number'
 
 type MiniChartsProps = {
   earnings: EarningsSummary[]
@@ -38,8 +39,8 @@ export function MiniCharts({ earnings, marketRates, offers }: MiniChartsProps) {
             <MetricBar
               key={`${row.id}-${row.currency}`}
               label={row.currency}
-              value={row.daily_rate * 100}
-              suffix="%"
+              value={row.daily_rate}
+              format="rate"
               ratio={maxRate > 0 ? row.daily_rate / maxRate : 0}
             />
           ))}
@@ -67,18 +68,20 @@ function MetricBar({
   value,
   ratio,
   suffix = '',
+  format = 'amount',
 }: {
   label: string
   value: number
   ratio: number
   suffix?: string
+  format?: 'amount' | 'rate'
 }) {
   return (
     <div className="metric-bar">
       <div>
         <span>{label}</span>
         <strong>
-          {value.toPrecision(6)}{suffix}
+          {format === 'rate' ? formatRate(value) : formatAmount(value, 6)}{suffix}
         </strong>
       </div>
       <div className="bar-track">

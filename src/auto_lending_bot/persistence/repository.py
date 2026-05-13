@@ -94,6 +94,10 @@ class AppSettingRepository:
                 (key, old_row["value"] if old_row is not None else None, None, source),
             )
 
+    def reset_all(self, source: str = "api") -> None:
+        for key in list(self.get_many()):
+            self.reset(key, source=source)
+
     def audit_log(self, limit: int = 50) -> list[dict[str, object]]:
         with connect(self._database_url) as connection:
             rows = connection.execute(

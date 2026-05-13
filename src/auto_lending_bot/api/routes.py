@@ -3,7 +3,12 @@ from collections.abc import Callable
 from fastapi import APIRouter, HTTPException
 
 from auto_lending_bot.bot.runner import BotRunner
-from auto_lending_bot.config import Settings, sqlite_path_from_url, strategy_config_for
+from auto_lending_bot.config import (
+    Settings,
+    settings_encryption_key,
+    sqlite_path_from_url,
+    strategy_config_for,
+)
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
@@ -11,6 +16,7 @@ from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    AppSettingRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -25,6 +31,7 @@ from auto_lending_bot.safety import (
     validate_transfer_limits,
     validate_transfer_settings,
 )
+from auto_lending_bot.settings_registry import setting_schema
 
 
 class _SettingsProxy:
@@ -47,6 +54,48 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
     notification_state = NotificationStateRepository(settings.database_url)
+
+    @router.get("/settings/schema")
+    def settings_schema() -> list[dict[str, object]]:
+        return setting_schema()
+
+    @router.get("/settings/effective")
+    def settings_effective() -> dict[str, object]:
+        return settings_snapshot()
+
+    @router.get("/settings/values")
+    def settings_values() -> dict[str, object]:
+        return _app_settings(settings).get_many()
+
+    @router.put("/settings/values")
+    def update_settings_values(payload: dict[str, object]) -> dict[str, object]:
+        values = payload.get("values", payload)
+        if not isinstance(values, dict):
+            raise HTTPException(status_code=400, detail="Settings values must be an object.")
+        try:
+            _app_settings(settings).set_many(
+                {str(key): str(value) for key, value in values.items()},
+                source="api",
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        return {"ok": True, "changed_count": len(values)}
+
+    @router.post("/settings/reset")
+    def reset_settings(payload: dict[str, object] | None = None) -> dict[str, object]:
+        payload = payload or {}
+        key = payload.get("key")
+        repository = _app_settings(settings)
+        if key:
+            repository.reset(str(key), source="api")
+            return {"ok": True, "reset_count": 1}
+        existing_count = len(repository.get_many())
+        repository.reset_all(source="api")
+        return {"ok": True, "reset_count": existing_count}
+
+    @router.get("/settings/audit-log")
+    def settings_audit_log() -> list[dict[str, object]]:
+        return _app_settings(settings).audit_log()
 
     @router.get("/status")
     def status() -> dict[str, object]:
@@ -342,6 +391,10 @@ def _validate_transfer_limits(settings: Settings, transfers: list[object]) -> No
         validate_transfer_limits(settings, transfers)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _app_settings(settings: Settings) -> AppSettingRepository:
+    return AppSettingRepository(settings.database_url, encryption_key=settings_encryption_key())
 
 
 def _cancel_open_offers(exchange, offers: list[object]) -> int:

@@ -164,6 +164,12 @@ Current API endpoints:
 - `GET /api/market-rates`
 - `GET /api/market-analysis-rates`
 - `GET /api/settings`
+- `GET /api/settings/schema`
+- `GET /api/settings/effective`
+- `GET /api/settings/values`
+- `PUT /api/settings/values`
+- `POST /api/settings/reset`
+- `GET /api/settings/audit-log`
 - `POST /api/actions/smoke-exchange`
 - `POST /api/actions/sync-history`
 - `POST /api/actions/sync-open-offers`

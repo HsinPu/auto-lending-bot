@@ -113,6 +113,41 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     assert body["strategy"]["spread_lend"] == 3
 
 
+def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("SETTINGS_ENCRYPTION_KEY", "test-key")
+    client = TestClient(create_app())
+
+    schema_response = client.get("/api/settings/schema")
+    assert schema_response.status_code == 200
+    assert any(row["key"] == "BOT_LABEL" for row in schema_response.json())
+
+    update_response = client.put(
+        "/api/settings/values",
+        json={"values": {"BOT_LABEL": "Managed Bot", "EXCHANGE_API_SECRET": "secret"}},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["changed_count"] == 2
+
+    values_response = client.get("/api/settings/values")
+    assert values_response.status_code == 200
+    assert values_response.json()["BOT_LABEL"]["value"] == "Managed Bot"
+    assert values_response.json()["EXCHANGE_API_SECRET"]["value"] == "********cret"
+
+    effective_response = client.get("/api/settings/effective")
+    assert effective_response.status_code == 200
+    assert effective_response.json()["label"] == "Managed Bot"
+
+    audit_response = client.get("/api/settings/audit-log")
+    assert audit_response.status_code == 200
+    assert len(audit_response.json()) >= 2
+
+    reset_response = client.post("/api/settings/reset", json={"key": "BOT_LABEL"})
+    assert reset_response.status_code == 200
+    assert reset_response.json()["reset_count"] == 1
+
+
 def test_api_settings_uses_hot_reloaded_database_overrides(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("DATABASE_URL", database_url)

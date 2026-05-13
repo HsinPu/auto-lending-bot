@@ -227,7 +227,7 @@ def test_api_settings_write_requires_admin_token(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
     monkeypatch.setenv("DATABASE_URL", database_url)
-    client = TestClient(create_app())
+    client = TestClient(create_app(), client=("203.0.113.10", 50000))
 
     missing_response = client.put("/api/settings/values", json={"BOT_LABEL": "Managed Bot"})
     wrong_response = client.post(
@@ -240,11 +240,23 @@ def test_api_settings_write_requires_admin_token(tmp_path, monkeypatch) -> None:
     assert wrong_response.status_code == 401
 
 
+def test_api_settings_write_allows_localhost_without_admin_token(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    client = TestClient(create_app(), client=("127.0.0.1", 50000))
+
+    response = client.put("/api/settings/values", json={"BOT_LABEL": "Local Bot"})
+
+    assert response.status_code == 200
+    assert client.get("/api/settings/values").json()["BOT_LABEL"]["value"] == "Local Bot"
+
+
 def test_api_settings_write_requires_configured_admin_token(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
     monkeypatch.setenv("DATABASE_URL", database_url)
-    client = TestClient(create_app())
+    client = TestClient(create_app(), client=("203.0.113.10", 50000))
 
     response = client.put(
         "/api/settings/values",

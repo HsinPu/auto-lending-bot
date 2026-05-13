@@ -394,11 +394,11 @@ export function ManagedSettingsPanel({
           <p>預設只顯示常用設定；儲存後會在下一次 API 動作或 bot 迴圈熱更新。</p>
         </div>
         <label className="admin-token-field">
-          <span>管理權杖</span>
+          <span>管理權杖（本機可留空）</span>
           <input
             type="password"
             value={adminToken}
-            placeholder="ADMIN_AUTH_TOKEN"
+            placeholder="外部連線才需要 ADMIN_AUTH_TOKEN"
             onChange={(event) => onAdminTokenChange(event.currentTarget.value)}
           />
         </label>
@@ -415,7 +415,7 @@ export function ManagedSettingsPanel({
               <h3>{settingsMode === 'common' ? '常用設定' : '進階設定'}</h3>
               <p>
                 {settingsMode === 'common'
-                  ? '只顯示目前最需要調整的項目，適合日常模擬、接交易所與調利率。'
+                  ? '只顯示目前最需要調整的項目；從本機 127.0.0.1 使用時可以直接儲存。'
                   : '顯示所有系統參數，包含市場分析、通知、資金轉移與進階策略。'}
               </p>
             </div>
@@ -472,9 +472,9 @@ export function ManagedSettingsPanel({
           </div>
           <div className="settings-safety-note">
             <strong>安全提醒</strong>
-            <span>
+          <span>
               高風險與關鍵風險設定會影響真實放貸、取消委託或資金轉移。後端仍會套用安全檢查，
-              但請先保持「模擬模式 = 是」完成驗證。
+              但請先保持「模擬模式 = 是」完成驗證。外部連線寫入設定仍需要管理權杖。
             </span>
           </div>
           {visibleGroups.map(([category, definitions]) => (
@@ -511,7 +511,7 @@ export function ManagedSettingsPanel({
         <button
           type="button"
           className="refresh-button"
-          disabled={isPending || !adminToken || !data}
+          disabled={isPending || !data}
           onClick={() => saveMutation.mutate()}
         >
           {saveMutation.isPending ? '儲存中...' : '儲存變更'}
@@ -525,13 +525,13 @@ export function ManagedSettingsPanel({
           匯出設定
         </button>
         <label
-          className={`secondary-button settings-file-button ${isPending || !adminToken || !data ? 'disabled' : ''}`}
+          className={`secondary-button settings-file-button ${isPending || !data ? 'disabled' : ''}`}
         >
           匯入設定
           <input
             type="file"
             accept="application/json,.json"
-            disabled={isPending || !adminToken || !data}
+            disabled={isPending || !data}
             onChange={(event) => {
               const file = event.currentTarget.files?.[0]
               event.currentTarget.value = ''
@@ -542,7 +542,7 @@ export function ManagedSettingsPanel({
         <button
           type="button"
           className="secondary-button"
-          disabled={isPending || !adminToken || !data}
+          disabled={isPending || !data}
           onClick={() => {
             if (window.confirm('確定要清除所有 SQLite 設定覆寫值？')) {
               resetMutation.mutate(null)

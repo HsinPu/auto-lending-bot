@@ -435,7 +435,7 @@ function SidebarNavigation({
       </nav>
       <div className={`sidebar-admin-state ${adminToken ? 'enabled' : ''}`}>
         <strong>{adminToken ? '管理權限已啟用' : '管理權限未啟用'}</strong>
-        <span>{adminToken ? 'Live 操作與設定寫入可送出權杖' : '安全操作與設定寫入需要管理權杖'}</span>
+        <span>{adminToken ? '外部連線可送出權杖' : '本機可直接寫入，外部連線需要權杖'}</span>
       </div>
     </aside>
   )

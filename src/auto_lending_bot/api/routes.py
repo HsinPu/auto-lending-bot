@@ -522,7 +522,7 @@ class _BotLoopController:
     def start(self) -> dict[str, object]:
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
-                return self.status()
+                return self._status_unlocked()
 
             self._stop_event = threading.Event()
             self._started_at = _utc_now()

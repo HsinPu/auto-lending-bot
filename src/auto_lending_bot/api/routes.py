@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from datetime import UTC, datetime
+import threading
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -57,6 +59,17 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
     notification_state = NotificationStateRepository(settings.database_url)
+    loop_controller = _BotLoopController(
+        settings=settings,
+        bot_runs=bot_runs,
+        loan_offers=loan_offers,
+        active_loans=active_loans,
+        open_offers=open_offers,
+        lending_history=lending_history,
+        notification_state=notification_state,
+        market_analysis_rates=market_analysis_rates,
+        market_rates=market_rates,
+    )
 
     @router.get("/settings/schema")
     def settings_schema() -> list[dict[str, object]]:
@@ -153,6 +166,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "dry_run": settings.dry_run,
             "live_trading_allowed": settings.allow_live_trading,
             "settings_runtime": _settings_runtime(settings),
+            "bot_loop": loop_controller.status(),
             "counts": {
                 "bot_runs": bot_runs.count(),
                 "loan_offers": loan_offers.count(),
@@ -168,6 +182,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.get("/live-readiness")
     def live_readiness() -> dict[str, object]:
         return _live_readiness(settings)
+
+    @router.get("/bot-loop")
+    def bot_loop_status() -> dict[str, object]:
+        return loop_controller.status()
 
     @router.get("/runs")
     def runs() -> list[dict[str, object]]:
@@ -422,9 +440,8 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
 
         offers_before = loan_offers.count()
-        runner = BotRunner(
+        runner = _create_runner(
             settings=settings,
-            exchange=create_exchange_client(settings),
             bot_runs=bot_runs,
             loan_offers=loan_offers,
             active_loans=active_loans,
@@ -432,8 +449,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             lending_history=lending_history,
             notification_state=notification_state,
             market_analysis_rates=market_analysis_rates,
-            market_recorder=MarketRecorder(market_rates),
-            notifier=Notifier(settings=settings),
+            market_rates=market_rates,
         )
         runner.run_once()
         offers_after = loan_offers.count()
@@ -445,7 +461,124 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "latest_run": bot_runs.latest(),
         }
 
+    @router.post("/actions/start-loop")
+    def start_loop(
+        payload: dict[str, bool] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        if not settings.dry_run:
+            _require_admin(authorization)
+        if not settings.dry_run and not (payload or {}).get("confirm_live", False):
+            raise HTTPException(status_code=400, detail="Live loop requires confirm_live=true.")
+
+        return {"action": "start-loop", "ok": True, **loop_controller.start()}
+
+    @router.post("/actions/stop-loop")
+    def stop_loop() -> dict[str, object]:
+        return {"action": "stop-loop", "ok": True, **loop_controller.stop()}
+
     return router
+
+
+class _BotLoopController:
+    def __init__(
+        self,
+        settings: Settings,
+        bot_runs: BotRunRepository,
+        loan_offers: LoanOfferRepository,
+        active_loans: ActiveLoanRepository,
+        open_offers: OpenLoanOfferRepository,
+        lending_history: LendingHistoryRepository,
+        notification_state: NotificationStateRepository,
+        market_analysis_rates: MarketAnalysisRateRepository,
+        market_rates: MarketRateRepository,
+    ) -> None:
+        self._settings = settings
+        self._bot_runs = bot_runs
+        self._loan_offers = loan_offers
+        self._active_loans = active_loans
+        self._open_offers = open_offers
+        self._lending_history = lending_history
+        self._notification_state = notification_state
+        self._market_analysis_rates = market_analysis_rates
+        self._market_rates = market_rates
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._started_at: str | None = None
+        self._last_run_at: str | None = None
+        self._last_error: str | None = None
+        self._loops_completed = 0
+
+    def start(self) -> dict[str, object]:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return self.status()
+
+            self._stop_event = threading.Event()
+            self._started_at = _utc_now()
+            self._last_error = None
+            self._loops_completed = 0
+            self._thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._thread.start()
+            return self._status_unlocked()
+
+    def stop(self) -> dict[str, object]:
+        with self._lock:
+            self._stop_event.set()
+            thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2)
+        return self.status()
+
+    def status(self) -> dict[str, object]:
+        with self._lock:
+            return self._status_unlocked()
+
+    def _status_unlocked(self) -> dict[str, object]:
+        running = self._thread is not None and self._thread.is_alive()
+        return {
+            "running": running,
+            "started_at": self._started_at,
+            "last_run_at": self._last_run_at,
+            "loops_completed": self._loops_completed,
+            "last_error": self._last_error,
+        }
+
+    def _run_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                validate_run_settings(self._settings)
+                runner = _create_runner(
+                    settings=self._settings,
+                    bot_runs=self._bot_runs,
+                    loan_offers=self._loan_offers,
+                    active_loans=self._active_loans,
+                    open_offers=self._open_offers,
+                    lending_history=self._lending_history,
+                    notification_state=self._notification_state,
+                    market_analysis_rates=self._market_analysis_rates,
+                    market_rates=self._market_rates,
+                )
+                created_offers = runner.run_once_with_retry()
+                wait_seconds = self._sleep_seconds(created_offers)
+                with self._lock:
+                    self._loops_completed += 1
+                    self._last_run_at = _utc_now()
+                    self._last_error = None
+            except Exception as error:
+                wait_seconds = max(self._settings.retry_backoff_seconds, 1)
+                with self._lock:
+                    self._last_error = str(error)
+                    self._last_run_at = _utc_now()
+
+            self._stop_event.wait(wait_seconds)
+
+    def _sleep_seconds(self, created_offers: int) -> int:
+        if created_offers > 0:
+            return max(self._settings.bot_sleep_seconds, 1)
+        return max(self._settings.bot_inactive_sleep_seconds, 1)
 
 
 def _validate_safe_action_settings(settings: Settings) -> None:
@@ -453,6 +586,36 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _create_runner(
+    settings: Settings,
+    bot_runs: BotRunRepository,
+    loan_offers: LoanOfferRepository,
+    active_loans: ActiveLoanRepository,
+    open_offers: OpenLoanOfferRepository,
+    lending_history: LendingHistoryRepository,
+    notification_state: NotificationStateRepository,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    market_rates: MarketRateRepository,
+) -> BotRunner:
+    return BotRunner(
+        settings=settings,
+        exchange=create_exchange_client(settings),
+        bot_runs=bot_runs,
+        loan_offers=loan_offers,
+        active_loans=active_loans,
+        open_offers=open_offers,
+        lending_history=lending_history,
+        notification_state=notification_state,
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(market_rates),
+        notifier=Notifier(settings=settings),
+    )
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _require_admin(authorization: str | None) -> None:

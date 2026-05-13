@@ -1,8 +1,11 @@
-import type { SafeActionName, SafeActionResponse } from '../types/api'
+import type { BotLoopStatus, SafeActionName, SafeActionResponse } from '../types/api'
+import { formatTimestamp } from '../utils/time'
 import { actions } from './actionDefinitions'
 
 type ActionPanelProps = {
   dryRun: boolean
+  botLoop: BotLoopStatus
+  timeZone: string
   isPending: boolean
   latestResult: SafeActionResponse | null
   latestError: string | null
@@ -11,6 +14,8 @@ type ActionPanelProps = {
 
 export function ActionPanel({
   dryRun,
+  botLoop,
+  timeZone,
   isPending,
   latestResult,
   latestError,
@@ -22,10 +27,16 @@ export function ActionPanel({
         <div>
           <h2>安全操作</h2>
           <p>
-            sync/cleanup 不會建立 live offer；Cancel 與 Run Once 會遵守後端 safety guard。
+            同步與清理不會建立 Live 委託；取消、執行一次、開始持續執行會遵守後端安全檢查。
             目前模式：{dryRun ? '模擬模式' : 'Live 模式'}。
           </p>
         </div>
+      </div>
+      <div className={`loop-status-card ${botLoop.running ? 'running' : ''}`}>
+        <strong>{botLoop.running ? '持續執行中' : '目前未持續執行'}</strong>
+        <span>已完成輪數：{botLoop.loops_completed}</span>
+        <span>上次執行：{formatTimestamp(botLoop.last_run_at, timeZone)}</span>
+        {botLoop.last_error ? <span className="loop-error">錯誤：{botLoop.last_error}</span> : null}
       </div>
       <div className="action-grid">
         {actions.map((item) => (

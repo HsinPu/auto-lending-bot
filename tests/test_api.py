@@ -37,6 +37,13 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
         "managed_override_count": 0,
         "last_updated_at": None,
     }
+    assert body["bot_loop"] == {
+        "running": False,
+        "started_at": None,
+        "last_run_at": None,
+        "loops_completed": 0,
+        "last_error": None,
+    }
     assert body["counts"] == {
         "bot_runs": 1,
         "loan_offers": 1,
@@ -432,6 +439,25 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["latest_run"]["status"] == "completed"
 
 
+def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+
+    client = TestClient(create_app(settings))
+
+    start_response = client.post("/api/actions/start-loop")
+    status_response = client.get("/api/bot-loop")
+    stop_response = client.post("/api/actions/stop-loop")
+
+    assert start_response.status_code == 200
+    assert start_response.json()["action"] == "start-loop"
+    assert status_response.status_code == 200
+    assert "running" in status_response.json()
+    assert stop_response.status_code == 200
+    assert stop_response.json()["action"] == "stop-loop"
+    assert stop_response.json()["running"] is False
+
+
 def test_api_run_once_requires_live_confirmation(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
@@ -483,6 +509,14 @@ def test_api_cancel_open_offers_requires_live_confirmation(tmp_path, monkeypatch
     [
         (
             "/api/actions/run-once",
+            {
+                "bitfinex_enable_live_offers": True,
+                "max_total_lend_amount": 1,
+                "max_single_offer_amount": 1,
+            },
+        ),
+        (
+            "/api/actions/start-loop",
             {
                 "bitfinex_enable_live_offers": True,
                 "max_total_lend_amount": 1,

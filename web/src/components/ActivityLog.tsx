@@ -119,6 +119,8 @@ const actionLabels: Record<string, string> = {
   'record-market-analysis': '記錄市場分析',
   cleanup: '清理資料',
   'run-once': '執行一次',
+  'start-loop': '開始持續執行',
+  'stop-loop': '停止持續執行',
 }
 
 function statusLabel(status: string): string {

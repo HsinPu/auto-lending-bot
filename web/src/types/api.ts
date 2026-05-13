@@ -4,6 +4,7 @@ export type StatusResponse = {
   exchange: string
   dry_run: boolean
   live_trading_allowed: boolean
+  bot_loop: BotLoopStatus
   settings_runtime: {
     hot_reload: boolean
     managed_override_count: number
@@ -26,6 +27,14 @@ export type StatusResponse = {
     dry_run: number
     message: string
   }
+}
+
+export type BotLoopStatus = {
+  running: boolean
+  started_at: string | null
+  last_run_at: string | null
+  loops_completed: number
+  last_error: string | null
 }
 
 export type LiveReadinessItem = {
@@ -255,6 +264,8 @@ export type SafeActionName =
   | 'record-market-analysis'
   | 'cleanup'
   | 'run-once'
+  | 'start-loop'
+  | 'stop-loop'
 
 export type SafeActionResponse = {
   action: SafeActionName

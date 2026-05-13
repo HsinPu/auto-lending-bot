@@ -332,6 +332,8 @@ export function DashboardPage() {
           <LiveReadinessPanel readiness={data.liveReadiness} />
           <ActionPanel
             dryRun={data.status.dry_run}
+            botLoop={data.status.bot_loop}
+            timeZone={displayTimeZone}
             isPending={actionMutation.isPending}
             latestResult={latestResult}
             latestError={latestError}
@@ -559,6 +561,8 @@ function isPageKey(value: string): value is PageKey {
 
 const primaryActions: SafeActionName[] = [
   'run-once',
+  'start-loop',
+  'stop-loop',
   'sync-open-offers',
   'record-market-analysis',
   'cancel-open-offers',
@@ -599,7 +603,7 @@ function ErrorState({ message }: { message: string }) {
 }
 
 function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
-  return ['run-once', 'cancel-open-offers', 'transfer-funds'].includes(action) && !dryRun
+  return ['run-once', 'start-loop', 'cancel-open-offers', 'transfer-funds'].includes(action) && !dryRun
 }
 
 const rate = (value: unknown) => formatRate(value)

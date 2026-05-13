@@ -46,4 +46,14 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     label: '執行一次',
     description: '觸發一次 bot run；Live 模式需要二次確認。',
   },
+  {
+    action: 'start-loop',
+    label: '開始持續執行',
+    description: '在目前 API 服務內背景持續偵測與模擬/下單。',
+  },
+  {
+    action: 'stop-loop',
+    label: '停止持續執行',
+    description: '停止由前端啟動的背景持續執行。',
+  },
 ]

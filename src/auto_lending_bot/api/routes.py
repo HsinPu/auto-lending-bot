@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from fastapi import APIRouter, HTTPException
 
 from auto_lending_bot.bot.runner import BotRunner
@@ -25,7 +27,16 @@ from auto_lending_bot.safety import (
 )
 
 
-def create_api_router(settings: Settings) -> APIRouter:
+class _SettingsProxy:
+    def __init__(self, provider: Callable[[], Settings]) -> None:
+        self._provider = provider
+
+    def __getattr__(self, name: str):
+        return getattr(self._provider(), name)
+
+
+def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
+    settings = _SettingsProxy(settings) if callable(settings) else settings
     router = APIRouter()
 
     bot_runs = BotRunRepository(settings.database_url)

@@ -1,4 +1,7 @@
 import os
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -163,11 +166,42 @@ def load_settings() -> Settings:
     )
 
 
+def load_effective_settings(database_url: str | None = None, encryption_key: str | None = None) -> Settings:
+    base_settings = load_settings()
+    resolved_database_url = database_url or base_settings.database_url
+    from auto_lending_bot.persistence.repository import AppSettingRepository
+
+    try:
+        overrides = AppSettingRepository(
+            resolved_database_url,
+            encryption_key=encryption_key if encryption_key is not None else settings_encryption_key(),
+        ).plain_values()
+    except sqlite3.OperationalError:
+        overrides = {}
+    with _temporary_environ(overrides):
+        return load_settings()
+
+
 def settings_encryption_key() -> str:
     if load_dotenv is not None:
         load_dotenv()
 
     return os.getenv("SETTINGS_ENCRYPTION_KEY", "")
+
+
+@contextmanager
+def _temporary_environ(overrides: dict[str, str]) -> Iterator[None]:
+    old_values = {key: os.environ.get(key) for key in overrides}
+    try:
+        for key, value in overrides.items():
+            os.environ[key] = value
+        yield
+    finally:
+        for key, value in old_values.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def _get_bool(name: str, default: bool) -> bool:

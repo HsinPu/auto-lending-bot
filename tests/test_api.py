@@ -6,6 +6,7 @@ from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, Loan
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    AppSettingRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -110,6 +111,19 @@ def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     assert body["effective_min_daily_rate"] == 0.00005
     assert body["strategy"]["min_daily_rate"] == 0.00005
     assert body["strategy"]["spread_lend"] == 3
+
+
+def test_api_settings_uses_hot_reloaded_database_overrides(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app())
+    AppSettingRepository(database_url).set_many({"BOT_LABEL": "DB Bot"})
+
+    response = client.get("/api/settings")
+
+    assert response.status_code == 200
+    assert response.json()["label"] == "DB Bot"
 
 
 def test_api_settings_returns_market_analysis_effective_rate(tmp_path) -> None:

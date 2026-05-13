@@ -1,4 +1,6 @@
-from auto_lending_bot.config import load_settings, strategy_config_for
+from auto_lending_bot.config import load_effective_settings, load_settings, strategy_config_for
+from auto_lending_bot.persistence.database import initialize_database
+from auto_lending_bot.persistence.repository import AppSettingRepository
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
@@ -110,3 +112,15 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.xdays == 45
     assert strategy.frr_as_min is True
     assert strategy.frr_delta == 0.00002
+
+
+def test_load_effective_settings_uses_database_overrides(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("BOT_LABEL", "Env Bot")
+    initialize_database(database_url)
+    AppSettingRepository(database_url).set_many({"BOT_LABEL": "DB Bot"})
+
+    settings = load_effective_settings(database_url)
+
+    assert settings.bot_label == "DB Bot"

@@ -5,7 +5,7 @@ import uvicorn
 
 from auto_lending_bot.api.app import create_app
 from auto_lending_bot.bot.runner import BotRunner
-from auto_lending_bot.config import Settings, load_settings, sqlite_path_from_url
+from auto_lending_bot.config import Settings, load_effective_settings, load_settings, sqlite_path_from_url
 from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
@@ -39,7 +39,8 @@ def main() -> None:
 def run_cli(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    settings = load_settings()
+    base_settings = load_settings()
+    settings = load_effective_settings(base_settings.database_url)
 
     if args.command == "init-db":
         initialize_database(settings.database_url)

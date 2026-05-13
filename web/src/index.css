@@ -365,7 +365,7 @@ button {
 .mika-side-column .settings-panel,
 .mika-side-column .settings-panel dl,
 .mika-side-column .action-grid,
-.mika-side-column .forecast-grid,
+.mika-side-column .forecast-list,
 .converted-earnings-grid {
   grid-template-columns: 1fr;
 }
@@ -385,7 +385,7 @@ button {
 }
 
 .mika-side-column .action-grid,
-.mika-side-column .forecast-grid,
+.mika-side-column .forecast-list,
 .converted-earnings-grid {
   padding: 0 18px 18px;
 }
@@ -413,7 +413,7 @@ button {
   font-size: 12px;
 }
 
-.mika-side-column .forecast-card {
+.mika-side-column .forecast-row {
   grid-template-columns: 1fr;
 }
 
@@ -683,7 +683,7 @@ h1 {
 .compact-layout .status-card,
 .compact-layout .chart-card,
 .compact-layout .currency-row,
-.compact-layout .forecast-card,
+.compact-layout .forecast-row,
 .compact-layout .settings-panel,
 .compact-layout th,
 .compact-layout td {
@@ -1456,37 +1456,51 @@ h1 {
   color: #bfdbfe;
 }
 
-.forecast-grid {
+.forecast-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  margin: 0;
   padding: 0 24px 24px;
+  list-style: none;
 }
 
-.forecast-card {
+.forecast-row {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 16px;
-  align-items: center;
+  align-items: stretch;
   border: 1px solid rgba(134, 239, 172, 0.16);
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 18px;
-  background: linear-gradient(135deg, rgba(5, 46, 22, 0.36), rgba(2, 6, 23, 0.26));
+  background:
+    linear-gradient(135deg, rgba(5, 46, 22, 0.26), transparent 44%),
+    rgba(2, 6, 23, 0.3);
 }
 
-.forecast-card strong {
+.forecast-row-header {
+  display: grid;
+  align-content: center;
+}
+
+.forecast-row-header strong {
+  display: block;
+  margin-top: 4px;
   color: #86efac;
   font-size: 30px;
+  letter-spacing: 0.02em;
 }
 
 .forecast-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 10px;
 }
 
 .forecast-metrics div {
   min-width: 0;
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: rgba(15, 23, 42, 0.66);
 }
 
 .forecast-metrics span,
@@ -1497,12 +1511,13 @@ h1 {
 .forecast-metrics span {
   color: #93c5fd;
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .forecast-metrics b {
-  margin-top: 6px;
+  margin-top: 7px;
   color: #f8fafc;
-  font-size: 13px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
@@ -1850,7 +1865,6 @@ td {
   }
 
   .chart-grid,
-  .forecast-grid,
   .profit-chart-grid {
     grid-template-columns: 1fr;
   }
@@ -1860,6 +1874,14 @@ td {
   }
 
   .currency-row dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .forecast-row {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1876,8 +1898,6 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .forecast-card,
-  .forecast-metrics,
   .activity-list li {
     grid-template-columns: 1fr;
   }
@@ -1902,6 +1922,10 @@ td {
   }
 
   .currency-row dl {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-metrics {
     grid-template-columns: 1fr;
   }
 

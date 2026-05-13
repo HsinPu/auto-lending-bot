@@ -33,10 +33,13 @@ export function EarningsForecast({ details }: EarningsForecastProps) {
       </div>
 
       {rows.length ? (
-        <div className="forecast-grid">
+        <ul className="forecast-list">
           {rows.map((row) => (
-            <article className="forecast-card" key={row.currency}>
-              <strong>{row.currency}</strong>
+            <li className="forecast-row" key={row.currency}>
+              <div className="forecast-row-header">
+                <p className="eyebrow">幣種</p>
+                <strong>{row.currency}</strong>
+              </div>
               <div className="forecast-metrics">
                 <Metric label="放貸中" value={amount(row.activeAmount)} />
                 <Metric label="平均日利率" value={percent(row.averageDailyRate)} />
@@ -49,9 +52,9 @@ export function EarningsForecast({ details }: EarningsForecastProps) {
                 <Metric label="單利年化" value={percent(row.simpleYearlyRate)} />
                 <Metric label="複利年化" value={percent(row.compoundYearlyRate)} />
               </div>
-            </article>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : (
         <p className="empty-hint padded">目前沒有放貸中資料可推估收益。</p>
       )}

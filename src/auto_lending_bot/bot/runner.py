@@ -118,6 +118,7 @@ class BotRunner:
                             status=status,
                             dry_run=self._settings.dry_run,
                         )
+                        self._notify_xday_offer(offer)
                     else:
                         self._assert_live_offer_allowed(offer, live_lend_amount)
                         loan_offer_id = self._loan_offers.add(
@@ -136,6 +137,7 @@ class BotRunner:
                             self._notifier.info(
                                 f"Created {offer.currency} loan offer {external_offer_id}."
                             )
+                            self._notify_xday_offer(offer)
                         except Exception as error:
                             self._loan_offers.update_status(
                                 loan_offer_id,
@@ -260,6 +262,14 @@ class BotRunner:
             )
         )
         self._notification_state.set_float(state_key, now)
+
+    def _notify_xday_offer(self, offer: LoanOffer) -> None:
+        if not self._settings.notify_xday_threshold:
+            return
+        if offer.duration_days <= 2:
+            return
+
+        self._notifier.xday_offer(offer, dry_run=self._settings.dry_run)
 
     def _notify_new_active_loans(
         self,

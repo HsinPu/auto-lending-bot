@@ -199,11 +199,13 @@ Global settings:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `NOTIFY_SUMMARY_MINUTES`
+- `NOTIFY_XDAY_THRESHOLD`
 
 Telegram notifications are disabled unless both Telegram settings are present. When enabled,
 the bot sends run summaries, live offer creation failures, live offer creation confirmations,
 newly detected filled-loan messages, and periodic lending summaries when
-`NOTIFY_SUMMARY_MINUTES` is greater than `0`.
+`NOTIFY_SUMMARY_MINUTES` is greater than `0`. Set `NOTIFY_XDAY_THRESHOLD=true` to notify
+when an offer is created for more than 2 days.
 
 Per-currency overrides use the currency symbol as a prefix:
 

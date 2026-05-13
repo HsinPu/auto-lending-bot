@@ -1,5 +1,6 @@
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import ActiveLoan
+from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.http import HttpResponse
 from auto_lending_bot.notifications.notifier import Notifier
 
@@ -66,6 +67,24 @@ def test_notifier_sends_filled_loan_message() -> None:
     )
 
 
+def test_notifier_sends_xday_offer_message() -> None:
+    http_client = FakeHttpClient()
+    notifier = Notifier(
+        settings=_settings(telegram_bot_token="token", telegram_chat_id="chat"),
+        http_client=http_client,
+    )
+
+    notifier.xday_offer(
+        LoanOffer(currency="BTC", amount=0.05, daily_rate=0.00012, duration_days=30),
+        dry_run=True,
+    )
+
+    assert http_client.requests[0]["body"] == (
+        "chat_id=chat&text=Long-duration+dry-run+BTC+offer%3A+0.05+at+"
+        "0.00012000+daily+rate+for+30+day%28s%29."
+    )
+
+
 class FakeHttpClient:
     def __init__(self) -> None:
         self.requests: list[dict[str, object]] = []
@@ -118,6 +137,7 @@ def _settings(telegram_bot_token: str = "", telegram_chat_id: str = "") -> Setti
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,
         notify_summary_minutes=0,
+        notify_xday_threshold=False,
         hide_coins=True,
         gap_mode="off",
         gap_bottom=0,

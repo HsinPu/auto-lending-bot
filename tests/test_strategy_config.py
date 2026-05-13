@@ -14,6 +14,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MARKET_ANALYSIS_MACD_SHORT_SAMPLES", "4")
     monkeypatch.setenv("MARKET_ANALYSIS_MACD_LONG_SAMPLES", "12")
     monkeypatch.setenv("NOTIFY_SUMMARY_MINUTES", "120")
+    monkeypatch.setenv("NOTIFY_XDAY_THRESHOLD", "true")
     monkeypatch.setenv("GAP_MODE", "raw")
     monkeypatch.setenv("GAP_BOTTOM", "10")
     monkeypatch.setenv("GAP_TOP", "50")
@@ -31,6 +32,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert settings.market_analysis_macd_short_samples == 4
     assert settings.market_analysis_macd_long_samples == 12
     assert settings.notify_summary_minutes == 120
+    assert settings.notify_xday_threshold is True
     assert strategy.min_daily_rate == 0.00007
     assert strategy.max_percent_to_lend == 75
     assert strategy.max_amount_to_lend == 0.5

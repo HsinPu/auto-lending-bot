@@ -2,7 +2,7 @@ import logging
 from urllib.parse import urlencode
 
 from auto_lending_bot.config import Settings
-from auto_lending_bot.domain.models import ActiveLoan
+from auto_lending_bot.domain.models import ActiveLoan, LoanOffer
 from auto_lending_bot.integrations.http import HttpClient, UrlLibHttpClient
 
 
@@ -36,6 +36,13 @@ class Notifier:
 
     def periodic_summary(self, message: str) -> None:
         self.info(message)
+
+    def xday_offer(self, offer: LoanOffer, dry_run: bool) -> None:
+        mode = "dry-run" if dry_run else "live"
+        self.info(
+            f"Long-duration {mode} {offer.currency} offer: {offer.amount:g} "
+            f"at {offer.daily_rate:.8f} daily rate for {offer.duration_days} day(s)."
+        )
 
     def _send_telegram(self, message: str) -> None:
         if self._settings is None:

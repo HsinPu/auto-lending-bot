@@ -293,6 +293,35 @@ def test_runner_sends_periodic_summary_when_interval_is_due(tmp_path) -> None:
     assert "active_loans=1" in notifier.periodic_summaries[0]
 
 
+def test_runner_notifies_xday_offers_when_enabled(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    notifier = SpyNotifier()
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            notify_xday_threshold=True,
+            xday_threshold=0.00007,
+            xdays=30,
+        ),
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=notifier,
+    )
+
+    runner.run_once()
+
+    assert notifier.xday_offers == [("BTC", 30), ("BTC", 30), ("BTC", 30)]
+
+
 def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -328,6 +357,9 @@ def _settings(
     max_total_lend_amount: float | None = None,
     max_active_amount: float | None = None,
     notify_summary_minutes: int = 0,
+    notify_xday_threshold: bool = False,
+    xday_threshold: float = 0,
+    xdays: int = 2,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -356,12 +388,13 @@ def _settings(
         telegram_bot_token="",
         telegram_chat_id="",
         notify_summary_minutes=notify_summary_minutes,
+        notify_xday_threshold=notify_xday_threshold,
         hide_coins=hide_coins,
         gap_mode="off",
         gap_bottom=0,
         gap_top=0,
-        xday_threshold=0,
-        xdays=2,
+        xday_threshold=xday_threshold,
+        xdays=xdays,
         xday_spread=0,
         frr_as_min=False,
         frr_delta=0,
@@ -412,6 +445,7 @@ class SpyNotifier:
         self.infos: list[str] = []
         self.periodic_summaries: list[str] = []
         self.summaries: list[tuple[int, int, bool]] = []
+        self.xday_offers: list[tuple[str, int]] = []
 
     def info(self, message: str) -> None:
         self.infos.append(message)
@@ -427,6 +461,9 @@ class SpyNotifier:
 
     def periodic_summary(self, message: str) -> None:
         self.periodic_summaries.append(message)
+
+    def xday_offer(self, offer: LoanOffer, dry_run: bool) -> None:
+        self.xday_offers.append((offer.currency, offer.duration_days))
 
 
 class NewActiveLoanExchange:

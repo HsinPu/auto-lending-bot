@@ -40,6 +40,7 @@ def _settings(exchange: str) -> Settings:
         telegram_bot_token="",
         telegram_chat_id="",
         notify_summary_minutes=0,
+        notify_xday_threshold=False,
         hide_coins=True,
         gap_mode="off",
         gap_bottom=0,

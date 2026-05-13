@@ -31,6 +31,8 @@ def _settings(exchange: str) -> Settings:
         market_analysis_retention_days=30,
         market_analysis_currencies=(),
         market_analysis_levels=10,
+        market_analysis_min_samples=0,
+        market_analysis_max_age_seconds=0,
         market_analysis_method="off",
         market_analysis_percentile=75,
         market_analysis_macd_short_samples=3,

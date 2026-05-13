@@ -144,6 +144,7 @@ def test_market_analysis_rate_repository_records_levels(tmp_path) -> None:
     assert changed_count == 2
     assert repository.recent(1)[0]["level"] == 1
     assert repository.percentile_rate("BTC", 75) == 0.00009
+    assert repository.percentile_rate("BTC", 75, min_samples=3) is None
 
 
 def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
@@ -155,6 +156,7 @@ def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
         repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)])
 
     assert repository.macd_rate("BTC", short_samples=2, long_samples=5) == pytest.approx(0.00012)
+    assert repository.macd_rate("BTC", short_samples=2, long_samples=5, min_samples=6) is None
 
 
 def test_market_analysis_rate_repository_calculates_macd_rate_by_seconds(tmp_path) -> None:
@@ -171,6 +173,32 @@ def test_market_analysis_rate_repository_calculates_macd_rate_by_seconds(tmp_pat
         long_seconds=3600,
         multiplier=1.05,
     ) == pytest.approx(0.0000945)
+    assert (
+        repository.macd_rate_by_seconds(
+            "BTC",
+            short_seconds=60,
+            long_seconds=3600,
+            min_samples=3,
+        )
+        is None
+    )
+
+
+def test_market_analysis_rate_repository_ignores_stale_rows(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+    repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008)])
+    with connect(database_url) as connection:
+        connection.execute(
+            """
+            UPDATE market_analysis_rates
+            SET captured_at = datetime('now', '-2 hours')
+            """
+        )
+
+    assert repository.percentile_rate("BTC", 75, max_age_seconds=60) is None
+    assert repository.macd_rate("BTC", 1, 1, max_age_seconds=60) is None
 
 
 def test_market_analysis_rate_repository_deletes_old_rows(tmp_path) -> None:

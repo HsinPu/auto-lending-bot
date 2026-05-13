@@ -234,6 +234,8 @@ class BotRunner:
             return self._market_analysis_rates.percentile_rate(
                 currency,
                 self._settings.market_analysis_percentile,
+                self._settings.market_analysis_min_samples,
+                self._settings.market_analysis_max_age_seconds,
             )
 
         if self._settings.market_analysis_method == "macd":
@@ -246,6 +248,8 @@ class BotRunner:
                     self._settings.market_analysis_macd_short_seconds,
                     self._settings.market_analysis_macd_long_seconds,
                     self._settings.market_analysis_multiplier,
+                    self._settings.market_analysis_min_samples,
+                    self._settings.market_analysis_max_age_seconds,
                 )
 
             return self._market_analysis_rates.macd_rate(
@@ -253,6 +257,8 @@ class BotRunner:
                 self._settings.market_analysis_macd_short_samples,
                 self._settings.market_analysis_macd_long_samples,
                 self._settings.market_analysis_multiplier,
+                self._settings.market_analysis_min_samples,
+                self._settings.market_analysis_max_age_seconds,
             )
 
         return None

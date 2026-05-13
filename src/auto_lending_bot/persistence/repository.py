@@ -315,19 +315,26 @@ class MarketAnalysisRateRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def percentile_rate(self, currency: str, percentile: float) -> float | None:
+    def percentile_rate(
+        self,
+        currency: str,
+        percentile: float,
+        min_samples: int = 0,
+        max_age_seconds: int = 0,
+    ) -> float | None:
         with connect(self._database_url) as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT daily_rate
                 FROM market_analysis_rates
                 WHERE currency = ?
+                  {_max_age_filter(max_age_seconds)}
                 ORDER BY daily_rate
                 """,
                 (currency.upper(),),
             ).fetchall()
             rates = [float(row["daily_rate"]) for row in rows]
-            if not rates:
+            if len(rates) < max(min_samples, 1):
                 return None
 
             bounded_percentile = min(max(percentile, 0), 100)
@@ -340,14 +347,17 @@ class MarketAnalysisRateRepository:
         short_samples: int,
         long_samples: int,
         multiplier: float = 1.0,
+        min_samples: int = 0,
+        max_age_seconds: int = 0,
     ) -> float | None:
-        sample_count = max(short_samples, long_samples, 1)
+        sample_count = max(short_samples, long_samples, min_samples, 1)
         with connect(self._database_url) as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT daily_rate
                 FROM market_analysis_rates
                 WHERE currency = ? AND level = 0
+                  {_max_age_filter(max_age_seconds)}
                 ORDER BY id DESC
                 LIMIT ?
                 """,
@@ -369,14 +379,24 @@ class MarketAnalysisRateRepository:
         short_seconds: int,
         long_seconds: int,
         multiplier: float = 1.0,
+        min_samples: int = 0,
+        max_age_seconds: int = 0,
     ) -> float | None:
         if short_seconds <= 0 or long_seconds <= 0:
             return None
 
         with connect(self._database_url) as connection:
-            short_rates = self._rates_since_seconds(connection, currency, short_seconds)
-            long_rates = self._rates_since_seconds(connection, currency, long_seconds)
-            if not short_rates or not long_rates:
+            short_rates = self._rates_since_seconds(
+                connection,
+                currency,
+                _bounded_seconds(short_seconds, max_age_seconds),
+            )
+            long_rates = self._rates_since_seconds(
+                connection,
+                currency,
+                _bounded_seconds(long_seconds, max_age_seconds),
+            )
+            if len(short_rates) < max(min_samples, 1) or len(long_rates) < max(min_samples, 1):
                 return None
 
             short_average = sum(short_rates) / len(short_rates)
@@ -397,6 +417,20 @@ class MarketAnalysisRateRepository:
             (currency.upper(), f"-{seconds} seconds"),
         ).fetchall()
         return [float(row["daily_rate"]) for row in rows]
+
+
+def _max_age_filter(max_age_seconds: int) -> str:
+    if max_age_seconds <= 0:
+        return ""
+
+    return f"AND captured_at >= datetime('now', '-{int(max_age_seconds)} seconds')"
+
+
+def _bounded_seconds(seconds: int, max_age_seconds: int) -> int:
+    if max_age_seconds <= 0:
+        return seconds
+
+    return min(seconds, max_age_seconds)
 
 
 class ActiveLoanRepository:

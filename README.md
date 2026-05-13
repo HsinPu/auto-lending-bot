@@ -182,6 +182,8 @@ Global settings:
 - `OUTPUT_CURRENCY`
 - `MARKET_ANALYSIS_METHOD`
 - `MARKET_ANALYSIS_CURRENCIES`
+- `MARKET_ANALYSIS_MIN_SAMPLES`
+- `MARKET_ANALYSIS_MAX_AGE_SECONDS`
 - `MARKET_ANALYSIS_PERCENTILE`
 - `MARKET_ANALYSIS_MACD_SHORT_SAMPLES`
 - `MARKET_ANALYSIS_MACD_LONG_SAMPLES`
@@ -252,6 +254,10 @@ BTC_FRR_DELTA=0.00001
 `MARKET_ANALYSIS_CURRENCIES=BTC,ETH,USDT` records market analysis snapshots for multiple
 currencies when no explicit currency is provided to `record-market-analysis`. If it is
 empty, the bot falls back to `SMOKE_TEST_CURRENCY`.
+
+`MARKET_ANALYSIS_MIN_SAMPLES` and `MARKET_ANALYSIS_MAX_AGE_SECONDS` protect suggested
+minimum rates from sparse or stale market-analysis data. Keep both at `0` to disable the
+extra quality gate.
 
 ## Operations
 

@@ -23,6 +23,7 @@ import type {
   LendingHistoryEntry,
   LoanOffer,
   MarketAnalysisRate,
+  MarketAnalysisStatus,
   MarketRate,
   SafeActionName,
   SafeActionResponse,
@@ -233,6 +234,12 @@ export function DashboardPage() {
             onRunAction={(action) => runAction(action, data.status.dry_run)}
           />
           <MiniCharts earnings={data.earnings} marketRates={data.marketRates} offers={data.offers} />
+          <DataTable<MarketAnalysisStatus>
+            title="市場分析狀態"
+            description="每個幣別的樣本數、資料新鮮度與建議利率狀態。"
+            rows={data.marketAnalysisStatus}
+            columns={marketAnalysisStatusColumns(displayTimeZone)}
+          />
           <section className="settings-panel">
             <div>
               <h2>利率門檻</h2>
@@ -556,6 +563,7 @@ function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
 
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')
 const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
+const yesNo = (value: unknown) => (value ? '是' : '否')
 
 const historyColumns = (timeZone: string) => [
   { key: 'id', label: '編號' },
@@ -611,6 +619,20 @@ const marketAnalysisColumns = (timeZone: string) => [
   { key: 'available_amount', label: '可用數量', format: amount },
   { key: 'captured_at', label: '擷取時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
 ] satisfies Parameters<typeof DataTable<MarketAnalysisRate>>[0]['columns']
+
+const marketAnalysisStatusColumns = (timeZone: string) => [
+  { key: 'currency', label: '幣種' },
+  { key: 'method', label: '方法' },
+  { key: 'sample_count', label: '樣本數' },
+  { key: 'top_level_sample_count', label: 'Top samples' },
+  { key: 'min_samples', label: '最低樣本' },
+  { key: 'max_age_seconds', label: '最大年齡秒數' },
+  { key: 'latest_captured_at', label: '最新資料', format: (value: unknown) => formatTimestamp(value, timeZone) },
+  { key: 'is_stale', label: '過期', format: yesNo },
+  { key: 'has_enough_samples', label: '樣本足夠', format: yesNo },
+  { key: 'suggested_min_daily_rate', label: '建議日利率', format: rate },
+  { key: 'reason', label: '狀態原因' },
+] satisfies Parameters<typeof DataTable<MarketAnalysisStatus>>[0]['columns']
 
 const strategyDecisionColumns = [
   { key: 'currency', label: '幣種' },

@@ -435,6 +435,30 @@ class MarketAnalysisRateRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def stats_by_currency(self, max_age_seconds: int = 0) -> dict[str, dict[str, object]]:
+        stale_expression = "0"
+        stale_params: tuple[str, ...] = ()
+        if max_age_seconds > 0:
+            stale_expression = "MAX(captured_at) < datetime('now', ?)"
+            stale_params = (f"-{int(max_age_seconds)} seconds",)
+
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT
+                    currency,
+                    COUNT(*) AS sample_count,
+                    SUM(CASE WHEN level = 0 THEN 1 ELSE 0 END) AS top_level_sample_count,
+                    MAX(captured_at) AS latest_captured_at,
+                    {stale_expression} AS is_stale
+                FROM market_analysis_rates
+                GROUP BY currency
+                ORDER BY currency
+                """,
+                stale_params,
+            ).fetchall()
+            return {str(row["currency"]): dict(row) for row in rows}
+
     def percentile_rate(
         self,
         currency: str,

@@ -67,6 +67,7 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         "/api/converted-earnings",
         "/api/market-rates",
         "/api/market-analysis-rates",
+        "/api/market-analysis-status",
         "/api/currency-details",
         "/api/strategy-decisions",
     ]
@@ -298,6 +299,33 @@ def test_api_settings_returns_market_analysis_effective_rate(tmp_path) -> None:
     body = response.json()
     assert body["market_analysis_suggested_min_daily_rate"] == 0.00012
     assert body["effective_min_daily_rate"] == 0.00012
+
+
+def test_api_market_analysis_status_explains_suggestion_state(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(
+        database_url,
+        market_analysis_currencies=("BTC", "ETH"),
+        market_analysis_method="percentile",
+    )
+    initialize_database(database_url)
+    MarketAnalysisRateRepository(database_url).add_many(
+        [LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00012)]
+    )
+
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/market-analysis-status")
+
+    assert response.status_code == 200
+    body = response.json()
+    btc = next(row for row in body if row["currency"] == "BTC")
+    eth = next(row for row in body if row["currency"] == "ETH")
+    assert btc["sample_count"] == 1
+    assert btc["suggested_min_daily_rate"] == 0.00012
+    assert btc["reason"] == "Market analysis suggestion is available."
+    assert eth["sample_count"] == 0
+    assert eth["reason"] == "No market analysis samples have been recorded."
 
 
 def test_api_safe_actions_update_local_state(tmp_path) -> None:

@@ -109,6 +109,20 @@ export type MarketAnalysisRate = {
   captured_at: string
 }
 
+export type MarketAnalysisStatus = {
+  currency: string
+  method: string
+  sample_count: number
+  top_level_sample_count: number
+  min_samples: number
+  max_age_seconds: number
+  latest_captured_at: string | null
+  is_stale: boolean
+  has_enough_samples: boolean
+  suggested_min_daily_rate: number | null
+  reason: string
+}
+
 export type SettingsResponse = {
   label: string
   exchange: string
@@ -207,6 +221,7 @@ export type DashboardData = {
   convertedEarnings: ConvertedEarnings[]
   marketRates: MarketRate[]
   marketAnalysisRates: MarketAnalysisRate[]
+  marketAnalysisStatus: MarketAnalysisStatus[]
   settings: SettingsResponse
   currencyDetails: CurrencyDetail[]
   strategyDecisions: StrategyDecision[]

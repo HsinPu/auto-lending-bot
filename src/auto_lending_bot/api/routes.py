@@ -205,6 +205,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def market_analysis_rate_rows() -> list[dict[str, object]]:
         return market_analysis_rates.recent()
 
+    @router.get("/market-analysis-status")
+    def market_analysis_status() -> list[dict[str, object]]:
+        return _market_analysis_status(settings, market_analysis_rates)
+
     @router.get("/settings")
     def settings_snapshot() -> dict[str, object]:
         strategy = strategy_config_for(settings, settings.smoke_test_currency)
@@ -550,6 +554,76 @@ def _suggested_min_daily_rate(
         )
 
     return None
+
+
+def _market_analysis_status(
+    settings: Settings,
+    market_analysis_rates: MarketAnalysisRateRepository,
+) -> list[dict[str, object]]:
+    stats_by_currency = market_analysis_rates.stats_by_currency(
+        settings.market_analysis_max_age_seconds
+    )
+    currencies = sorted(
+        {
+            settings.smoke_test_currency.upper(),
+            *settings.market_analysis_currencies,
+            *(currency.upper() for currency in stats_by_currency),
+        }
+    )
+    rows = []
+    for currency in currencies:
+        stats = stats_by_currency.get(currency, {})
+        sample_count = int(stats.get("sample_count") or 0)
+        top_level_sample_count = int(stats.get("top_level_sample_count") or 0)
+        suggested_min_daily_rate = _suggested_min_daily_rate(
+            settings,
+            market_analysis_rates,
+            currency,
+        )
+        has_enough_samples = sample_count >= max(settings.market_analysis_min_samples, 1)
+        is_stale = bool(stats.get("is_stale")) if stats else False
+        rows.append(
+            {
+                "currency": currency,
+                "method": settings.market_analysis_method,
+                "sample_count": sample_count,
+                "top_level_sample_count": top_level_sample_count,
+                "min_samples": settings.market_analysis_min_samples,
+                "max_age_seconds": settings.market_analysis_max_age_seconds,
+                "latest_captured_at": stats.get("latest_captured_at"),
+                "is_stale": is_stale,
+                "has_enough_samples": has_enough_samples,
+                "suggested_min_daily_rate": suggested_min_daily_rate,
+                "reason": _market_analysis_status_reason(
+                    settings.market_analysis_method,
+                    sample_count,
+                    has_enough_samples,
+                    is_stale,
+                    suggested_min_daily_rate,
+                ),
+            }
+        )
+    return rows
+
+
+def _market_analysis_status_reason(
+    method: str,
+    sample_count: int,
+    has_enough_samples: bool,
+    is_stale: bool,
+    suggested_min_daily_rate: float | None,
+) -> str:
+    if method == "off":
+        return "Market analysis is disabled."
+    if sample_count == 0:
+        return "No market analysis samples have been recorded."
+    if is_stale:
+        return "Latest market analysis sample is older than the configured max age."
+    if not has_enough_samples:
+        return "Not enough samples to calculate a suggestion."
+    if suggested_min_daily_rate is None:
+        return "No suggested rate is available for the configured method."
+    return "Market analysis suggestion is available."
 
 
 def _currency_details(

@@ -149,6 +149,11 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     assert open_offers_response.status_code == 200
     assert open_offers_response.json()["changed_count"] == 0
 
+    transfer_preview_response = client.post("/api/actions/transfer-preview")
+    assert transfer_preview_response.status_code == 200
+    assert transfer_preview_response.json()["dry_run"] is True
+    assert transfer_preview_response.json()["transfer_count"] == 0
+
     market_analysis_response = client.post("/api/actions/record-market-analysis")
     assert market_analysis_response.status_code == 200
     assert market_analysis_response.json()["changed_count"] == 1
@@ -349,6 +354,7 @@ def _settings(
         retry_attempts=3,
         retry_backoff_seconds=30,
         output_currency="BTC",
+        transferable_currencies=(),
         smoke_test_currency="BTC",
         strategy_debug=False,
         telegram_bot_token="",

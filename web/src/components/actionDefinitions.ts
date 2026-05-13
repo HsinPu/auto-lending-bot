@@ -17,6 +17,11 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     description: '同步交易所未成交委託快照。',
   },
   {
+    action: 'transfer-preview',
+    label: '轉帳預覽',
+    description: '預覽 exchange 到 lending 的轉帳，不會移動資金。',
+  },
+  {
     action: 'record-market-analysis',
     label: '記錄市場分析',
     description: '記錄設定幣種清單的 lendbook levels。',

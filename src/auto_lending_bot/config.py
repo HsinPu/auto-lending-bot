@@ -43,6 +43,7 @@ class Settings:
     retry_attempts: int
     retry_backoff_seconds: int
     output_currency: str
+    transferable_currencies: tuple[str, ...]
     smoke_test_currency: str
     strategy_debug: bool
     telegram_bot_token: str
@@ -116,6 +117,7 @@ def load_settings() -> Settings:
         retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
         retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),
         output_currency=os.getenv("OUTPUT_CURRENCY", "BTC").upper(),
+        transferable_currencies=_get_csv("TRANSFERABLE_CURRENCIES"),
         smoke_test_currency=os.getenv("SMOKE_TEST_CURRENCY", "BTC"),
         strategy_debug=_get_bool("STRATEGY_DEBUG", default=False),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),

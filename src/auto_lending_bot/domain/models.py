@@ -22,6 +22,14 @@ class CurrencyBalance:
 
 
 @dataclass(frozen=True)
+class TransferPreview:
+    currency: str
+    amount: float
+    source: str = "exchange"
+    destination: str = "lending"
+
+
+@dataclass(frozen=True)
 class LoanOrder:
     currency: str
     amount: float

@@ -150,6 +150,7 @@ export type SafeActionName =
   | 'smoke-exchange'
   | 'sync-history'
   | 'sync-open-offers'
+  | 'transfer-preview'
   | 'cancel-open-offers'
   | 'record-market-analysis'
   | 'cleanup'
@@ -158,5 +159,5 @@ export type SafeActionName =
 export type SafeActionResponse = {
   action: SafeActionName
   ok: boolean
-  [key: string]: string | number | boolean | string[]
+  [key: string]: unknown
 }

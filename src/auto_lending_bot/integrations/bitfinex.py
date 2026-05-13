@@ -34,13 +34,19 @@ class BitfinexClient:
         self._timeout_seconds = timeout_seconds
 
     def get_lending_balances(self) -> list[CurrencyBalance]:
+        return self._balances_by_type("deposit")
+
+    def get_exchange_balances(self) -> list[CurrencyBalance]:
+        return self._balances_by_type("exchange")
+
+    def _balances_by_type(self, wallet_type: str) -> list[CurrencyBalance]:
         response = self._private_query("/v1/balances", {})
         if not isinstance(response, list):
             return []
 
         balances = []
         for item in response:
-            if not isinstance(item, dict) or item.get("type") != "deposit":
+            if not isinstance(item, dict) or item.get("type") != wallet_type:
                 continue
 
             amount = _optional_float(item.get("available"))

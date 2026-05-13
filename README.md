@@ -167,6 +167,7 @@ Current API endpoints:
 - `POST /api/actions/smoke-exchange`
 - `POST /api/actions/sync-history`
 - `POST /api/actions/sync-open-offers`
+- `POST /api/actions/transfer-preview`
 - `POST /api/actions/cancel-open-offers`
 - `POST /api/actions/cleanup`
 - `POST /api/actions/run-once`
@@ -180,6 +181,7 @@ Global settings:
 - `MAX_DAILY_RATE`
 - `MIN_LOAN_SIZE`
 - `OUTPUT_CURRENCY`
+- `TRANSFERABLE_CURRENCIES`
 - `MARKET_ANALYSIS_METHOD`
 - `MARKET_ANALYSIS_CURRENCIES`
 - `MARKET_ANALYSIS_MIN_SAMPLES`
@@ -261,6 +263,10 @@ extra quality gate.
 
 `GET /api/settings` includes the market-analysis suggested minimum and effective minimum
 daily rate for `SMOKE_TEST_CURRENCY`, which the dashboard shows in the strategy preview.
+
+`TRANSFERABLE_CURRENCIES=BTC,ETH` enables transfer previews from exchange balances to the
+lending wallet. `ALL` targets every exchange balance, and `ACTIVE` targets currencies that
+already exist in the lending wallet. Phase 66 only previews transfers; it does not move funds.
 
 ## Operations
 

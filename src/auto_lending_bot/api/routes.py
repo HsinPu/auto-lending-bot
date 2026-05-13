@@ -6,6 +6,7 @@ from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.notifications.notifier import Notifier
+from auto_lending_bot.operations.transfers import build_transfer_preview
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
@@ -165,6 +166,23 @@ def create_api_router(settings: Settings) -> APIRouter:
             "action": "sync-open-offers",
             "ok": True,
             "changed_count": len(offers),
+        }
+
+    @router.post("/actions/transfer-preview")
+    def transfer_preview() -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        exchange = create_exchange_client(settings)
+        previews = build_transfer_preview(
+            exchange_balances=exchange.get_exchange_balances(),
+            lending_balances=exchange.get_lending_balances(),
+            transferable_currencies=settings.transferable_currencies,
+        )
+        return {
+            "action": "transfer-preview",
+            "ok": True,
+            "dry_run": True,
+            "transfer_count": len(previews),
+            "transfers": [preview.__dict__ for preview in previews],
         }
 
     @router.post("/actions/record-market-analysis")

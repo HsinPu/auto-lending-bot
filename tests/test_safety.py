@@ -135,6 +135,7 @@ def _settings(
         retry_attempts=3,
         retry_backoff_seconds=30,
         output_currency="BTC",
+        transferable_currencies=(),
         smoke_test_currency="BTC",
         strategy_debug=False,
         telegram_bot_token="",

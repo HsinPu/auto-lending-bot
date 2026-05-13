@@ -9,6 +9,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MAX_TO_LEND_RATE", "0.00008")
     monkeypatch.setenv("END_DATE", "2027-01-15")
     monkeypatch.setenv("OUTPUT_CURRENCY", "usd")
+    monkeypatch.setenv("TRANSFERABLE_CURRENCIES", "btc,ACTIVE")
     monkeypatch.setenv("BOT_INACTIVE_SLEEP_SECONDS", "900")
     monkeypatch.setenv("KEEP_STUCK_ORDERS", "false")
     monkeypatch.setenv("MARKET_ANALYSIS_RETENTION_DAYS", "14")
@@ -38,6 +39,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     strategy = strategy_config_for(settings, "BTC")
 
     assert settings.output_currency == "USD"
+    assert settings.transferable_currencies == ("BTC", "ACTIVE")
     assert settings.bot_inactive_sleep_seconds == 900
     assert settings.keep_stuck_orders is False
     assert settings.market_analysis_retention_days == 14

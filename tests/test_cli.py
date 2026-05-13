@@ -108,6 +108,19 @@ def test_cli_cleanup_reports_market_data_counts(tmp_path, monkeypatch, capsys) -
     assert "Deleted 0 old market data row(s) (0 market rate, 0 market analysis)." in output
 
 
+def test_cli_transfer_preview_reports_matching_balances(tmp_path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setenv("TRANSFERABLE_CURRENCIES", "BTC")
+    monkeypatch.setattr("auto_lending_bot.cli.create_exchange_client", lambda settings: FakeExchange())
+
+    exit_code = run_cli(["transfer-preview"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Would transfer 0.25 BTC from exchange to lending." in output
+
+
 def test_cli_run_blocks_live_mode_without_allowance(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("BOT_DRY_RUN", "false")
@@ -139,6 +152,12 @@ class FakeExchange:
 
     def get_lending_balances(self):
         return [CurrencyBalance(currency="BTC", amount=0.1)]
+
+    def get_exchange_balances(self):
+        return [
+            CurrencyBalance(currency="BTC", amount=0.25),
+            CurrencyBalance(currency="ETH", amount=1.0),
+        ]
 
     def get_loan_orders(self, currency: str):
         return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]

@@ -120,6 +120,96 @@ const choiceLabels: Record<string, string> = {
   macd: 'MACD 均線',
 }
 
+const settingHelp: Record<string, string> = {
+  ALLOW_BALANCE_TRANSFERS: '是否允許 bot 執行交易所帳戶到放貸帳戶的資金轉移。Live 轉帳必須開啟。',
+  ALLOW_LIVE_TRADING: 'Live 模式總開關。關閉時，即使其他 Live 設定開啟也不會執行真實操作。',
+  AUTO_CANCEL_OPEN_OFFERS: '自動重整未成交委託時，是否真的取消交易所上的舊委託。',
+  AUTO_REBALANCE_OPEN_OFFERS: '每次執行時是否先同步並重整未成交委託。',
+  BITFINEX_ENABLE_LIVE_OFFERS: 'Bitfinex 真實建立放貸委託的最後一道開關。',
+  BITFINEX_ENABLE_LIVE_TRANSFERS: 'Bitfinex 真實資金轉移的最後一道開關。',
+  BOT_DRY_RUN: '建議保持「是」。是 = 只模擬、不送出真實委託；否 = 可能進入 Live 操作。',
+  BOT_INACTIVE_SLEEP_SECONDS: '沒有可建立委託時，下一輪執行前等待幾秒。',
+  BOT_LABEL: 'Dashboard 與狀態列顯示的 bot 名稱。',
+  BOT_MAX_LOOPS: '執行幾輪後停止。0 或負數代表持續執行。',
+  BOT_SLEEP_SECONDS: '有建立委託時，下一輪執行前等待幾秒。',
+  DISPLAY_TIMEZONE: 'Dashboard 顯示時間用的時區，例如 Asia/Taipei。資料庫仍保存 UTC。',
+  END_DATE: '到這天前停止建立新長天期委託，格式 YYYY-MM-DD。',
+  EXCHANGE: '目前交易所。mock 用於本機測試；bitfinex 才會連真實 Bitfinex。',
+  EXCHANGE_API_KEY: '交易所 API Key。建議使用沒有提領權限的 key。',
+  EXCHANGE_API_SECRET: '交易所 API Secret，會加密存入 SQLite。',
+  FRR_AS_MIN: '是否把 Bitfinex FRR 當作最低日利率參考。',
+  FRR_DELTA: '在 FRR 基礎上加減的日利率差值。',
+  GAP_BOTTOM: '委託利率區間下緣使用的放貸簿深度。',
+  GAP_MODE: '決定 GAP_BOTTOM/GAP_TOP 如何解讀。關閉時使用最佳市場利率。',
+  GAP_TOP: '委託利率區間上緣使用的放貸簿深度。',
+  HIDE_COINS: '市場利率低於最低利率時，是否先保留資金不放貸。',
+  HTTP_TIMEOUT_SECONDS: '呼叫交易所或外部 API 的逾時秒數。',
+  KEEP_STUCK_ORDERS: '小於最低放貸金額的殘留委託是否保留，避免取消後無法再放。',
+  LOG_LEVEL: '後端 log 詳細程度。一般使用 INFO。',
+  MARKET_ANALYSIS_CURRENCIES: '要記錄市場分析的幣別，多個用逗號分隔，例如 BTC,ETH,USDT。',
+  MARKET_ANALYSIS_LEVELS: '每次記錄放貸簿前幾層資料。',
+  MARKET_ANALYSIS_MACD_LONG_SAMPLES: '用樣本數計算 MACD 長週期平均。',
+  MARKET_ANALYSIS_MACD_LONG_SECONDS: '用秒數計算 MACD 長週期平均；大於 0 時優先使用。',
+  MARKET_ANALYSIS_MACD_SHORT_SAMPLES: '用樣本數計算 MACD 短週期平均。',
+  MARKET_ANALYSIS_MACD_SHORT_SECONDS: '用秒數計算 MACD 短週期平均；大於 0 時優先使用。',
+  MARKET_ANALYSIS_MAX_AGE_SECONDS: '市場分析資料超過這個秒數就視為過期；0 代表不限制。',
+  MARKET_ANALYSIS_METHOD: '市場分析建議最低日利率的方法。關閉時不使用建議利率。',
+  MARKET_ANALYSIS_MIN_SAMPLES: '計算建議利率前至少需要多少筆樣本。',
+  MARKET_ANALYSIS_MULTIPLIER: '市場分析結果倍率，例如 1.05 代表提高 5%。',
+  MARKET_ANALYSIS_PERCENTILE: '百分位方法使用的百分位，例如 75 代表第 75 百分位。',
+  MARKET_ANALYSIS_RETENTION_DAYS: '市場分析資料保留幾天。',
+  MARKET_RATE_RETENTION_DAYS: '一般市場利率快照保留幾天。',
+  MAX_ACTIVE_AMOUNT: '每個幣別最多允許放貸中的金額；空白代表不限制。',
+  MAX_AMOUNT_TO_LEND: '最多拿多少金額去放貸；空白代表不限制。',
+  MAX_DAILY_RATE: '委託日利率上限，避免掛出太誇張的利率。',
+  MAX_PERCENT_TO_LEND: '最多拿資金的百分之幾去放貸。100 代表全部可用資金。',
+  MAX_SINGLE_OFFER_AMOUNT: 'Live 模式下單筆放貸委託金額上限，必填安全欄位。',
+  MAX_SINGLE_TRANSFER_AMOUNT: 'Live 模式下單筆轉帳金額上限，必填安全欄位。',
+  MAX_TO_LEND: '最多拿多少金額去放貸；建議使用這個 Mika 風格名稱。',
+  MAX_TO_LEND_RATE: '市場利率低於或等於此值時，才啟用最大放貸限制；0 代表永遠啟用。',
+  MAX_TOTAL_LEND_AMOUNT: 'Live 模式單次執行最多可送出的總放貸金額，必填安全欄位。',
+  MAX_TOTAL_TRANSFER_AMOUNT: 'Live 模式單次執行最多可轉出的總金額，必填安全欄位。',
+  MIN_DAILY_RATE: '低於這個日利率就不放貸，或改用此最低利率掛單。',
+  MIN_LOAN_SIZE: '低於這個金額就不建立委託，避免碎單。',
+  NOTIFY_CAUGHT_EXCEPTION: 'bot 發生錯誤時是否送 Telegram 通知。',
+  NOTIFY_PREFIX: '通知訊息前面加上的文字，例如 [LendingBot]。',
+  NOTIFY_SUMMARY_MINUTES: '每隔幾分鐘送一次摘要通知；0 代表關閉。',
+  NOTIFY_XDAY_THRESHOLD: '建立長天期委託時是否通知。',
+  OUTPUT_CURRENCY: '收益換算時使用的目標幣別，例如 BTC 或 USD。',
+  RETRY_ATTEMPTS: '交易所/API 操作失敗時最多重試幾次。',
+  RETRY_BACKOFF_SECONDS: '每次重試前等待幾秒。',
+  SMOKE_TEST_CURRENCY: '連線檢查、設定預覽預設使用的幣別。',
+  SPREAD_LEND: '將可放貸金額拆成幾筆委託。',
+  STRATEGY_DEBUG: '是否輸出更詳細的策略判斷 log。',
+  TELEGRAM_BOT_TOKEN: 'Telegram bot token，設定後才會送通知。',
+  TELEGRAM_CHAT_ID: 'Telegram chat id，搭配 bot token 使用。',
+  TRANSFERABLE_CURRENCIES: '允許從 exchange 錢包轉到 lending 錢包的幣別，多個用逗號分隔。',
+  XDAY_SPREAD: '長天期天數從 2 天逐步增加到 XDAYS 的線性區間。',
+  XDAY_THRESHOLD: '日利率達到此門檻時，改用 XDAYS 長天期。',
+  XDAYS: '高利率時使用的放貸天數。',
+}
+
+const settingHints: Record<string, string> = {
+  DISPLAY_TIMEZONE: '範例：Asia/Taipei、UTC',
+  END_DATE: '格式：YYYY-MM-DD，例如 2026-12-31',
+  FRR_DELTA: '日利率小數，例如 0.00001 = 0.001%',
+  GAP_BOTTOM: '依 Gap 模式代表金額、BTC 金額或百分比',
+  GAP_TOP: '依 Gap 模式代表金額、BTC 金額或百分比',
+  MARKET_ANALYSIS_CURRENCIES: '逗號分隔，例如 BTC,ETH,USDT',
+  MARKET_ANALYSIS_MULTIPLIER: '1 = 不調整；1.05 = 提高 5%',
+  MARKET_ANALYSIS_PERCENTILE: '0 到 100，例如 75',
+  MAX_DAILY_RATE: '日利率小數，例如 0.05 = 5%',
+  MAX_PERCENT_TO_LEND: '百分比數字，例如 100 = 100%',
+  MAX_TO_LEND_RATE: '日利率小數，例如 0.0001 = 0.01%',
+  MIN_DAILY_RATE: '日利率小數，例如 0.00005 = 0.005%',
+  NOTIFY_SUMMARY_MINUTES: '0 = 關閉摘要通知',
+  OUTPUT_CURRENCY: '範例：BTC、USD、USDT',
+  SMOKE_TEST_CURRENCY: '範例：BTC、ETH、USDT',
+  TELEGRAM_CHAT_ID: '可以是數字 chat id 或 @channel',
+  TRANSFERABLE_CURRENCIES: '逗號分隔，例如 BTC,ETH',
+  XDAY_THRESHOLD: '日利率小數，例如 0.002 = 0.2%',
+}
+
 export function ManagedSettingsPanel({
   adminToken,
   onAdminTokenChange,
@@ -407,6 +497,7 @@ function SettingField({
         <small>{dangerLabels[definition.danger_level]}</small>
       </span>
       <span className="settings-field-key">{definition.key}</span>
+      <span className="settings-field-help">{settingHelpText(definition)}</span>
       {valueType === 'bool' ? (
         <select value={value} disabled={disabled} onChange={(event) => onChange(event.currentTarget.value)}>
           <option value="true">是</option>
@@ -433,6 +524,9 @@ function SettingField({
       <span className="settings-field-meta">
         {definition.secret && storedValue?.is_set ? '已設定密鑰；留空代表不變。' : `預設值：${defaultDisplayValue(definition)}`}
       </span>
+      {settingHints[definition.key] ? (
+        <span className="settings-field-hint">{settingHints[definition.key]}</span>
+      ) : null}
       <button type="button" className="settings-reset-button" disabled={disabled || !stored} onClick={onReset}>
         重設此項
       </button>
@@ -505,6 +599,8 @@ function shouldShowDefinition(
   return [
     definition.key,
     settingLabel(definition.key),
+    settingHelpText(definition),
+    settingHints[definition.key],
     definition.category,
     categoryLabels[definition.category],
     definition.value_type,
@@ -517,6 +613,10 @@ function shouldShowDefinition(
 
 function settingLabel(key: string): string {
   return settingLabels[key] ?? key
+}
+
+function settingHelpText(definition: ManagedSettingDefinition): string {
+  return settingHelp[definition.key] ?? definition.description ?? '此設定會影響 bot 執行方式。'
 }
 
 function defaultDisplayValue(definition: ManagedSettingDefinition): string {

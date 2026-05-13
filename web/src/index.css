@@ -916,6 +916,12 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.settings-field-help {
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .settings-field-heading small {
   border-radius: 999px;
   padding: 3px 8px;
@@ -935,6 +941,14 @@ h1 {
 
 .settings-field-meta {
   color: #93c5fd;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-field-hint {
+  border-left: 2px solid rgba(96, 165, 250, 0.6);
+  padding-left: 8px;
+  color: #bfdbfe;
   font-size: 12px;
   line-height: 1.45;
 }

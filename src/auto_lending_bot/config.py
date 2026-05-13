@@ -19,6 +19,7 @@ class Settings:
     bitfinex_enable_live_offers: bool
     bot_label: str
     bot_sleep_seconds: int
+    bot_inactive_sleep_seconds: int
     auto_rebalance_open_offers: bool
     auto_cancel_open_offers: bool
     dry_run: bool
@@ -75,6 +76,7 @@ def load_settings() -> Settings:
         bitfinex_enable_live_offers=_get_bool("BITFINEX_ENABLE_LIVE_OFFERS", default=False),
         bot_label=os.getenv("BOT_LABEL", "Auto Lending Bot"),
         bot_sleep_seconds=_get_int("BOT_SLEEP_SECONDS", default=60),
+        bot_inactive_sleep_seconds=_get_int("BOT_INACTIVE_SLEEP_SECONDS", default=300),
         auto_rebalance_open_offers=_get_bool("AUTO_REBALANCE_OPEN_OFFERS", default=False),
         auto_cancel_open_offers=_get_bool("AUTO_CANCEL_OPEN_OFFERS", default=False),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),

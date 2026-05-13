@@ -52,19 +52,18 @@ class BotRunner:
         loops_completed = 0
         try:
             while self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
-                self._run_once_with_retry()
+                created_offers = self._run_once_with_retry()
                 loops_completed += 1
 
                 if self._settings.max_loops <= 0 or loops_completed < self._settings.max_loops:
-                    time.sleep(self._settings.bot_sleep_seconds)
+                    time.sleep(self._sleep_seconds(created_offers))
         except KeyboardInterrupt:
             logger.info("Shutdown requested; stopping bot runner.")
 
-    def _run_once_with_retry(self) -> None:
+    def _run_once_with_retry(self) -> int:
         for attempt in range(1, self._settings.retry_attempts + 1):
             try:
-                self.run_once()
-                return
+                return self.run_once()
             except ExchangeAuthenticationError:
                 logger.exception("Authentication failed; not retrying bot run.")
                 raise
@@ -76,8 +75,9 @@ class BotRunner:
                     self._settings.retry_backoff_seconds,
                 )
                 time.sleep(self._settings.retry_backoff_seconds)
+        return 0
 
-    def run_once(self) -> None:
+    def run_once(self) -> int:
         bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run)
         created_offers = 0
         live_lend_amount = 0.0
@@ -159,10 +159,17 @@ class BotRunner:
                 dry_run=self._settings.dry_run,
             )
             self._maybe_send_periodic_summary(active_loans)
+            return created_offers
         except Exception as error:
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
             self._notifier.error(str(error))
             raise
+
+    def _sleep_seconds(self, created_offers: int) -> int:
+        if created_offers > 0:
+            return self._settings.bot_sleep_seconds
+
+        return self._settings.bot_inactive_sleep_seconds
 
     def _assert_live_offer_allowed(self, offer: LoanOffer, live_lend_amount: float) -> None:
         if self._settings.max_single_offer_amount is not None:

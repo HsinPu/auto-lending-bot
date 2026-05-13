@@ -107,6 +107,36 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
     assert exchange.calls == 1
 
 
+def test_runner_uses_inactive_sleep_when_no_offers_are_created(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    sleep_calls: list[int] = []
+    monkeypatch.setattr("auto_lending_bot.bot.runner.time.sleep", sleep_calls.append)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            max_loops=2,
+            bot_sleep_seconds=60,
+            bot_inactive_sleep_seconds=300,
+        ),
+        exchange=NoOfferExchange(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    runner.run()
+
+    assert sleep_calls == [300]
+
+
 def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -360,6 +390,9 @@ def _settings(
     notify_xday_threshold: bool = False,
     xday_threshold: float = 0,
     xdays: int = 2,
+    max_loops: int = 1,
+    bot_sleep_seconds: int = 60,
+    bot_inactive_sleep_seconds: int = 300,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -367,7 +400,8 @@ def _settings(
         api_secret="",
         bitfinex_enable_live_offers=False,
         bot_label="Auto Lending Bot",
-        bot_sleep_seconds=60,
+        bot_sleep_seconds=bot_sleep_seconds,
+        bot_inactive_sleep_seconds=bot_inactive_sleep_seconds,
         auto_rebalance_open_offers=auto_rebalance_open_offers,
         auto_cancel_open_offers=auto_cancel_open_offers,
         dry_run=dry_run,
@@ -379,7 +413,7 @@ def _settings(
         market_analysis_percentile=75,
         market_analysis_macd_short_samples=market_analysis_macd_short_samples,
         market_analysis_macd_long_samples=market_analysis_macd_long_samples,
-        max_loops=1,
+        max_loops=max_loops,
         retry_attempts=3,
         retry_backoff_seconds=30,
         output_currency="BTC",
@@ -484,6 +518,26 @@ class NewActiveLoanExchange:
                 external_loan_id="loan-new",
             ),
         ]
+
+    def get_lending_balances(self):
+        return []
+
+    def get_loan_orders(self, currency: str):
+        return []
+
+    def get_open_loan_offers(self):
+        return []
+
+    def create_loan_offer(self, offer):
+        return ""
+
+    def cancel_loan_offer(self, offer_id: str):
+        return None
+
+
+class NoOfferExchange:
+    def get_active_loans(self):
+        return []
 
     def get_lending_balances(self):
         return []

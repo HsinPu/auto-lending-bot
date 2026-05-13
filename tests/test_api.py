@@ -286,6 +286,7 @@ def _settings(
         bitfinex_enable_live_offers=bitfinex_enable_live_offers,
         bot_label="Auto Lending Bot",
         bot_sleep_seconds=60,
+        bot_inactive_sleep_seconds=300,
         auto_rebalance_open_offers=False,
         auto_cancel_open_offers=False,
         dry_run=dry_run,

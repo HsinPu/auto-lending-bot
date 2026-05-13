@@ -124,6 +124,19 @@ button {
   background: rgba(15, 23, 42, 0.48);
 }
 
+.page-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.page-stack > * {
+  margin-top: 20px;
+}
+
+.page-stack > * + * {
+  margin-top: 0;
+}
+
 .page-placeholder h2,
 .page-placeholder p {
   margin: 0;

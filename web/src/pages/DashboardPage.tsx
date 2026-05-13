@@ -4,13 +4,18 @@ import { useState } from 'react'
 import { getDashboardData, runSafeAction } from '../api/client'
 import { ActivityLog } from '../components/ActivityLog'
 import { actions } from '../components/actionDefinitions'
+import { ConvertedEarningsPanel } from '../components/ConvertedEarningsPanel'
+import { CurrencyOverview } from '../components/CurrencyOverview'
+import { DataTable } from '../components/DataTable'
 import {
   DisplaySettingsModal,
   type DisplaySettings,
 } from '../components/DisplaySettingsModal'
+import { EarningsForecast } from '../components/EarningsForecast'
+import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
 import { TopStatusBar } from '../components/TopStatusBar'
-import type { SafeActionName, SafeActionResponse } from '../types/api'
+import type { LendingHistoryEntry, SafeActionName, SafeActionResponse } from '../types/api'
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
@@ -167,7 +172,27 @@ export function DashboardPage() {
           </div>
         </>
       ) : null}
-      {data && activePage !== 'overview' ? <PagePlaceholder page={activePage} /> : null}
+      {data && activePage === 'currencies' ? (
+        <div className="page-stack">
+          <CurrencyOverview details={data.currencyDetails} />
+          <EarningsForecast details={data.currencyDetails} />
+        </div>
+      ) : null}
+      {data && activePage === 'earnings' ? (
+        <div className="page-stack">
+          <ConvertedEarningsPanel rows={data.convertedEarnings} btcUnit={displaySettings.btcUnit} />
+          <ProfitCharts history={data.lendingHistory} />
+          <DataTable<LendingHistoryEntry>
+            title="收益明細"
+            description="最近同步的 lending history。"
+            rows={data.lendingHistory}
+            columns={historyColumns}
+          />
+        </div>
+      ) : null}
+      {data && !['overview', 'currencies', 'earnings'].includes(activePage) ? (
+        <PagePlaceholder page={activePage} />
+      ) : null}
           </div>
         </div>
       </main>
@@ -300,3 +325,13 @@ function shouldConfirmLive(action: SafeActionName, dryRun: boolean) {
 }
 
 const rate = (value: unknown) => (typeof value === 'number' ? `${(value * 100).toFixed(4)}%` : '-')
+const amount = (value: unknown) => (typeof value === 'number' ? value.toPrecision(8) : '-')
+
+const historyColumns = [
+  { key: 'id', label: '編號' },
+  { key: 'currency', label: '幣種' },
+  { key: 'interest', label: '利息', format: amount },
+  { key: 'fee', label: '手續費', format: amount },
+  { key: 'earned', label: '實收', format: amount },
+  { key: 'closed_at', label: '結束時間' },
+] satisfies Parameters<typeof DataTable<LendingHistoryEntry>>[0]['columns']

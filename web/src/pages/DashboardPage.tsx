@@ -13,6 +13,7 @@ import {
   type DisplaySettings,
 } from '../components/DisplaySettingsModal'
 import { EarningsForecast } from '../components/EarningsForecast'
+import { ManagedSettingsPanel } from '../components/ManagedSettingsPanel'
 import { MiniCharts } from '../components/MiniCharts'
 import { ProfitCharts } from '../components/ProfitCharts'
 import { StatusCard } from '../components/StatusCard'
@@ -304,7 +305,16 @@ export function DashboardPage() {
           />
         </div>
       ) : null}
-      {data && !['overview', 'currencies', 'earnings', 'market', 'offers', 'actions'].includes(activePage) ? (
+      {data && activePage === 'settings' ? (
+        <ManagedSettingsPanel
+          adminToken={adminToken}
+          onAdminTokenChange={(token) => {
+            setAdminToken(token)
+            sessionStorage.setItem(adminTokenKey, token)
+          }}
+        />
+      ) : null}
+      {data && !['overview', 'currencies', 'earnings', 'market', 'offers', 'actions', 'settings'].includes(activePage) ? (
         <PagePlaceholder page={activePage} />
       ) : null}
           </div>

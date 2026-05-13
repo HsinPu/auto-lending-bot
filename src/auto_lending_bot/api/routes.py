@@ -101,6 +101,7 @@ def create_api_router(settings: Settings) -> APIRouter:
             "allow_live_trading": settings.allow_live_trading,
             "bitfinex_enable_live_offers": settings.bitfinex_enable_live_offers,
             "output_currency": settings.output_currency,
+            "market_analysis_currencies": settings.market_analysis_currencies,
             "market_analysis_levels": settings.market_analysis_levels,
             "smoke_test_currency": settings.smoke_test_currency,
             "strategy_debug": settings.strategy_debug,
@@ -160,17 +161,20 @@ def create_api_router(settings: Settings) -> APIRouter:
     def record_market_analysis(payload: dict[str, object] | None = None) -> dict[str, object]:
         _validate_safe_action_settings(settings)
         payload = payload or {}
-        currency = str(payload.get("currency") or settings.smoke_test_currency).upper()
+        currency = payload.get("currency")
+        currencies = _market_analysis_currencies(settings, str(currency) if currency else None)
         levels = int(payload.get("levels") or settings.market_analysis_levels)
-        changed_count = MarketAnalysisRecorder(market_analysis_rates).record_currency(
-            exchange=create_exchange_client(settings),
-            currency=currency,
-            levels=levels,
+        recorder = MarketAnalysisRecorder(market_analysis_rates)
+        exchange = create_exchange_client(settings)
+        changed_count = sum(
+            recorder.record_currency(exchange=exchange, currency=currency, levels=levels)
+            for currency in currencies
         )
         return {
             "action": "record-market-analysis",
             "ok": True,
-            "currency": currency,
+            "currency": currencies[0],
+            "currencies": list(currencies),
             "changed_count": changed_count,
         }
 
@@ -266,6 +270,17 @@ def _cancel_open_offers(exchange, offers: list[object]) -> int:
         exchange.cancel_loan_offer(str(external_offer_id))
         canceled_count += 1
     return canceled_count
+
+
+def _market_analysis_currencies(
+    settings: Settings,
+    currency: str | None = None,
+) -> tuple[str, ...]:
+    if currency:
+        return (currency.upper(),)
+    if settings.market_analysis_currencies:
+        return settings.market_analysis_currencies
+    return (settings.smoke_test_currency.upper(),)
 
 
 def _currency_details(

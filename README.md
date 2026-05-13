@@ -151,7 +151,7 @@ Start the local API for the frontend:
 uv run auto-lending-bot serve-api --host 127.0.0.1 --port 8000
 ```
 
-Current read-only endpoints:
+Current API endpoints:
 
 - `GET /api/status`
 - `GET /api/runs`
@@ -164,7 +164,12 @@ Current read-only endpoints:
 - `GET /api/market-rates`
 - `GET /api/market-analysis-rates`
 - `GET /api/settings`
+- `POST /api/actions/smoke-exchange`
+- `POST /api/actions/sync-history`
+- `POST /api/actions/sync-open-offers`
 - `POST /api/actions/cancel-open-offers`
+- `POST /api/actions/cleanup`
+- `POST /api/actions/run-once`
 - `POST /api/actions/record-market-analysis`
 
 ## Strategy Settings
@@ -176,6 +181,7 @@ Global settings:
 - `MIN_LOAN_SIZE`
 - `OUTPUT_CURRENCY`
 - `MARKET_ANALYSIS_METHOD`
+- `MARKET_ANALYSIS_CURRENCIES`
 - `MARKET_ANALYSIS_PERCENTILE`
 - `MARKET_ANALYSIS_MACD_SHORT_SAMPLES`
 - `MARKET_ANALYSIS_MACD_LONG_SAMPLES`
@@ -242,6 +248,10 @@ BTC_FRR_DELTA=0.00001
 `END_DATE=YYYY-MM-DD` caps offer duration so new loans finish before the date. When two or fewer days remain, the strategy stops creating new lending offers.
 
 `GAP_MODE=raw_btc` treats `GAP_BOTTOM` and `GAP_TOP` as BTC-denominated lendbook depth, matching Mika's `RawBTC` behavior when a BTC conversion price is available.
+
+`MARKET_ANALYSIS_CURRENCIES=BTC,ETH,USDT` records market analysis snapshots for multiple
+currencies when no explicit currency is provided to `record-market-analysis`. If it is
+empty, the bot falls back to `SMOKE_TEST_CURRENCY`.
 
 ## Operations
 

@@ -100,14 +100,20 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        changed_count = MarketAnalysisRecorder(
+        recorder = MarketAnalysisRecorder(
             MarketAnalysisRateRepository(settings.database_url)
-        ).record_currency(
-            exchange=create_exchange_client(settings),
-            currency=args.currency or settings.smoke_test_currency,
-            levels=args.levels or settings.market_analysis_levels,
         )
-        print(f"Recorded {changed_count} market analysis rate row(s).")
+        exchange = create_exchange_client(settings)
+        levels = args.levels or settings.market_analysis_levels
+        currencies = _market_analysis_currencies(settings, args.currency)
+        changed_count = sum(
+            recorder.record_currency(exchange=exchange, currency=currency, levels=levels)
+            for currency in currencies
+        )
+        print(
+            f"Recorded {changed_count} market analysis rate row(s) "
+            f"for {', '.join(currencies)}."
+        )
         return 0
 
     if args.command == "cancel-open-offers":
@@ -212,6 +218,17 @@ def _cancel_open_offers(exchange, offers: list[LoanOffer]) -> int:
         exchange.cancel_loan_offer(offer.external_offer_id)
         canceled_count += 1
     return canceled_count
+
+
+def _market_analysis_currencies(
+    settings: Settings,
+    currency: str | None = None,
+) -> tuple[str, ...]:
+    if currency:
+        return (currency.upper(),)
+    if settings.market_analysis_currencies:
+        return settings.market_analysis_currencies
+    return (settings.smoke_test_currency.upper(),)
 
 
 def _create_runner(settings: Settings) -> BotRunner:

@@ -19,7 +19,7 @@ export const actions: Array<{ action: SafeActionName; label: string; description
   {
     action: 'record-market-analysis',
     label: '記錄市場分析',
-    description: '記錄目前設定幣種的 lendbook levels。',
+    description: '記錄設定幣種清單的 lendbook levels。',
   },
   {
     action: 'cancel-open-offers',
@@ -29,7 +29,7 @@ export const actions: Array<{ action: SafeActionName; label: string; description
   {
     action: 'cleanup',
     label: '清理資料',
-    description: '清理過期市場利率紀錄。',
+    description: '清理過期市場利率與市場分析紀錄。',
   },
   {
     action: 'run-once',

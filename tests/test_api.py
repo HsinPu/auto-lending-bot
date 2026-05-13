@@ -131,6 +131,7 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     market_analysis_response = client.post("/api/actions/record-market-analysis")
     assert market_analysis_response.status_code == 200
     assert market_analysis_response.json()["changed_count"] == 1
+    assert market_analysis_response.json()["currencies"] == ["BTC"]
 
     cancel_response = client.post("/api/actions/cancel-open-offers")
     assert cancel_response.status_code == 200
@@ -154,6 +155,19 @@ def test_api_safe_action_returns_safety_error(tmp_path) -> None:
 
     assert response.status_code == 400
     assert "BOT_DRY_RUN=false requires ALLOW_LIVE_TRADING=true" in response.json()["detail"]
+
+
+def test_api_record_market_analysis_uses_configured_currencies(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url, market_analysis_currencies=("BTC", "ETH"))
+
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/record-market-analysis", json={"levels": 1})
+
+    assert response.status_code == 200
+    assert response.json()["currencies"] == ["BTC", "ETH"]
+    assert response.json()["changed_count"] == 2
 
 
 def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
@@ -280,6 +294,7 @@ def _settings(
     bitfinex_enable_live_offers: bool = False,
     max_total_lend_amount: float | None = None,
     max_single_offer_amount: float | None = None,
+    market_analysis_currencies: tuple[str, ...] = (),
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
@@ -297,6 +312,7 @@ def _settings(
         http_timeout_seconds=30,
         market_rate_retention_days=30,
         market_analysis_retention_days=30,
+        market_analysis_currencies=market_analysis_currencies,
         market_analysis_levels=10,
         market_analysis_method="off",
         market_analysis_percentile=75,

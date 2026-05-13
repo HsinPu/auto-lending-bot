@@ -111,6 +111,7 @@ export type SettingsResponse = {
   allow_live_trading: boolean
   bitfinex_enable_live_offers: boolean
   output_currency: string
+  market_analysis_currencies: string[]
   market_analysis_levels: number
   smoke_test_currency: string
   strategy_debug: boolean
@@ -155,5 +156,5 @@ export type SafeActionName =
 export type SafeActionResponse = {
   action: SafeActionName
   ok: boolean
-  [key: string]: string | number | boolean
+  [key: string]: string | number | boolean | string[]
 }

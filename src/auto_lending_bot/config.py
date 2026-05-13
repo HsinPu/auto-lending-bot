@@ -28,6 +28,7 @@ class Settings:
     http_timeout_seconds: int
     market_rate_retention_days: int
     market_analysis_retention_days: int
+    market_analysis_currencies: tuple[str, ...]
     market_analysis_levels: int
     market_analysis_method: str
     market_analysis_percentile: float
@@ -94,6 +95,7 @@ def load_settings() -> Settings:
         market_analysis_retention_days=_get_int(
             "MARKET_ANALYSIS_RETENTION_DAYS", default=30
         ),
+        market_analysis_currencies=_get_csv("MARKET_ANALYSIS_CURRENCIES"),
         market_analysis_levels=_get_int("MARKET_ANALYSIS_LEVELS", default=10),
         market_analysis_method=os.getenv("MARKET_ANALYSIS_METHOD", "off").lower(),
         market_analysis_percentile=_get_float("MARKET_ANALYSIS_PERCENTILE", default=75.0),
@@ -173,6 +175,15 @@ def _get_optional_float(name: str) -> float | None:
         return None
 
     return float(raw_value)
+
+
+def _get_csv(name: str) -> tuple[str, ...]:
+    raw_value = os.getenv(name, "")
+    return tuple(
+        value.strip().upper()
+        for value in raw_value.split(",")
+        if value.strip()
+    )
 
 
 def _get_optional_date(name: str) -> date | None:

@@ -120,6 +120,7 @@ def _settings(
         http_timeout_seconds=30,
         market_rate_retention_days=30,
         market_analysis_retention_days=30,
+        market_analysis_currencies=(),
         market_analysis_levels=10,
         market_analysis_method="off",
         market_analysis_percentile=75,

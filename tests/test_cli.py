@@ -77,7 +77,25 @@ def test_cli_record_market_analysis_writes_rows(tmp_path, monkeypatch, capsys) -
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert "Recorded 1 market analysis rate row(s)." in output
+    assert "Recorded 1 market analysis rate row(s) for BTC." in output
+
+
+def test_cli_record_market_analysis_uses_configured_currencies(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setenv("MARKET_ANALYSIS_CURRENCIES", "BTC,ETH")
+    monkeypatch.setattr(
+        "auto_lending_bot.cli.create_exchange_client",
+        lambda settings: FakeExchange(),
+    )
+
+    exit_code = run_cli(["record-market-analysis", "--levels", "1"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Recorded 2 market analysis rate row(s) for BTC, ETH." in output
 
 
 def test_cli_cleanup_reports_market_data_counts(tmp_path, monkeypatch, capsys) -> None:

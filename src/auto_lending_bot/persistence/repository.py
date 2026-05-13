@@ -328,6 +328,7 @@ class MarketAnalysisRateRepository:
         currency: str,
         short_samples: int,
         long_samples: int,
+        multiplier: float = 1.0,
     ) -> float | None:
         sample_count = max(short_samples, long_samples, 1)
         with connect(self._database_url) as connection:
@@ -349,7 +350,42 @@ class MarketAnalysisRateRepository:
             long_window = rates[: max(long_samples, 1)]
             short_average = sum(short_window) / len(short_window)
             long_average = sum(long_window) / len(long_window)
-            return max(short_average, long_average)
+            return max(short_average, long_average) * multiplier
+
+    def macd_rate_by_seconds(
+        self,
+        currency: str,
+        short_seconds: int,
+        long_seconds: int,
+        multiplier: float = 1.0,
+    ) -> float | None:
+        if short_seconds <= 0 or long_seconds <= 0:
+            return None
+
+        with connect(self._database_url) as connection:
+            short_rates = self._rates_since_seconds(connection, currency, short_seconds)
+            long_rates = self._rates_since_seconds(connection, currency, long_seconds)
+            if not short_rates or not long_rates:
+                return None
+
+            short_average = sum(short_rates) / len(short_rates)
+            long_average = sum(long_rates) / len(long_rates)
+            return max(short_average, long_average) * multiplier
+
+    @staticmethod
+    def _rates_since_seconds(connection, currency: str, seconds: int) -> list[float]:
+        rows = connection.execute(
+            """
+            SELECT daily_rate
+            FROM market_analysis_rates
+            WHERE currency = ?
+              AND level = 0
+              AND captured_at >= datetime('now', ?)
+            ORDER BY id DESC
+            """,
+            (currency.upper(), f"-{seconds} seconds"),
+        ).fetchall()
+        return [float(row["daily_rate"]) for row in rows]
 
 
 class ActiveLoanRepository:

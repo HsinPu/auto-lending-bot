@@ -237,10 +237,22 @@ class BotRunner:
             )
 
         if self._settings.market_analysis_method == "macd":
+            if (
+                self._settings.market_analysis_macd_short_seconds > 0
+                and self._settings.market_analysis_macd_long_seconds > 0
+            ):
+                return self._market_analysis_rates.macd_rate_by_seconds(
+                    currency,
+                    self._settings.market_analysis_macd_short_seconds,
+                    self._settings.market_analysis_macd_long_seconds,
+                    self._settings.market_analysis_multiplier,
+                )
+
             return self._market_analysis_rates.macd_rate(
                 currency,
                 self._settings.market_analysis_macd_short_samples,
                 self._settings.market_analysis_macd_long_samples,
+                self._settings.market_analysis_multiplier,
             )
 
         return None

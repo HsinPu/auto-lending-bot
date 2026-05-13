@@ -32,6 +32,9 @@ class Settings:
     market_analysis_percentile: float
     market_analysis_macd_short_samples: int
     market_analysis_macd_long_samples: int
+    market_analysis_macd_short_seconds: int
+    market_analysis_macd_long_seconds: int
+    market_analysis_multiplier: float
     max_loops: int
     retry_attempts: int
     retry_backoff_seconds: int
@@ -92,6 +95,9 @@ def load_settings() -> Settings:
             "MARKET_ANALYSIS_MACD_SHORT_SAMPLES", default=3
         ),
         market_analysis_macd_long_samples=_get_int("MARKET_ANALYSIS_MACD_LONG_SAMPLES", default=10),
+        market_analysis_macd_short_seconds=_get_int("MARKET_ANALYSIS_MACD_SHORT_SECONDS", default=0),
+        market_analysis_macd_long_seconds=_get_int("MARKET_ANALYSIS_MACD_LONG_SECONDS", default=0),
+        market_analysis_multiplier=_get_float("MARKET_ANALYSIS_MULTIPLIER", default=1.0),
         max_loops=_get_int("BOT_MAX_LOOPS", default=1),
         retry_attempts=_get_int("RETRY_ATTEMPTS", default=3),
         retry_backoff_seconds=_get_int("RETRY_BACKOFF_SECONDS", default=30),

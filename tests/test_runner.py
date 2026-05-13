@@ -265,6 +265,44 @@ def test_runner_uses_macd_market_analysis_minimum(tmp_path) -> None:
     assert btc_offer["daily_rate"] == pytest.approx(0.000115)
 
 
+def test_runner_uses_seconds_macd_market_analysis_minimum(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    settings = _settings(
+        database_url,
+        market_analysis_method="macd",
+        hide_coins=False,
+        market_analysis_macd_short_seconds=60,
+        market_analysis_macd_long_seconds=3600,
+        market_analysis_multiplier=1.05,
+    )
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    for daily_rate in [0.00008, 0.0001]:
+        market_analysis_rates.add_many(
+            [LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)]
+        )
+    loan_offers = LoanOfferRepository(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=loan_offers,
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    runner.run_once()
+
+    btc_offer = next(row for row in loan_offers.recent() if row["currency"] == "BTC")
+    assert btc_offer["daily_rate"] == pytest.approx(0.0000945)
+
+
 def test_runner_passes_active_amount_to_strategy_cap(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -416,6 +454,9 @@ def _settings(
     hide_coins: bool = True,
     market_analysis_macd_short_samples: int = 3,
     market_analysis_macd_long_samples: int = 10,
+    market_analysis_macd_short_seconds: int = 0,
+    market_analysis_macd_long_seconds: int = 0,
+    market_analysis_multiplier: float = 1.0,
     dry_run: bool = True,
     max_total_lend_amount: float | None = None,
     max_active_amount: float | None = None,
@@ -447,6 +488,9 @@ def _settings(
         market_analysis_percentile=75,
         market_analysis_macd_short_samples=market_analysis_macd_short_samples,
         market_analysis_macd_long_samples=market_analysis_macd_long_samples,
+        market_analysis_macd_short_seconds=market_analysis_macd_short_seconds,
+        market_analysis_macd_long_seconds=market_analysis_macd_long_seconds,
+        market_analysis_multiplier=market_analysis_multiplier,
         max_loops=max_loops,
         retry_attempts=3,
         retry_backoff_seconds=30,

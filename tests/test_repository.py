@@ -157,6 +157,22 @@ def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
     assert repository.macd_rate("BTC", short_samples=2, long_samples=5) == pytest.approx(0.00012)
 
 
+def test_market_analysis_rate_repository_calculates_macd_rate_by_seconds(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+
+    for daily_rate in [0.00008, 0.0001]:
+        repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)])
+
+    assert repository.macd_rate_by_seconds(
+        "BTC",
+        short_seconds=60,
+        long_seconds=3600,
+        multiplier=1.05,
+    ) == pytest.approx(0.0000945)
+
+
 def test_notification_state_repository_stores_float_values(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

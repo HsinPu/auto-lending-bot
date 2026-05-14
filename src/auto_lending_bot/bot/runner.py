@@ -175,19 +175,47 @@ class BotRunner:
                 )
                 current_step_id = None
 
-                current_step_id = self._start_step(
-                    bot_run_id,
-                    "load-strategy-inputs",
-                    run_step_label("load-strategy-inputs"),
-                )
+                current_step_id = self._start_step(bot_run_id, "load-strategy-config", run_step_label("load-strategy-config"))
                 strategy = strategy_config_for(self._settings, balance.currency)
+                self._finish_step(current_step_id, message=f"{balance.currency}：已載入策略設定。")
+                current_step_id = None
+
+                current_step_id = self._start_step(bot_run_id, "load-frr-rate", run_step_label("load-frr-rate"))
                 frr_daily_rate = self._frr_daily_rate(balance.currency, strategy.frr_as_min)
+                self._finish_step(
+                    current_step_id,
+                    status="completed" if strategy.frr_as_min else "skipped",
+                    message=(
+                        f"{balance.currency}：FRR 日利率 {frr_daily_rate}."
+                        if strategy.frr_as_min
+                        else f"{balance.currency}：略過 FRR，因為 FRR_AS_MIN=false。"
+                    ),
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(bot_run_id, "load-market-analysis-rate", run_step_label("load-market-analysis-rate"))
                 suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
+                self._finish_step(
+                    current_step_id,
+                    message=f"{balance.currency}：市場分析建議最低日利率 {suggested_min_daily_rate}。",
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(bot_run_id, "calculate-active-amount", run_step_label("calculate-active-amount"))
                 active_amount = self._active_amount(active_loans, balance.currency)
+                self._finish_step(current_step_id, message=f"{balance.currency}：已放貸金額 {active_amount}。")
+                current_step_id = None
+
+                current_step_id = self._start_step(bot_run_id, "load-btc-price", run_step_label("load-btc-price"))
                 btc_price = self._btc_price(balance.currency, strategy.gap_mode)
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：已載入策略設定、FRR/BTC 價格與市場分析建議。",
+                    status="completed" if btc_price is not None else "skipped",
+                    message=(
+                        f"{balance.currency}：BTC 參考價格 {btc_price}。"
+                        if btc_price is not None
+                        else f"{balance.currency}：略過 BTC 價格，因為策略不需要。"
+                    ),
                 )
                 current_step_id = None
 

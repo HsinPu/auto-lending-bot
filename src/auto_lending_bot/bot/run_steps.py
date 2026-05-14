@@ -85,9 +85,29 @@ RUN_STEP_DEFINITIONS = (
         description="把本輪讀到的市場利率快照寫入 SQLite。",
     ),
     RunStepDefinition(
-        key="load-strategy-inputs",
-        label="載入策略參考資料",
-        description="載入策略設定、FRR、BTC 價格與市場分析建議。",
+        key="load-strategy-config",
+        label="載入策略設定",
+        description="載入該幣的策略設定與覆寫值。",
+    ),
+    RunStepDefinition(
+        key="load-frr-rate",
+        label="讀取 FRR 利率",
+        description="需要 FRR 作為最低利率時，讀取該幣 FRR。",
+    ),
+    RunStepDefinition(
+        key="load-btc-price",
+        label="讀取 BTC 參考價格",
+        description="需要 BTC depth 換算時，讀取該幣 BTC 價格。",
+    ),
+    RunStepDefinition(
+        key="load-market-analysis-rate",
+        label="讀取市場分析建議利率",
+        description="從 SQLite 讀取市場分析建議最低日利率。",
+    ),
+    RunStepDefinition(
+        key="calculate-active-amount",
+        label="計算已放貸金額",
+        description="計算該幣目前已成交、正在放貸中的金額。",
     ),
     RunStepDefinition(
         key="calculate-decisions",

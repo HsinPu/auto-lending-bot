@@ -479,6 +479,19 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["latest_run"]["status"] == "completed"
     assert len(body["decisions"]) == 3
     assert body["decisions"][0]["bot_run_id"] == body["bot_run_id"]
+    per_currency_steps = [
+        "load-market-orders",
+        "record-market-orders",
+        "load-strategy-config",
+        "load-frr-rate",
+        "load-market-analysis-rate",
+        "calculate-active-amount",
+        "load-btc-price",
+        "calculate-decisions",
+        "record-decisions",
+        "prepare-offers",
+        "record-dry-run-offers",
+    ]
     assert [step["step_key"] for step in body["steps"]] == [
         "create-run",
         "read-previous-active-loans",
@@ -491,27 +504,9 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "replace-open-offers",
         "check-open-offer-cancel-setting",
         "evaluate-open-offer-cancel",
-        "load-market-orders",
-        "record-market-orders",
-        "load-strategy-inputs",
-        "calculate-decisions",
-        "record-decisions",
-        "prepare-offers",
-        "record-dry-run-offers",
-        "load-market-orders",
-        "record-market-orders",
-        "load-strategy-inputs",
-        "calculate-decisions",
-        "record-decisions",
-        "prepare-offers",
-        "record-dry-run-offers",
-        "load-market-orders",
-        "record-market-orders",
-        "load-strategy-inputs",
-        "calculate-decisions",
-        "record-decisions",
-        "prepare-offers",
-        "record-dry-run-offers",
+        *per_currency_steps,
+        *per_currency_steps,
+        *per_currency_steps,
         "finish-run",
     ]
     assert {"completed", "skipped"}.issuperset({step["status"] for step in body["steps"]})

@@ -1,6 +1,7 @@
 import logging
 import time
 
+from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer
 from auto_lending_bot.domain.strategy import build_lending_decision
@@ -93,14 +94,14 @@ class BotRunner:
             self._record_completed_step(
                 bot_run_id,
                 "create-run",
-                "建立本次執行紀錄",
+                run_step_label("create-run"),
                 f"Bot run #{bot_run_id} started.",
             )
 
             current_step_id = self._start_step(
                 bot_run_id,
                 "sync-active-loans",
-                "同步放貸中資料",
+                run_step_label("sync-active-loans"),
             )
             previous_active_loan_ids = {
                 str(row["external_loan_id"]) for row in self._active_loans.recent(1000)
@@ -114,7 +115,7 @@ class BotRunner:
             current_step_id = self._start_step(
                 bot_run_id,
                 "sync-balances",
-                "讀取可用 Lending 餘額",
+                run_step_label("sync-balances"),
             )
             balances = self._exchange.get_lending_balances()
             self._finish_step(current_step_id, message=f"Loaded {len(balances)} lending balance(s).")
@@ -123,7 +124,7 @@ class BotRunner:
             current_step_id = self._start_step(
                 bot_run_id,
                 "rebalance-open-offers",
-                "檢查未成交委託",
+                run_step_label("rebalance-open-offers"),
             )
             self._rebalance_open_offers(balances)
             self._finish_step(
@@ -220,7 +221,7 @@ class BotRunner:
             current_step_id = None
 
             message = f"Completed with {created_offers} offer(s)."
-            current_step_id = self._start_step(bot_run_id, "finish-run", "發送通知並完成本次執行")
+            current_step_id = self._start_step(bot_run_id, "finish-run", run_step_label("finish-run"))
             self._bot_runs.finish(bot_run_id, status="completed", message=message)
             self._notifier.run_summary(
                 created_offers=created_offers,

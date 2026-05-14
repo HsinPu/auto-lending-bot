@@ -451,7 +451,7 @@ function RunOnceFlowModal({
 }) {
   const running = flow.status === 'running'
   const failed = flow.status === 'error'
-  const latestRun = flow.result?.latest_run as BotRun | undefined
+  const runSummary = runOnceResultSummary(flow.result)
 
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
@@ -481,10 +481,13 @@ function RunOnceFlowModal({
           <section className="run-flow-result-panel">
             <h3>本輪執行結果</h3>
             <dl>
-              <HistoryMetric label="模式" value={flow.result.dry_run ? '模擬模式' : 'Live 模式'} />
-              <HistoryMetric label="建立委託數" value={String(flow.result.created_count ?? 0)} />
-              <HistoryMetric label="執行狀態" value={statusLabel(latestRun?.status ?? '-')} />
-              <HistoryMetric label="執行訊息" value={latestRun?.message || '-'} />
+              <HistoryMetric label="執行編號" value={runSummary.botRunId} />
+              <HistoryMetric label="模式" value={runSummary.dryRun ? '模擬模式' : 'Live 模式'} />
+              <HistoryMetric label="建立委託數" value={runSummary.createdCount} />
+              <HistoryMetric label="執行狀態" value={statusLabel(runSummary.status)} />
+              <HistoryMetric label="開始時間" value={runSummary.startedAt} />
+              <HistoryMetric label="結束時間" value={runSummary.finishedAt} />
+              <HistoryMetric label="執行訊息" value={runSummary.message} />
             </dl>
           </section>
         ) : null}
@@ -546,6 +549,20 @@ function LiveActionConfirmModal({
       </section>
     </div>
   )
+}
+
+function runOnceResultSummary(result: SafeActionResponse | undefined) {
+  const latestRun = result?.latest_run as BotRun | undefined
+
+  return {
+    botRunId: String(result?.bot_run_id ?? latestRun?.id ?? '-'),
+    createdCount: String(result?.created_count ?? 0),
+    dryRun: Boolean(result?.dry_run),
+    finishedAt: String(result?.finished_at ?? latestRun?.finished_at ?? '-'),
+    message: String(result?.message ?? latestRun?.message ?? '-'),
+    startedAt: String(result?.started_at ?? latestRun?.started_at ?? '-'),
+    status: String(result?.status ?? latestRun?.status ?? '-'),
+  }
 }
 
 const runOnceFlowSteps = [

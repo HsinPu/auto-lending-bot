@@ -486,12 +486,18 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         )
         runner.run_once()
         offers_after = loan_offers.count()
+        latest_run = bot_runs.latest() or {}
         return {
             "action": "run-once",
             "ok": True,
             "dry_run": settings.dry_run,
             "created_count": offers_after - offers_before,
-            "latest_run": bot_runs.latest(),
+            "bot_run_id": latest_run.get("id"),
+            "status": latest_run.get("status"),
+            "message": latest_run.get("message", ""),
+            "started_at": latest_run.get("started_at"),
+            "finished_at": latest_run.get("finished_at"),
+            "latest_run": latest_run,
         }
 
     @router.post("/actions/start-loop")

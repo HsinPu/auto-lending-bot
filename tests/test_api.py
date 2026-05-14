@@ -471,6 +471,11 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["action"] == "run-once"
     assert body["dry_run"] is True
     assert body["created_count"] == 6
+    assert body["bot_run_id"] == body["latest_run"]["id"]
+    assert body["status"] == "completed"
+    assert body["message"] == "Completed with 6 offer(s)."
+    assert body["started_at"] == body["latest_run"]["started_at"]
+    assert body["finished_at"] == body["latest_run"]["finished_at"]
     assert body["latest_run"]["status"] == "completed"
 
 

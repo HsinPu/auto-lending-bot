@@ -141,28 +141,14 @@ class BotRunner:
 
             current_step_id = self._start_step(
                 bot_run_id,
-                "sync-balances",
-                run_step_label("sync-balances"),
+                "read-lending-balances",
+                run_step_label("read-lending-balances"),
             )
             balances = self._exchange.get_lending_balances()
             self._finish_step(current_step_id, message=f"Loaded {len(balances)} lending balance(s).")
             current_step_id = None
 
-            current_step_id = self._start_step(
-                bot_run_id,
-                "rebalance-open-offers",
-                run_step_label("rebalance-open-offers"),
-            )
-            self._rebalance_open_offers(balances)
-            self._finish_step(
-                current_step_id,
-                message=(
-                    "Open offer rebalance checked."
-                    if self._settings.auto_rebalance_open_offers
-                    else "Skipped because AUTO_REBALANCE_OPEN_OFFERS is disabled."
-                ),
-            )
-            current_step_id = None
+            self._rebalance_open_offers(bot_run_id, balances)
 
             for balance in balances:
                 current_step_id = self._start_step(
@@ -415,6 +401,10 @@ class BotRunner:
 
         self._run_steps.record_completed(bot_run_id, step_key, label, message=message)
 
+    def _record_skipped_step(self, bot_run_id: int, step_key: str, message: str = "") -> None:
+        step_id = self._start_step(bot_run_id, step_key, run_step_label(step_key))
+        self._finish_step(step_id, status="skipped", message=message)
+
     def _sleep_seconds(self, created_offers: int) -> int:
         if created_offers > 0:
             return self._settings.bot_sleep_seconds
@@ -432,22 +422,84 @@ class BotRunner:
                 msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)
 
-    def _rebalance_open_offers(self, balances: list[CurrencyBalance]) -> None:
+    def _rebalance_open_offers(self, bot_run_id: int, balances: list[CurrencyBalance]) -> None:
+        self._record_completed_step(
+            bot_run_id,
+            "check-open-offer-rebalance-setting",
+            run_step_label("check-open-offer-rebalance-setting"),
+            "AUTO_REBALANCE_OPEN_OFFERS=true."
+            if self._settings.auto_rebalance_open_offers
+            else "AUTO_REBALANCE_OPEN_OFFERS=false.",
+        )
         if not self._settings.auto_rebalance_open_offers:
+            self._record_skipped_step(
+                bot_run_id,
+                "sync-open-offers",
+                "略過同步未成交委託，因為 AUTO_REBALANCE_OPEN_OFFERS=false。",
+            )
+            self._record_skipped_step(
+                bot_run_id,
+                "replace-open-offers",
+                "略過更新本地未成交委託。",
+            )
+            self._record_skipped_step(
+                bot_run_id,
+                "check-open-offer-cancel-setting",
+                "略過取消設定檢查，因為未同步 open offers。",
+            )
+            self._record_skipped_step(
+                bot_run_id,
+                "evaluate-open-offer-cancel",
+                "略過舊委託取消評估。",
+            )
             return
 
+        step_id = self._start_step(bot_run_id, "sync-open-offers", run_step_label("sync-open-offers"))
         offers = self._exchange.get_open_loan_offers()
+        self._finish_step(step_id, message=f"讀取 {len(offers)} 筆未成交委託。")
+
+        step_id = self._start_step(bot_run_id, "replace-open-offers", run_step_label("replace-open-offers"))
         self._open_offers.replace_all(offers)
+        self._finish_step(step_id, message=f"本地未成交委託已更新為 {len(offers)} 筆。")
+
+        self._record_completed_step(
+            bot_run_id,
+            "check-open-offer-cancel-setting",
+            run_step_label("check-open-offer-cancel-setting"),
+            "允許取消舊委託。"
+            if not self._settings.dry_run and self._settings.auto_cancel_open_offers
+            else "略過取消舊委託：dry-run 或 AUTO_CANCEL_OPEN_OFFERS=false。",
+        )
         if self._settings.dry_run or not self._settings.auto_cancel_open_offers:
+            self._record_skipped_step(
+                bot_run_id,
+                "evaluate-open-offer-cancel",
+                "略過舊委託取消評估：dry-run 或 AUTO_CANCEL_OPEN_OFFERS=false。",
+            )
             return
 
         kept_offers = []
         for offer in offers:
+            step_id = self._start_step(
+                bot_run_id,
+                "evaluate-open-offer-cancel",
+                run_step_label("evaluate-open-offer-cancel"),
+            )
             if self._keep_stuck_offer(offer, offers, balances):
                 kept_offers.append(offer)
+                self._finish_step(step_id, message=f"保留 {offer.currency} 舊委託，避免低於最小放貸量。")
                 continue
             if offer.external_offer_id:
+                self._finish_step(step_id, message=f"{offer.currency} 舊委託可取消。")
+                step_id = self._start_step(
+                    bot_run_id,
+                    "cancel-open-offer",
+                    run_step_label("cancel-open-offer"),
+                )
                 self._exchange.cancel_loan_offer(offer.external_offer_id)
+                self._finish_step(step_id, message=f"已取消 {offer.currency} 舊委託 {offer.external_offer_id}。")
+            else:
+                self._finish_step(step_id, message=f"略過 {offer.currency} 舊委託：沒有交易所委託 ID。")
         self._open_offers.replace_all(kept_offers)
 
     def _keep_stuck_offer(

@@ -485,8 +485,12 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "read-active-loans",
         "replace-active-loans",
         "detect-new-active-loans",
-        "sync-balances",
-        "rebalance-open-offers",
+        "read-lending-balances",
+        "check-open-offer-rebalance-setting",
+        "sync-open-offers",
+        "replace-open-offers",
+        "check-open-offer-cancel-setting",
+        "evaluate-open-offer-cancel",
         "load-market-orders",
         "record-market-orders",
         "load-strategy-inputs",
@@ -510,7 +514,7 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "record-dry-run-offers",
         "finish-run",
     ]
-    assert all(step["status"] == "completed" for step in body["steps"])
+    assert {"completed", "skipped"}.issuperset({step["status"] for step in body["steps"]})
     step_messages = [step["message"] for step in body["steps"]]
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)

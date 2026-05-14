@@ -35,9 +35,14 @@ RUN_STEP_DEFINITIONS = (
         description="比對上一輪與這一輪的放貸中資料，必要時發送成交通知。",
     ),
     RunStepDefinition(
-        key="sync-balances",
+        key="read-lending-balances",
         label="讀取 Lending 可用餘額",
         description="讀取 Funding/Lending wallet 裡可拿來放貸的幣種與金額。",
+    ),
+    RunStepDefinition(
+        key="check-open-offer-rebalance-setting",
+        label="檢查未成交委託同步設定",
+        description="檢查是否啟用 open offer rebalance。",
     ),
     RunStepDefinition(
         key="sync-open-offers",
@@ -45,9 +50,29 @@ RUN_STEP_DEFINITIONS = (
         description="視設定同步目前還掛在市場上的未成交委託。",
     ),
     RunStepDefinition(
+        key="replace-open-offers",
+        label="更新本地未成交委託",
+        description="用交易所最新 open offers 更新本地快照。",
+    ),
+    RunStepDefinition(
+        key="check-open-offer-cancel-setting",
+        label="檢查舊委託取消設定",
+        description="檢查目前是否允許取消舊委託。",
+    ),
+    RunStepDefinition(
         key="rebalance-open-offers",
         label="處理舊委託",
         description="視設定決定是否保留或取消不符合策略的舊委託。",
+    ),
+    RunStepDefinition(
+        key="evaluate-open-offer-cancel",
+        label="評估舊委託是否取消",
+        description="逐筆判斷舊委託是否應該保留或取消。",
+    ),
+    RunStepDefinition(
+        key="cancel-open-offer",
+        label="取消舊委託",
+        description="取消一筆不符合策略且允許取消的舊委託。",
     ),
     RunStepDefinition(
         key="load-market-orders",

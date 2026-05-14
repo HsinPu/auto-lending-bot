@@ -516,6 +516,15 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     ]
     assert {"completed", "skipped"}.issuperset({step["status"] for step in body["steps"]})
     step_messages = [step["message"] for step in body["steps"]]
+    for currency in ("BTC", "ETH", "USDT"):
+        assert any(
+            step["step_key"] == "load-market-orders" and currency in step["message"]
+            for step in body["steps"]
+        )
+        assert any(
+            step["step_key"] == "record-market-orders" and currency in step["message"]
+            for step in body["steps"]
+        )
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)
     assert any("USDT" in message and "0" in message for message in step_messages)

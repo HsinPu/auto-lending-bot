@@ -304,8 +304,8 @@ class BotRunner:
                 for offer in decision.offers:
                     current_step_id = self._start_step(
                         bot_run_id,
-                        "validate-live-offers",
-                        run_step_label("validate-live-offers"),
+                        "validate-live-offer",
+                        run_step_label("validate-live-offer"),
                     )
                     self._assert_live_offer_allowed(offer, live_lend_amount)
                     self._finish_step(
@@ -316,8 +316,8 @@ class BotRunner:
 
                     current_step_id = self._start_step(
                         bot_run_id,
-                        "record-live-intents",
-                        run_step_label("record-live-intents"),
+                        "record-live-intent",
+                        run_step_label("record-live-intent"),
                     )
                     loan_offer_id = self._loan_offers.add(
                         bot_run_id=bot_run_id,
@@ -333,8 +333,8 @@ class BotRunner:
 
                     current_step_id = self._start_step(
                         bot_run_id,
-                        "submit-live-offers",
-                        run_step_label("submit-live-offers"),
+                        "submit-live-offer",
+                        run_step_label("submit-live-offer"),
                     )
                     try:
                         external_offer_id = self._exchange.create_loan_offer(offer)
@@ -346,8 +346,8 @@ class BotRunner:
 
                         current_step_id = self._start_step(
                             bot_run_id,
-                            "update-offer-results",
-                            run_step_label("update-offer-results"),
+                            "update-offer-result",
+                            run_step_label("update-offer-result"),
                         )
                         self._loan_offers.update_status(
                             loan_offer_id,
@@ -365,8 +365,8 @@ class BotRunner:
                         self._finish_step(current_step_id, status="failed", message=str(error))
                         current_step_id = self._start_step(
                             bot_run_id,
-                            "update-offer-results",
-                            run_step_label("update-offer-results"),
+                            "update-offer-result",
+                            run_step_label("update-offer-result"),
                         )
                         self._loan_offers.update_status(
                             loan_offer_id,

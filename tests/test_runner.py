@@ -577,10 +577,10 @@ def test_runner_records_live_offer_submission_steps(tmp_path) -> None:
     rows = run_steps.for_run(int(latest_run["id"]))
     step_keys = [row["step_key"] for row in rows]
 
-    assert "validate-live-offers" in step_keys
-    assert "record-live-intents" in step_keys
-    assert "submit-live-offers" in step_keys
-    assert "update-offer-results" in step_keys
+    assert "validate-live-offer" in step_keys
+    assert "record-live-intent" in step_keys
+    assert "submit-live-offer" in step_keys
+    assert "update-offer-result" in step_keys
 
 
 def _settings(

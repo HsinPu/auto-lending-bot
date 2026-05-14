@@ -130,22 +130,22 @@ RUN_STEP_DEFINITIONS = (
         description="模擬模式逐筆寫本地委託紀錄，不送出到交易所。",
     ),
     RunStepDefinition(
-        key="validate-live-offers",
+        key="validate-live-offer",
         label="Live 金額安全檢查",
         description="Live 模式下單前檢查單筆與本輪總額上限。",
     ),
     RunStepDefinition(
-        key="record-live-intents",
+        key="record-live-intent",
         label="建立 Live 委託意圖",
         description="真正送單前先寫入本地 intent，方便追蹤嘗試紀錄。",
     ),
     RunStepDefinition(
-        key="submit-live-offers",
+        key="submit-live-offer",
         label="送出 Bitfinex 委託",
         description="Live 模式呼叫交易所建立 lending offer。",
     ),
     RunStepDefinition(
-        key="update-offer-results",
+        key="update-offer-result",
         label="更新委託結果",
         description="成功標記 created，失敗標記 failed 並保存錯誤訊息。",
     ),

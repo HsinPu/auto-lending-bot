@@ -191,24 +191,37 @@ offer is submitted only after the live confirmation and amount guards pass.
 | Order | Step | What happens |
 |---:|---|---|
 | 1 | Create run | Start a `bot_runs` row for this execution. |
-| 2 | Sync active loans | Read currently filled lending loans and refresh the local active-loan snapshot. |
-| 3 | Detect filled loans | Compare the previous and current active-loan snapshots for fill notifications. |
-| 4 | Sync balances | Read available Funding/Lending wallet balances. |
-| 5 | Check open offers | When open-offer rebalance is enabled, read current open offers. |
-| 6 | Rebalance open offers | When live canceling is enabled, keep or cancel old offers according to strategy. |
-| 7 | Load market orders | For each available currency, read the current lending order book. |
-| 8 | Record market orders | Store the market-rate snapshot in SQLite. |
-| 9 | Load strategy inputs | Load per-currency strategy settings, FRR/BTC references, and market-analysis suggestions. |
-| 10 | Calculate decisions | Decide whether each currency should create offers, including amount, rate, and duration. |
-| 11 | Record decisions | Store the per-run decision snapshot for dashboard review. |
-| 12 | Prepare offers | Convert decisions into the offers that should be recorded or submitted. |
-| 13A | Dry-run offers | In dry-run mode, write `loan_offers` rows with `status=dry_run`; no exchange order is sent. |
-| 13B | Live guards | In live mode, check single-offer and run-total lending limits before each submission. |
-| 14B | Live intent | Write a local `loan_offers` row with `status=intent` before sending the exchange request. |
-| 15B | Submit live offer | Submit the lending offer to Bitfinex. |
-| 16B | Update result | Mark the local offer `created` with the exchange ID, or `failed` with the error. |
-| 17 | Finish run | Mark the run `completed` or `failed` with a summary message. |
-| 18 | Send notifications | Send summaries, long-duration offer notices, fill notices, or errors when configured. |
+| 2 | Read previous active loans | Read the local active-loan snapshot used for fill detection. |
+| 3 | Read exchange active loans | Read currently filled lending loans from the exchange. |
+| 4 | Replace active loans | Refresh the local active-loan snapshot. |
+| 5 | Detect new active loans | Compare previous and current active loans for fill notifications. |
+| 6 | Read lending balances | Read available Funding/Lending wallet balances. |
+| 7 | Check open-offer rebalance setting | Record whether open-offer sync should run. |
+| 8 | Sync open offers | Read open offers when rebalance is enabled, otherwise record `skipped`. |
+| 9 | Replace open offers | Refresh the local open-offer snapshot when available. |
+| 10 | Check cancel setting | Record whether old offers may be canceled. |
+| 11 | Evaluate open-offer cancel | Decide per open offer whether it should be kept or canceled. |
+| 12 | Cancel open offer | Cancel a specific old offer when live canceling is enabled. |
+| 13 | Load market orders | For each available currency, read the current lending order book. |
+| 14 | Record market orders | Store the market-rate snapshot in SQLite. |
+| 15 | Load strategy config | Load per-currency strategy settings and overrides. |
+| 16 | Load FRR rate | Read FRR when `FRR_AS_MIN=true`, otherwise record `skipped`. |
+| 17 | Load market-analysis rate | Read the suggested minimum daily rate from local analysis data. |
+| 18 | Calculate active amount | Calculate the currently active lending amount for the currency. |
+| 19 | Load BTC price | Read BTC conversion price when the strategy needs it, otherwise record `skipped`. |
+| 20 | Calculate decisions | Decide whether each currency should create offers, including amount, rate, and duration. |
+| 21 | Record decisions | Store the per-run decision snapshot for dashboard review. |
+| 22 | Prepare offers | Convert decisions into the offers that should be recorded or submitted. |
+| 23A | Record dry-run offer | In dry-run mode, write one local `status=dry_run` row per offer; no exchange order is sent. |
+| 23B | Validate live offer | In live mode, check single-offer and run-total lending limits before each offer. |
+| 24B | Record live intent | Write one local `status=intent` row before each exchange request. |
+| 25B | Submit live offer | Submit each lending offer to Bitfinex. |
+| 26B | Update offer result | Mark the local offer `created` with the exchange ID, or `failed` with the error. |
+| 27 | X-day notification | Record whether a long-duration offer notification was sent or skipped. |
+| 28 | Finish run | Mark the run `completed` or `failed` with a summary message. |
+| 29 | Run summary notification | Record the run-summary notification action. |
+| 30 | Periodic summary notification | Send or skip the periodic lending summary based on settings. |
+| 31 | Error notification | On failures, send or skip the error notification based on settings. |
 
 ## Strategy Settings
 

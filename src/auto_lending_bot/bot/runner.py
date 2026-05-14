@@ -289,7 +289,7 @@ class BotRunner:
                             status=status,
                             dry_run=self._settings.dry_run,
                         )
-                        self._notify_xday_offer(offer)
+                        self._record_xday_notification_step(bot_run_id, offer)
                         created_offers += 1
                         self._finish_step(
                             current_step_id,
@@ -360,7 +360,7 @@ class BotRunner:
                         )
                         current_step_id = None
                         self._notifier.info(f"Created {offer.currency} loan offer {external_offer_id}.")
-                        self._notify_xday_offer(offer)
+                        self._record_xday_notification_step(bot_run_id, offer)
                     except Exception as error:
                         self._finish_step(current_step_id, status="failed", message=str(error))
                         current_step_id = self._start_step(
@@ -389,18 +389,40 @@ class BotRunner:
             message = f"Completed with {created_offers} offer(s)."
             current_step_id = self._start_step(bot_run_id, "finish-run", run_step_label("finish-run"))
             self._bot_runs.finish(bot_run_id, status="completed", message=message)
+            self._finish_step(current_step_id, message=message)
+            current_step_id = None
+
+            current_step_id = self._start_step(bot_run_id, "send-run-summary", run_step_label("send-run-summary"))
             self._notifier.run_summary(
                 created_offers=created_offers,
                 active_loans=len(active_loans),
                 dry_run=self._settings.dry_run,
             )
-            self._maybe_send_periodic_summary(active_loans)
-            self._finish_step(current_step_id, message=message)
+            self._finish_step(current_step_id, message="已處理本輪摘要通知。")
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "send-periodic-summary",
+                run_step_label("send-periodic-summary"),
+            )
+            periodic_sent = self._maybe_send_periodic_summary(active_loans)
+            self._finish_step(
+                current_step_id,
+                status="completed" if periodic_sent else "skipped",
+                message="已發送週期摘要通知。" if periodic_sent else "略過週期摘要通知。",
+            )
             return created_offers
         except Exception as error:
             self._finish_step(current_step_id, status="failed", message=str(error))
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
-            self._notify_caught_exception(str(error))
+            error_notified = self._notify_caught_exception(str(error))
+            self._record_completed_or_skipped_step(
+                bot_run_id,
+                "send-error-notification",
+                error_notified,
+                "已發送錯誤通知。" if error_notified else "略過錯誤通知。",
+            )
             raise
 
     def _start_step(self, bot_run_id: int, step_key: str, label: str) -> int | None:
@@ -435,6 +457,27 @@ class BotRunner:
     def _record_skipped_step(self, bot_run_id: int, step_key: str, message: str = "") -> None:
         step_id = self._start_step(bot_run_id, step_key, run_step_label(step_key))
         self._finish_step(step_id, status="skipped", message=message)
+
+    def _record_completed_or_skipped_step(
+        self,
+        bot_run_id: int,
+        step_key: str,
+        completed: bool,
+        message: str,
+    ) -> None:
+        step_id = self._start_step(bot_run_id, step_key, run_step_label(step_key))
+        self._finish_step(step_id, status="completed" if completed else "skipped", message=message)
+
+    def _record_xday_notification_step(self, bot_run_id: int, offer: LoanOffer) -> None:
+        sent = self._notify_xday_offer(offer)
+        self._record_completed_or_skipped_step(
+            bot_run_id,
+            "send-xday-notification",
+            sent,
+            f"{offer.currency}：已發送長天期委託通知。"
+            if sent
+            else f"{offer.currency}：略過長天期委託通知。",
+        )
 
     def _sleep_seconds(self, created_offers: int) -> int:
         if created_offers > 0:
@@ -666,16 +709,16 @@ class BotRunner:
             decision.reason,
         )
 
-    def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> None:
+    def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> bool:
         if self._settings.notify_summary_minutes <= 0:
-            return
+            return False
 
         now = time.time()
         state_key = "telegram_summary_last_sent_at"
         last_sent_at = self._notification_state.get_float(state_key)
         interval_seconds = self._settings.notify_summary_minutes * 60
         if last_sent_at is not None and now - last_sent_at < interval_seconds:
-            return
+            return False
 
         open_offers = self._open_offers.recent(1000)
         earnings = self._lending_history.earnings_summary_by_currency()
@@ -687,14 +730,16 @@ class BotRunner:
             )
         )
         self._notification_state.set_float(state_key, now)
+        return True
 
-    def _notify_xday_offer(self, offer: LoanOffer) -> None:
+    def _notify_xday_offer(self, offer: LoanOffer) -> bool:
         if not self._settings.notify_xday_threshold:
-            return
+            return False
         if offer.duration_days <= 2:
-            return
+            return False
 
         self._notifier.xday_offer(offer, dry_run=self._settings.dry_run)
+        return True
 
     def _notify_new_active_loans(
         self,
@@ -711,9 +756,11 @@ class BotRunner:
                 new_count += 1
         return new_count
 
-    def _notify_caught_exception(self, message: str) -> None:
+    def _notify_caught_exception(self, message: str) -> bool:
         if self._settings.notify_caught_exception:
             self._notifier.error(message)
+            return True
+        return False
 
 
 def _summary_message(

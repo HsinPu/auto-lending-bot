@@ -155,9 +155,24 @@ RUN_STEP_DEFINITIONS = (
         description="寫入本輪 completed/failed 與摘要訊息。",
     ),
     RunStepDefinition(
-        key="send-notifications",
-        label="發送通知",
-        description="發送摘要、錯誤或長天期委託通知。",
+        key="send-run-summary",
+        label="發送本輪摘要通知",
+        description="發送本輪建立委託數與 active loans 摘要。",
+    ),
+    RunStepDefinition(
+        key="send-periodic-summary",
+        label="發送週期摘要通知",
+        description="依通知間隔設定發送週期放貸摘要。",
+    ),
+    RunStepDefinition(
+        key="send-xday-notification",
+        label="發送長天期委託通知",
+        description="當委託天期超過門檻且通知啟用時發送通知。",
+    ),
+    RunStepDefinition(
+        key="send-error-notification",
+        label="發送錯誤通知",
+        description="執行失敗且錯誤通知啟用時發送通知。",
     ),
 )
 

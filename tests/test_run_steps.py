@@ -34,7 +34,10 @@ def test_run_step_catalog_has_stable_unique_keys() -> None:
         "submit-live-offer",
         "update-offer-result",
         "finish-run",
-        "send-notifications",
+        "send-run-summary",
+        "send-periodic-summary",
+        "send-xday-notification",
+        "send-error-notification",
     ]
     assert len(RUN_STEPS_BY_KEY) == len(keys)
     assert run_step_label("submit-live-offer") == "送出 Bitfinex 委託"

@@ -699,7 +699,7 @@ const runOnceFlowGroups = [
   },
   {
     title: '完成與通知',
-    stepKeys: ['finish-run', 'send-notifications'],
+    stepKeys: ['finish-run', 'send-run-summary', 'send-periodic-summary', 'send-xday-notification', 'send-error-notification'],
   },
 ]
 
@@ -937,12 +937,36 @@ const runOnceFlowSteps = [
     description: '寫入本輪 completed/failed 與摘要訊息。',
   },
   {
-    key: 'send-notifications',
-    stepKey: 'send-notifications',
-    title: '發送通知',
-    label: '發送通知',
+    key: 'send-run-summary',
+    stepKey: 'send-run-summary',
+    title: '發送本輪摘要通知',
+    label: '發送本輪摘要通知',
     status: 'pending',
-    description: '發送摘要、錯誤或長天期委託通知。',
+    description: '發送本輪建立委託數與 active loans 摘要。',
+  },
+  {
+    key: 'send-periodic-summary',
+    stepKey: 'send-periodic-summary',
+    title: '發送週期摘要通知',
+    label: '發送週期摘要通知',
+    status: 'pending',
+    description: '依通知間隔設定發送週期放貸摘要。',
+  },
+  {
+    key: 'send-xday-notification',
+    stepKey: 'send-xday-notification',
+    title: '發送長天期委託通知',
+    label: '發送長天期委託通知',
+    status: 'pending',
+    description: '當委託天期超過門檻且通知啟用時發送通知。',
+  },
+  {
+    key: 'send-error-notification',
+    stepKey: 'send-error-notification',
+    title: '發送錯誤通知',
+    label: '發送錯誤通知',
+    status: 'pending',
+    description: '執行失敗且錯誤通知啟用時發送通知。',
   },
 ]
 

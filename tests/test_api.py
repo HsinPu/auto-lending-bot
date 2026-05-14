@@ -505,14 +505,22 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "evaluate-open-offer-cancel",
         *per_currency_steps,
         "record-dry-run-offer",
+        "send-xday-notification",
         "record-dry-run-offer",
+        "send-xday-notification",
         "record-dry-run-offer",
+        "send-xday-notification",
         *per_currency_steps,
         "record-dry-run-offer",
+        "send-xday-notification",
         "record-dry-run-offer",
+        "send-xday-notification",
         "record-dry-run-offer",
+        "send-xday-notification",
         *per_currency_steps,
         "finish-run",
+        "send-run-summary",
+        "send-periodic-summary",
     ]
     assert {"completed", "skipped"}.issuperset({step["status"] for step in body["steps"]})
     step_messages = [step["message"] for step in body["steps"]]
@@ -541,6 +549,7 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert any("ETH" in message and "3" in message for message in step_messages)
     assert any("USDT" in message and "0" in message for message in step_messages)
     assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 6
+    assert sum(1 for step in body["steps"] if step["step_key"] == "send-xday-notification") == 6
     decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")
     assert decisions_response.status_code == 200
     assert decisions_response.json() == body["decisions"]

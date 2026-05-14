@@ -1186,7 +1186,7 @@ h1 {
 }
 
 .run-flow-modal {
-  width: min(760px, 100%);
+  width: min(1120px, calc(100vw - 32px));
   border: 1px solid rgba(147, 197, 253, 0.22);
   border-radius: 28px;
   padding: 24px;

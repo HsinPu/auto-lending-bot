@@ -182,6 +182,34 @@ Current API endpoints:
 - `POST /api/actions/run-once`
 - `POST /api/actions/record-market-analysis`
 
+## Run Once Order Flow
+
+`POST /api/actions/run-once` follows the same business flow as the dashboard's run-once
+modal. In dry-run mode the bot records local offer rows only; in live mode the Bitfinex
+offer is submitted only after the live confirmation and amount guards pass.
+
+| Order | Step | What happens |
+|---:|---|---|
+| 1 | Create run | Start a `bot_runs` row for this execution. |
+| 2 | Sync active loans | Read currently filled lending loans and refresh the local active-loan snapshot. |
+| 3 | Detect filled loans | Compare the previous and current active-loan snapshots for fill notifications. |
+| 4 | Sync balances | Read available Funding/Lending wallet balances. |
+| 5 | Check open offers | When open-offer rebalance is enabled, read current open offers. |
+| 6 | Rebalance open offers | When live canceling is enabled, keep or cancel old offers according to strategy. |
+| 7 | Load market orders | For each available currency, read the current lending order book. |
+| 8 | Record market orders | Store the market-rate snapshot in SQLite. |
+| 9 | Load strategy inputs | Load per-currency strategy settings, FRR/BTC references, and market-analysis suggestions. |
+| 10 | Calculate decisions | Decide whether each currency should create offers, including amount, rate, and duration. |
+| 11 | Record decisions | Store the per-run decision snapshot for dashboard review. |
+| 12 | Prepare offers | Convert decisions into the offers that should be recorded or submitted. |
+| 13A | Dry-run offers | In dry-run mode, write `loan_offers` rows with `status=dry_run`; no exchange order is sent. |
+| 13B | Live guards | In live mode, check single-offer and run-total lending limits before each submission. |
+| 14B | Live intent | Write a local `loan_offers` row with `status=intent` before sending the exchange request. |
+| 15B | Submit live offer | Submit the lending offer to Bitfinex. |
+| 16B | Update result | Mark the local offer `created` with the exchange ID, or `failed` with the error. |
+| 17 | Finish run | Mark the run `completed` or `failed` with a summary message. |
+| 18 | Send notifications | Send summaries, long-duration offer notices, fill notices, or errors when configured. |
+
 ## Strategy Settings
 
 Global settings:

@@ -6,7 +6,9 @@ def test_run_step_catalog_has_stable_unique_keys() -> None:
 
     assert keys == [
         "create-run",
-        "sync-active-loans",
+        "read-previous-active-loans",
+        "read-active-loans",
+        "replace-active-loans",
         "detect-new-active-loans",
         "sync-balances",
         "sync-open-offers",

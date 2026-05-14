@@ -15,9 +15,19 @@ RUN_STEP_DEFINITIONS = (
         description="建立這一輪 run，後續用來追蹤成功、失敗與建立委託數。",
     ),
     RunStepDefinition(
-        key="sync-active-loans",
-        label="同步放貸中資料",
-        description="讀取目前已成交、正在放貸中的資料並更新本地快照。",
+        key="read-previous-active-loans",
+        label="讀取本地舊放貸資料",
+        description="讀取上一輪保存在 SQLite 的 active loans，用來比對新成交。",
+    ),
+    RunStepDefinition(
+        key="read-active-loans",
+        label="讀取交易所放貸中資料",
+        description="從交易所讀取目前已成交、正在放貸中的資料。",
+    ),
+    RunStepDefinition(
+        key="replace-active-loans",
+        label="更新本地放貸中資料",
+        description="用交易所最新 active loans 取代本地快照。",
     ),
     RunStepDefinition(
         key="detect-new-active-loans",

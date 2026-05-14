@@ -100,16 +100,43 @@ class BotRunner:
 
             current_step_id = self._start_step(
                 bot_run_id,
-                "sync-active-loans",
-                run_step_label("sync-active-loans"),
+                "read-previous-active-loans",
+                run_step_label("read-previous-active-loans"),
             )
             previous_active_loan_ids = {
                 str(row["external_loan_id"]) for row in self._active_loans.recent(1000)
             }
+            self._finish_step(
+                current_step_id,
+                message=f"讀取 {len(previous_active_loan_ids)} 筆本地舊放貸資料。",
+            )
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "read-active-loans",
+                run_step_label("read-active-loans"),
+            )
             active_loans = self._exchange.get_active_loans()
+            self._finish_step(current_step_id, message=f"讀取 {len(active_loans)} 筆交易所放貸中資料。")
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "replace-active-loans",
+                run_step_label("replace-active-loans"),
+            )
             self._active_loans.replace_all(active_loans)
-            self._notify_new_active_loans(previous_active_loan_ids, active_loans)
-            self._finish_step(current_step_id, message=f"Synced {len(active_loans)} active loan(s).")
+            self._finish_step(current_step_id, message=f"本地放貸中資料已更新為 {len(active_loans)} 筆。")
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "detect-new-active-loans",
+                run_step_label("detect-new-active-loans"),
+            )
+            new_active_count = self._notify_new_active_loans(previous_active_loan_ids, active_loans)
+            self._finish_step(current_step_id, message=f"檢查到 {new_active_count} 筆新成交放貸。")
             current_step_id = None
 
             current_step_id = self._start_step(
@@ -590,13 +617,16 @@ class BotRunner:
         self,
         previous_active_loan_ids: set[str],
         active_loans: list[ActiveLoan],
-    ) -> None:
+    ) -> int:
         if not previous_active_loan_ids:
-            return
+            return 0
 
+        new_count = 0
         for active_loan in active_loans:
             if active_loan.external_loan_id not in previous_active_loan_ids:
                 self._notifier.loan_filled(active_loan)
+                new_count += 1
+        return new_count
 
     def _notify_caught_exception(self, message: str) -> None:
         if self._settings.notify_caught_exception:

@@ -481,7 +481,10 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["decisions"][0]["bot_run_id"] == body["bot_run_id"]
     assert [step["step_key"] for step in body["steps"]] == [
         "create-run",
-        "sync-active-loans",
+        "read-previous-active-loans",
+        "read-active-loans",
+        "replace-active-loans",
+        "detect-new-active-loans",
         "sync-balances",
         "rebalance-open-offers",
         "load-market-orders",

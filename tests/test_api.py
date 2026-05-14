@@ -528,8 +528,8 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         step["step_key"] == "read-lending-balances"
         and "BTC" in step["message"]
         and "0.25" in step["message"]
-        and "Exchange wallet" in step["message"]
-        and "Margin/Trading wallet" in step["message"]
+        and "- Exchange wallet" in step["message"]
+        and "- Margin/Trading wallet" in step["message"]
         for step in body["steps"]
     )
     for currency in ("BTC", "ETH", "USDT"):

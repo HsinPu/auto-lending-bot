@@ -153,9 +153,10 @@ class BotRunner:
             self._finish_step(
                 current_step_id,
                 message=(
-                    f"Funding/Lending wallet：{_balance_summary(balances)} "
-                    f"Exchange wallet：{_balance_summary(exchange_balances)} "
-                    f"Margin/Trading wallet：{_balance_summary(margin_balances)}"
+                    "錢包餘額：\n"
+                    f"- Funding/Lending wallet：{_balance_summary(balances)}\n"
+                    f"- Exchange wallet：{_balance_summary(exchange_balances)}\n"
+                    f"- Margin/Trading wallet：{_balance_summary(margin_balances)}"
                 ),
             )
             current_step_id = None

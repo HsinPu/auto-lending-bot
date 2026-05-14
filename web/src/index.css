@@ -1291,6 +1291,15 @@ h1 {
   color: #dbeafe;
 }
 
+.run-flow-step-body ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #dbeafe;
+  line-height: 1.6;
+}
+
 .run-flow-steps li > span {
   display: grid;
   place-items: center;

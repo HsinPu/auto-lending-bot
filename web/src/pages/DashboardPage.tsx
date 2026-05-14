@@ -489,7 +489,7 @@ function RunOnceFlowModal({
                         </div>
                       </summary>
                       <div className="run-flow-step-body">
-                        <p>{step.detail}</p>
+                        <RunFlowStepDetail detail={step.detail} />
                       </div>
                     </details>
                   </li>
@@ -570,6 +570,27 @@ function LiveActionConfirmModal({
       </section>
     </div>
   )
+}
+
+function RunFlowStepDetail({ detail }: { detail: string }) {
+  const lines = detail.split('\n').map((line) => line.trim()).filter(Boolean)
+  const heading = lines.length > 1 && !lines[0].startsWith('- ') ? lines[0] : null
+  const listItems = lines.filter((line) => line.startsWith('- ')).map((line) => line.slice(2))
+
+  if (listItems.length > 0) {
+    return (
+      <>
+        {heading ? <p>{heading}</p> : null}
+        <ul>
+          {listItems.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+
+  return <p>{detail}</p>
 }
 
 function runOnceResultSummary(result: SafeActionResponse | undefined) {

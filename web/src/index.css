@@ -1241,7 +1241,7 @@ h1 {
   font-weight: 700;
 }
 
-.run-flow-steps li {
+.run-flow-steps > li {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 12px;
@@ -1300,7 +1300,7 @@ h1 {
   line-height: 1.6;
 }
 
-.run-flow-steps li > span {
+.run-flow-steps > li > span {
   display: grid;
   place-items: center;
   width: 34px;
@@ -1311,18 +1311,18 @@ h1 {
   font-weight: 900;
 }
 
-.run-flow-steps li.running > span {
+.run-flow-steps > li.running > span {
   color: #082f49;
   background: #7dd3fc;
 }
 
-.run-flow-steps li.pending > span,
-.run-flow-steps li.skipped > span {
+.run-flow-steps > li.pending > span,
+.run-flow-steps > li.skipped > span {
   color: #0f172a;
   background: #cbd5e1;
 }
 
-.run-flow-steps li.error > span {
+.run-flow-steps > li.error > span {
   color: #450a0a;
   background: #fda4af;
 }

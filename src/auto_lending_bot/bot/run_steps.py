@@ -125,9 +125,9 @@ RUN_STEP_DEFINITIONS = (
         description="依策略決策整理本輪要建立的 lending offers。",
     ),
     RunStepDefinition(
-        key="record-dry-run-offers",
+        key="record-dry-run-offer",
         label="記錄模擬委託",
-        description="模擬模式只寫本地紀錄，不送出到交易所。",
+        description="模擬模式逐筆寫本地委託紀錄，不送出到交易所。",
     ),
     RunStepDefinition(
         key="validate-live-offers",

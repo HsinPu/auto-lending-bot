@@ -28,7 +28,7 @@ def test_run_step_catalog_has_stable_unique_keys() -> None:
         "calculate-decisions",
         "record-decisions",
         "prepare-offers",
-        "record-dry-run-offers",
+        "record-dry-run-offer",
         "validate-live-offers",
         "record-live-intents",
         "submit-live-offers",

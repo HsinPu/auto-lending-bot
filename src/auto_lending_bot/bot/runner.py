@@ -276,12 +276,12 @@ class BotRunner:
                 current_step_id = None
 
                 if self._settings.dry_run:
-                    current_step_id = self._start_step(
-                        bot_run_id,
-                        "record-dry-run-offers",
-                        run_step_label("record-dry-run-offers"),
-                    )
                     for offer in decision.offers:
+                        current_step_id = self._start_step(
+                            bot_run_id,
+                            "record-dry-run-offer",
+                            run_step_label("record-dry-run-offer"),
+                        )
                         status = "dry_run"
                         self._loan_offers.add(
                             bot_run_id=bot_run_id,
@@ -291,11 +291,14 @@ class BotRunner:
                         )
                         self._notify_xday_offer(offer)
                         created_offers += 1
-                    self._finish_step(
-                        current_step_id,
-                        message=f"{balance.currency}：已記錄 {len(decision.offers)} 筆模擬委託。",
-                    )
-                    current_step_id = None
+                        self._finish_step(
+                            current_step_id,
+                            message=(
+                                f"{offer.currency}：已記錄模擬委託，金額 {offer.amount}，"
+                                f"日利率 {offer.daily_rate}，天期 {offer.duration_days}。"
+                            ),
+                        )
+                        current_step_id = None
                     continue
 
                 for offer in decision.offers:

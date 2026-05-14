@@ -690,7 +690,7 @@ const runOnceFlowGroups = [
     title: '委託建立',
     stepKeys: [
       'prepare-offers',
-      'record-dry-run-offers',
+      'record-dry-run-offer',
       'validate-live-offers',
       'record-live-intents',
       'submit-live-offers',
@@ -889,12 +889,12 @@ const runOnceFlowSteps = [
     description: '依策略決策整理本輪要建立的 lending offers。',
   },
   {
-    key: 'record-dry-run-offers',
-    stepKey: 'record-dry-run-offers',
+    key: 'record-dry-run-offer',
+    stepKey: 'record-dry-run-offer',
     title: '記錄模擬委託',
     label: '記錄模擬委託',
     status: 'pending',
-    description: '模擬模式只寫本地紀錄，不送出到交易所。',
+    description: '模擬模式逐筆寫本地委託紀錄，不送出到交易所。',
   },
   {
     key: 'validate-live-offers',

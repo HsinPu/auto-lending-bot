@@ -490,7 +490,6 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "calculate-decisions",
         "record-decisions",
         "prepare-offers",
-        "record-dry-run-offers",
     ]
     assert [step["step_key"] for step in body["steps"]] == [
         "create-run",
@@ -505,7 +504,13 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "check-open-offer-cancel-setting",
         "evaluate-open-offer-cancel",
         *per_currency_steps,
+        "record-dry-run-offer",
+        "record-dry-run-offer",
+        "record-dry-run-offer",
         *per_currency_steps,
+        "record-dry-run-offer",
+        "record-dry-run-offer",
+        "record-dry-run-offer",
         *per_currency_steps,
         "finish-run",
     ]
@@ -535,6 +540,7 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)
     assert any("USDT" in message and "0" in message for message in step_messages)
+    assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 6
     decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")
     assert decisions_response.status_code == 200
     assert decisions_response.json() == body["decisions"]

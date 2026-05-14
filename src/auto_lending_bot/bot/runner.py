@@ -146,7 +146,7 @@ class BotRunner:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._finish_step(
                     current_step_id,
-                    message=f"Loaded {len(orders)} market order(s) for {balance.currency}.",
+                    message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。",
                 )
                 current_step_id = None
 
@@ -158,7 +158,7 @@ class BotRunner:
                 self._market_recorder.record_orders(orders)
                 self._finish_step(
                     current_step_id,
-                    message=f"Recorded {len(orders)} market order(s) for {balance.currency}.",
+                    message=f"{balance.currency}：已記錄 {len(orders)} 筆市場資料。",
                 )
                 current_step_id = None
 
@@ -174,7 +174,7 @@ class BotRunner:
                 btc_price = self._btc_price(balance.currency, strategy.gap_mode)
                 self._finish_step(
                     current_step_id,
-                    message=f"Loaded strategy inputs for {balance.currency}.",
+                    message=f"{balance.currency}：已載入策略設定、FRR/BTC 價格與市場分析建議。",
                 )
                 current_step_id = None
 
@@ -194,7 +194,7 @@ class BotRunner:
                 )
                 self._finish_step(
                     current_step_id,
-                    message=f"Calculated {balance.currency} decision with {len(decision.offers)} offer(s).",
+                    message=f"{balance.currency}：策略決策產生 {len(decision.offers)} 筆委託。",
                 )
                 current_step_id = None
 
@@ -216,7 +216,7 @@ class BotRunner:
                 )
                 self._finish_step(
                     current_step_id,
-                    message=f"Recorded {balance.currency} decision snapshot.",
+                    message=f"{balance.currency}：已保存策略決策快照。",
                 )
                 current_step_id = None
 
@@ -230,7 +230,7 @@ class BotRunner:
                 )
                 self._finish_step(
                     current_step_id,
-                    message=f"Prepared {len(decision.offers)} offer(s) for {balance.currency}.",
+                    message=f"{balance.currency}：準備 {len(decision.offers)} 筆委託。",
                 )
                 current_step_id = None
                 for offer in decision.offers:

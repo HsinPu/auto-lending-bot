@@ -505,6 +505,10 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "finish-run",
     ]
     assert all(step["status"] == "completed" for step in body["steps"])
+    step_messages = [step["message"] for step in body["steps"]]
+    assert any("BTC" in message and "3" in message for message in step_messages)
+    assert any("ETH" in message and "3" in message for message in step_messages)
+    assert any("USDT" in message and "0" in message for message in step_messages)
     decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")
     assert decisions_response.status_code == 200
     assert decisions_response.json() == body["decisions"]

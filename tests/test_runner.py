@@ -13,6 +13,7 @@ from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunRepository,
+    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
@@ -549,6 +550,37 @@ def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="MAX_TOTAL_LEND_AMOUNT"):
         runner.run_once()
+
+
+def test_runner_records_live_offer_submission_steps(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    run_steps = BotRunStepRepository(database_url)
+
+    runner = BotRunner(
+        settings=_settings(database_url, dry_run=False, max_total_lend_amount=1000),
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+        run_steps=run_steps,
+    )
+
+    runner.run_once()
+    latest_run = BotRunRepository(database_url).latest()
+    rows = run_steps.for_run(int(latest_run["id"]))
+    step_keys = [row["step_key"] for row in rows]
+
+    assert "validate-live-offers" in step_keys
+    assert "record-live-intents" in step_keys
+    assert "submit-live-offers" in step_keys
+    assert "update-offer-results" in step_keys
 
 
 def _settings(

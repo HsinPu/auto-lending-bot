@@ -233,8 +233,14 @@ class BotRunner:
                     message=f"{balance.currency}：準備 {len(decision.offers)} 筆委託。",
                 )
                 current_step_id = None
-                for offer in decision.offers:
-                    if self._settings.dry_run:
+
+                if self._settings.dry_run:
+                    current_step_id = self._start_step(
+                        bot_run_id,
+                        "record-dry-run-offers",
+                        run_step_label("record-dry-run-offers"),
+                    )
+                    for offer in decision.offers:
                         status = "dry_run"
                         self._loan_offers.add(
                             bot_run_id=bot_run_id,
@@ -243,36 +249,97 @@ class BotRunner:
                             dry_run=self._settings.dry_run,
                         )
                         self._notify_xday_offer(offer)
-                    else:
-                        self._assert_live_offer_allowed(offer, live_lend_amount)
-                        loan_offer_id = self._loan_offers.add(
-                            bot_run_id=bot_run_id,
-                            offer=offer,
-                            status="intent",
-                            dry_run=self._settings.dry_run,
+                        created_offers += 1
+                    self._finish_step(
+                        current_step_id,
+                        message=f"{balance.currency}：已記錄 {len(decision.offers)} 筆模擬委託。",
+                    )
+                    current_step_id = None
+                    continue
+
+                for offer in decision.offers:
+                    current_step_id = self._start_step(
+                        bot_run_id,
+                        "validate-live-offers",
+                        run_step_label("validate-live-offers"),
+                    )
+                    self._assert_live_offer_allowed(offer, live_lend_amount)
+                    self._finish_step(
+                        current_step_id,
+                        message=f"{offer.currency}：Live 委託金額通過安全檢查。",
+                    )
+                    current_step_id = None
+
+                    current_step_id = self._start_step(
+                        bot_run_id,
+                        "record-live-intents",
+                        run_step_label("record-live-intents"),
+                    )
+                    loan_offer_id = self._loan_offers.add(
+                        bot_run_id=bot_run_id,
+                        offer=offer,
+                        status="intent",
+                        dry_run=self._settings.dry_run,
+                    )
+                    self._finish_step(
+                        current_step_id,
+                        message=f"{offer.currency}：已建立 Live 委託意圖。",
+                    )
+                    current_step_id = None
+
+                    current_step_id = self._start_step(
+                        bot_run_id,
+                        "submit-live-offers",
+                        run_step_label("submit-live-offers"),
+                    )
+                    try:
+                        external_offer_id = self._exchange.create_loan_offer(offer)
+                        self._finish_step(
+                            current_step_id,
+                            message=f"{offer.currency}：已送出 Bitfinex 委託。",
                         )
-                        try:
-                            external_offer_id = self._exchange.create_loan_offer(offer)
-                            self._loan_offers.update_status(
-                                loan_offer_id,
-                                status="created",
-                                external_offer_id=external_offer_id,
-                            )
-                            self._notifier.info(
-                                f"Created {offer.currency} loan offer {external_offer_id}."
-                            )
-                            self._notify_xday_offer(offer)
-                        except Exception as error:
-                            self._loan_offers.update_status(
-                                loan_offer_id,
-                                status="failed",
-                                message=str(error),
-                            )
-                            self._notify_caught_exception(
-                                f"Failed to create {offer.currency} loan offer: {error}"
-                            )
-                            raise
-                        live_lend_amount += offer.amount
+                        current_step_id = None
+
+                        current_step_id = self._start_step(
+                            bot_run_id,
+                            "update-offer-results",
+                            run_step_label("update-offer-results"),
+                        )
+                        self._loan_offers.update_status(
+                            loan_offer_id,
+                            status="created",
+                            external_offer_id=external_offer_id,
+                        )
+                        self._finish_step(
+                            current_step_id,
+                            message=f"{offer.currency}：委託已建立，交易所 ID {external_offer_id}。",
+                        )
+                        current_step_id = None
+                        self._notifier.info(f"Created {offer.currency} loan offer {external_offer_id}.")
+                        self._notify_xday_offer(offer)
+                    except Exception as error:
+                        self._finish_step(current_step_id, status="failed", message=str(error))
+                        current_step_id = self._start_step(
+                            bot_run_id,
+                            "update-offer-results",
+                            run_step_label("update-offer-results"),
+                        )
+                        self._loan_offers.update_status(
+                            loan_offer_id,
+                            status="failed",
+                            message=str(error),
+                        )
+                        self._finish_step(
+                            current_step_id,
+                            status="failed",
+                            message=f"{offer.currency}：委託建立失敗：{error}",
+                        )
+                        current_step_id = None
+                        self._notify_caught_exception(
+                            f"Failed to create {offer.currency} loan offer: {error}"
+                        )
+                        raise
+                    live_lend_amount += offer.amount
                     created_offers += 1
 
             message = f"Completed with {created_offers} offer(s)."

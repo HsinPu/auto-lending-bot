@@ -56,7 +56,7 @@ export function DashboardPage() {
       setLatestResult(result)
       setLatestError(null)
       if (result.action === 'run-once') {
-        setRunOnceFlow({ status: 'success', message: '執行一次完成，Dashboard 資料已重新整理。' })
+        setRunOnceFlow({ status: 'success', message: '執行一次完成，Dashboard 資料已重新整理。', result })
       }
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
@@ -333,8 +333,12 @@ export function DashboardPage() {
           </div>
         </div>
       </main>
-      {runOnceFlow ? (
-        <RunOnceFlowModal flow={runOnceFlow} onClose={() => setRunOnceFlow(null)} />
+      {runOnceFlow && data ? (
+        <RunOnceFlowModal
+          decisions={data.strategyDecisions}
+          flow={runOnceFlow}
+          onClose={() => setRunOnceFlow(null)}
+        />
       ) : null}
       {pendingLiveAction && data ? (
         <LiveActionConfirmModal
@@ -354,6 +358,7 @@ export function DashboardPage() {
 type RunOnceFlowState = {
   status: 'running' | 'success' | 'error'
   message: string
+  result?: SafeActionResponse
 }
 
 type PageKey =
@@ -435,9 +440,18 @@ function PagePlaceholder({ page }: { page: PageKey }) {
   )
 }
 
-function RunOnceFlowModal({ flow, onClose }: { flow: RunOnceFlowState; onClose: () => void }) {
+function RunOnceFlowModal({
+  decisions,
+  flow,
+  onClose,
+}: {
+  decisions: StrategyDecision[]
+  flow: RunOnceFlowState
+  onClose: () => void
+}) {
   const running = flow.status === 'running'
   const failed = flow.status === 'error'
+  const latestRun = flow.result?.latest_run as BotRun | undefined
 
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
@@ -463,8 +477,41 @@ function RunOnceFlowModal({ flow, onClose }: { flow: RunOnceFlowState; onClose: 
             </li>
           ))}
         </ol>
+        {flow.result ? (
+          <section className="run-flow-result-panel">
+            <h3>本輪執行結果</h3>
+            <dl>
+              <HistoryMetric label="模式" value={flow.result.dry_run ? '模擬模式' : 'Live 模式'} />
+              <HistoryMetric label="建立委託數" value={String(flow.result.created_count ?? 0)} />
+              <HistoryMetric label="執行狀態" value={statusLabel(latestRun?.status ?? '-')} />
+              <HistoryMetric label="執行訊息" value={latestRun?.message || '-'} />
+            </dl>
+          </section>
+        ) : null}
+        {decisions.length > 0 ? (
+          <section className="run-flow-decision-panel">
+            <h3>逐幣別策略決策</h3>
+            <div className="run-flow-decision-list">
+              {decisions.map((decision) => (
+                <article key={decision.currency}>
+                  <div>
+                    <strong>{decision.currency}</strong>
+                    <span>{decision.offer_count > 0 ? `預計 ${decision.offer_count} 筆委託` : '本輪不建立委託'}</span>
+                  </div>
+                  <dl>
+                    <HistoryMetric label="可用餘額" value={amount(decision.balance)} />
+                    <HistoryMetric label="放貸中" value={amount(decision.active_amount)} />
+                    <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
+                    <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                    <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
+                  </dl>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <p className="run-flow-note">
-          目前後端一次回傳整輪結果，所以這裡顯示的是固定執行順序；完成後請看「幣種狀態」、「委託管理」與「執行紀錄」確認實際結果。
+          目前後端一次回傳整輪結果，所以流程步驟是固定執行順序；逐幣別決策會跟隨 Dashboard 重新整理後的策略資料更新。
         </p>
       </section>
     </div>
@@ -503,8 +550,12 @@ function LiveActionConfirmModal({
 
 const runOnceFlowSteps = [
   {
+    title: '建立本次執行紀錄',
+    description: '在 SQLite 建立這一輪 bot run，用來追蹤成功、失敗與執行訊息。',
+  },
+  {
     title: '同步放貸中資料',
-    description: '讀取交易所 active loans，更新本地放貸中狀態。',
+    description: '先讀本地舊快照，再從交易所讀 active loans，更新本地放貸中狀態。',
   },
   {
     title: '讀取可用 Lending 餘額',
@@ -512,23 +563,31 @@ const runOnceFlowSteps = [
   },
   {
     title: '檢查未成交委託',
-    description: '依設定同步或重整交易所未成交委託。',
+    description: '只有啟用自動重整時，才會同步並處理交易所未成交委託。',
   },
   {
-    title: '讀取市場利率',
-    description: '抓取每個可用幣別的 lendbook，記錄市場利率快照。',
+    title: '讀取並記錄市場利率',
+    description: '逐幣別抓取 lendbook，並把市場利率快照寫入 SQLite。',
   },
   {
-    title: '計算放貸策略',
-    description: '套用最低利率、最大金額、放貸中上限與市場分析建議。',
+    title: '計算逐幣別策略',
+    description: '套用最低利率、最大金額、放貸中上限、市場分析建議，以及需要時的 FRR/BTC 價格。',
   },
   {
     title: '建立委託或模擬委託',
-    description: '模擬模式只寫本地紀錄；Live 模式需通過所有安全保險絲。',
+    description: '模擬模式只寫本地紀錄；Live 模式需先通過金額上限與安全保險絲才送 Bitfinex。',
   },
   {
-    title: '寫入執行紀錄',
-    description: '保存本輪成功/失敗訊息，Dashboard 重新整理後顯示結果。',
+    title: '更新委託結果',
+    description: '成功標記為 dry_run/created；失敗會標記 failed 並保留錯誤訊息。',
+  },
+  {
+    title: '完成本次執行',
+    description: '寫入 completed/failed 與本輪訊息，Dashboard 重新整理後顯示結果。',
+  },
+  {
+    title: '發送通知',
+    description: '如果有設定 Telegram，會送出摘要、錯誤或長天期委託通知。',
   },
 ]
 

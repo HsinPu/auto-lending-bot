@@ -455,6 +455,7 @@ function RunOnceFlowModal({
   const runSummary = runOnceResultSummary(flow.result)
   const visibleDecisions = runOnceResultDecisions(flow.result) ?? decisions
   const visibleSteps = runOnceResultSteps(flow.result)
+  const groupedSteps = runOnceStepGroups(visibleSteps)
 
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
@@ -469,17 +470,24 @@ function RunOnceFlowModal({
             關閉
           </button>
         </div>
-        <ol className="run-flow-steps">
-          {visibleSteps.map((step, index) => (
-            <li key={step.key} className={stepStatusClass(step.status, flow.status)}>
-              <span>{stepMarker(step.status, flow.status, index)}</span>
-              <div>
-                <strong>{step.label}</strong>
-                <p>{step.description}</p>
-              </div>
-            </li>
+        <div className="run-flow-step-groups">
+          {groupedSteps.map((group) => (
+            <section className="run-flow-step-group" key={group.title}>
+              <h3>{group.title}</h3>
+              <ol className="run-flow-steps">
+                {group.steps.map((step, index) => (
+                  <li key={step.key} className={stepStatusClass(step.status, flow.status)}>
+                    <span>{stepMarker(step.status, flow.status, index)}</span>
+                    <div>
+                      <strong>{step.label}</strong>
+                      <p>{step.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
           ))}
-        </ol>
+        </div>
         {flow.result ? (
           <section className="run-flow-result-panel">
             <h3>本輪執行結果</h3>
@@ -580,15 +588,31 @@ function runOnceResultSteps(result: SafeActionResponse | undefined) {
   const steps = result.steps as BotRunStep[]
   return steps.map((step) => ({
     key: String(step.id),
+    stepKey: step.step_key,
     label: step.label,
     status: step.status,
     description: step.message || stepTimeRange(step),
   }))
 }
 
+function runOnceStepGroups(steps: RunOnceStepView[]) {
+  return runOnceFlowGroups
+    .map((group) => ({
+      title: group.title,
+      steps: steps.filter((step) => group.stepKeys.includes(step.stepKey)),
+    }))
+    .filter((group) => group.steps.length > 0)
+}
+
 function stepStatusClass(stepStatus: string | undefined, flowStatus: RunOnceFlowState['status']) {
   if (stepStatus === 'failed') {
     return 'error'
+  }
+  if (stepStatus === 'skipped') {
+    return 'skipped'
+  }
+  if (stepStatus === 'pending') {
+    return 'pending'
   }
   if (stepStatus === 'running') {
     return 'running'
@@ -599,6 +623,12 @@ function stepStatusClass(stepStatus: string | undefined, flowStatus: RunOnceFlow
 function stepMarker(stepStatus: string | undefined, flowStatus: RunOnceFlowState['status'], index: number) {
   if (stepStatus === 'failed' || flowStatus === 'error') {
     return '!'
+  }
+  if (stepStatus === 'skipped') {
+    return '略'
+  }
+  if (stepStatus === 'pending') {
+    return '待'
   }
   if (stepStatus === 'running' || flowStatus === 'running') {
     return index + 1
@@ -612,9 +642,60 @@ function stepTimeRange(step: BotRunStep) {
   return `${startedAt} -> ${finishedAt}`
 }
 
+type RunOnceStepView = {
+  key: string
+  stepKey: string
+  label: string
+  status: string
+  description: string
+}
+
+const runOnceFlowGroups = [
+  {
+    title: '執行準備',
+    stepKeys: ['create-run'],
+  },
+  {
+    title: '資料同步',
+    stepKeys: [
+      'sync-active-loans',
+      'detect-new-active-loans',
+      'sync-balances',
+      'sync-open-offers',
+      'rebalance-open-offers',
+    ],
+  },
+  {
+    title: '市場與策略',
+    stepKeys: [
+      'load-market-orders',
+      'record-market-orders',
+      'load-strategy-inputs',
+      'calculate-decisions',
+      'record-decisions',
+    ],
+  },
+  {
+    title: '委託建立',
+    stepKeys: [
+      'prepare-offers',
+      'record-dry-run-offers',
+      'validate-live-offers',
+      'record-live-intents',
+      'submit-live-offers',
+      'update-offer-results',
+    ],
+  },
+  {
+    title: '完成與通知',
+    stepKeys: ['finish-run', 'send-notifications'],
+  },
+]
+
 const runOnceFlowSteps = [
   {
     key: 'create-run',
+    stepKey: 'create-run',
     title: '建立本次執行紀錄',
     label: '建立本次執行紀錄',
     status: 'pending',
@@ -622,6 +703,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'sync-active-loans',
+    stepKey: 'sync-active-loans',
     title: '同步放貸中資料',
     label: '同步放貸中資料',
     status: 'pending',
@@ -629,6 +711,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'detect-new-active-loans',
+    stepKey: 'detect-new-active-loans',
     title: '檢查新成交放貸',
     label: '檢查新成交放貸',
     status: 'pending',
@@ -636,6 +719,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'sync-balances',
+    stepKey: 'sync-balances',
     title: '讀取可用 Lending 餘額',
     label: '讀取可用 Lending 餘額',
     status: 'pending',
@@ -643,6 +727,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'sync-open-offers',
+    stepKey: 'sync-open-offers',
     title: '檢查未成交委託',
     label: '檢查未成交委託',
     status: 'pending',
@@ -650,6 +735,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'rebalance-open-offers',
+    stepKey: 'rebalance-open-offers',
     title: '處理舊委託',
     label: '處理舊委託',
     status: 'pending',
@@ -657,6 +743,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'load-market-orders',
+    stepKey: 'load-market-orders',
     title: '讀取市場利率',
     label: '讀取市場利率',
     status: 'pending',
@@ -664,6 +751,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'record-market-orders',
+    stepKey: 'record-market-orders',
     title: '記錄市場資料',
     label: '記錄市場資料',
     status: 'pending',
@@ -671,6 +759,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'load-strategy-inputs',
+    stepKey: 'load-strategy-inputs',
     title: '載入策略參考資料',
     label: '載入策略參考資料',
     status: 'pending',
@@ -678,6 +767,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'calculate-decisions',
+    stepKey: 'calculate-decisions',
     title: '計算策略決策',
     label: '計算策略決策',
     status: 'pending',
@@ -685,6 +775,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'record-decisions',
+    stepKey: 'record-decisions',
     title: '保存策略決策',
     label: '保存策略決策',
     status: 'pending',
@@ -692,6 +783,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'prepare-offers',
+    stepKey: 'prepare-offers',
     title: '準備委託',
     label: '準備委託',
     status: 'pending',
@@ -699,6 +791,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'record-dry-run-offers',
+    stepKey: 'record-dry-run-offers',
     title: '記錄模擬委託',
     label: '記錄模擬委託',
     status: 'pending',
@@ -706,6 +799,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'validate-live-offers',
+    stepKey: 'validate-live-offers',
     title: 'Live 金額安全檢查',
     label: 'Live 金額安全檢查',
     status: 'pending',
@@ -713,6 +807,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'record-live-intents',
+    stepKey: 'record-live-intents',
     title: '建立 Live 委託意圖',
     label: '建立 Live 委託意圖',
     status: 'pending',
@@ -720,6 +815,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'submit-live-offers',
+    stepKey: 'submit-live-offers',
     title: '送出 Bitfinex 委託',
     label: '送出 Bitfinex 委託',
     status: 'pending',
@@ -727,6 +823,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'update-offer-results',
+    stepKey: 'update-offer-results',
     title: '更新委託結果',
     label: '更新委託結果',
     status: 'pending',
@@ -734,6 +831,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'finish-run',
+    stepKey: 'finish-run',
     title: '完成本次執行',
     label: '完成本次執行',
     status: 'pending',
@@ -741,6 +839,7 @@ const runOnceFlowSteps = [
   },
   {
     key: 'send-notifications',
+    stepKey: 'send-notifications',
     title: '發送通知',
     label: '發送通知',
     status: 'pending',

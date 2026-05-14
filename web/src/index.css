@@ -1212,6 +1212,22 @@ h1 {
   list-style: none;
 }
 
+.run-flow-step-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.run-flow-step-group {
+  display: grid;
+  gap: 10px;
+}
+
+.run-flow-step-group h3 {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 0.92rem;
+}
+
 .run-flow-steps li {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -1236,6 +1252,12 @@ h1 {
 .run-flow-steps li.running > span {
   color: #082f49;
   background: #7dd3fc;
+}
+
+.run-flow-steps li.pending > span,
+.run-flow-steps li.skipped > span {
+  color: #0f172a;
+  background: #cbd5e1;
 }
 
 .run-flow-steps li.error > span {

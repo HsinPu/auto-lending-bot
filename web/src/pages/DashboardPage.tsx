@@ -19,6 +19,7 @@ import { ProfitCharts } from '../components/ProfitCharts'
 import { TopStatusBar } from '../components/TopStatusBar'
 import type {
   BotRun,
+  BotRunStep,
   DashboardData,
   LendingHistoryEntry,
   LiveReadiness,
@@ -453,6 +454,7 @@ function RunOnceFlowModal({
   const failed = flow.status === 'error'
   const runSummary = runOnceResultSummary(flow.result)
   const visibleDecisions = runOnceResultDecisions(flow.result) ?? decisions
+  const visibleSteps = runOnceResultSteps(flow.result)
 
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
@@ -468,11 +470,11 @@ function RunOnceFlowModal({
           </button>
         </div>
         <ol className="run-flow-steps">
-          {runOnceFlowSteps.map((step, index) => (
-            <li key={step.title} className={flow.status}>
-              <span>{running ? index + 1 : failed ? '!' : '✓'}</span>
+          {visibleSteps.map((step, index) => (
+            <li key={step.key} className={stepStatusClass(step.status, flow.status)}>
+              <span>{stepMarker(step.status, flow.status, index)}</span>
               <div>
-                <strong>{step.title}</strong>
+                <strong>{step.label}</strong>
                 <p>{step.description}</p>
               </div>
             </li>
@@ -515,7 +517,7 @@ function RunOnceFlowModal({
           </section>
         ) : null}
         <p className="run-flow-note">
-          目前後端一次回傳整輪結果，所以流程步驟是固定執行順序；逐幣別決策會跟隨 Dashboard 重新整理後的策略資料更新。
+          後端會在本輪完成後回傳實際步驟紀錄；逐幣別策略決策使用本次 run 的快照。
         </p>
       </section>
     </div>
@@ -570,46 +572,88 @@ function runOnceResultDecisions(result: SafeActionResponse | undefined): Strateg
   return Array.isArray(result?.decisions) ? (result.decisions as StrategyDecision[]) : null
 }
 
+function runOnceResultSteps(result: SafeActionResponse | undefined) {
+  if (!Array.isArray(result?.steps)) {
+    return runOnceFlowSteps
+  }
+
+  const steps = result.steps as BotRunStep[]
+  return steps.map((step) => ({
+    key: String(step.id),
+    label: step.label,
+    status: step.status,
+    description: step.message || stepTimeRange(step),
+  }))
+}
+
+function stepStatusClass(stepStatus: string | undefined, flowStatus: RunOnceFlowState['status']) {
+  if (stepStatus === 'failed') {
+    return 'error'
+  }
+  if (stepStatus === 'running') {
+    return 'running'
+  }
+  return flowStatus === 'error' ? 'error' : 'success'
+}
+
+function stepMarker(stepStatus: string | undefined, flowStatus: RunOnceFlowState['status'], index: number) {
+  if (stepStatus === 'failed' || flowStatus === 'error') {
+    return '!'
+  }
+  if (stepStatus === 'running' || flowStatus === 'running') {
+    return index + 1
+  }
+  return '✓'
+}
+
+function stepTimeRange(step: BotRunStep) {
+  const startedAt = step.started_at || '-'
+  const finishedAt = step.finished_at || '-'
+  return `${startedAt} -> ${finishedAt}`
+}
+
 const runOnceFlowSteps = [
   {
+    key: 'create-run',
     title: '建立本次執行紀錄',
+    label: '建立本次執行紀錄',
+    status: 'pending',
     description: '在 SQLite 建立這一輪 bot run，用來追蹤成功、失敗與執行訊息。',
   },
   {
+    key: 'sync-active-loans',
     title: '同步放貸中資料',
+    label: '同步放貸中資料',
+    status: 'pending',
     description: '先讀本地舊快照，再從交易所讀 active loans，更新本地放貸中狀態。',
   },
   {
+    key: 'sync-balances',
     title: '讀取可用 Lending 餘額',
+    label: '讀取可用 Lending 餘額',
+    status: 'pending',
     description: '確認 Funding/Lending wallet 裡哪些幣可以放貸。',
   },
   {
+    key: 'rebalance-open-offers',
     title: '檢查未成交委託',
+    label: '檢查未成交委託',
+    status: 'pending',
     description: '只有啟用自動重整時，才會同步並處理交易所未成交委託。',
   },
   {
-    title: '讀取並記錄市場利率',
-    description: '逐幣別抓取 lendbook，並把市場利率快照寫入 SQLite。',
+    key: 'evaluate-currencies',
+    title: '讀取市場、計算策略並建立委託',
+    label: '讀取市場、計算策略並建立委託',
+    status: 'pending',
+    description: '逐幣別抓取市場資料、套用策略，模擬模式寫本地紀錄；Live 模式通過安全檢查後送 Bitfinex。',
   },
   {
-    title: '計算逐幣別策略',
-    description: '套用最低利率、最大金額、放貸中上限、市場分析建議，以及需要時的 FRR/BTC 價格。',
-  },
-  {
-    title: '建立委託或模擬委託',
-    description: '模擬模式只寫本地紀錄；Live 模式需先通過金額上限與安全保險絲才送 Bitfinex。',
-  },
-  {
-    title: '更新委託結果',
-    description: '成功標記為 dry_run/created；失敗會標記 failed 並保留錯誤訊息。',
-  },
-  {
-    title: '完成本次執行',
-    description: '寫入 completed/failed 與本輪訊息，Dashboard 重新整理後顯示結果。',
-  },
-  {
-    title: '發送通知',
-    description: '如果有設定 Telegram，會送出摘要、錯誤或長天期委託通知。',
+    key: 'finish-run',
+    title: '發送通知並完成本次執行',
+    label: '發送通知並完成本次執行',
+    status: 'pending',
+    description: '寫入 completed/failed 與本輪訊息；若有設定 Telegram，會送出摘要或錯誤通知。',
   },
 ]
 

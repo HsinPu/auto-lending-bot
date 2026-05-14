@@ -25,6 +25,7 @@ from auto_lending_bot.persistence.repository import (
     AppSettingRepository,
     BotRunDecisionRepository,
     BotRunRepository,
+    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
@@ -59,6 +60,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     market_analysis_rates = MarketAnalysisRateRepository(settings.database_url)
     active_loans = ActiveLoanRepository(settings.database_url)
     bot_run_decisions = BotRunDecisionRepository(settings.database_url)
+    bot_run_steps = BotRunStepRepository(settings.database_url)
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
     notification_state = NotificationStateRepository(settings.database_url)
@@ -73,6 +75,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         market_analysis_rates=market_analysis_rates,
         market_rates=market_rates,
         bot_run_decisions=bot_run_decisions,
+        bot_run_steps=bot_run_steps,
     )
     market_collection_controller = _MarketAnalysisCollectionController(
         settings=settings,
@@ -210,6 +213,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.get("/runs/{bot_run_id}/decisions")
     def run_decisions(bot_run_id: int) -> list[dict[str, object]]:
         return bot_run_decisions.for_run(bot_run_id)
+
+    @router.get("/runs/{bot_run_id}/steps")
+    def run_steps(bot_run_id: int) -> list[dict[str, object]]:
+        return bot_run_steps.for_run(bot_run_id)
 
     @router.get("/offers")
     def offers() -> list[dict[str, object]]:
@@ -491,6 +498,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             market_analysis_rates=market_analysis_rates,
             market_rates=market_rates,
             bot_run_decisions=bot_run_decisions,
+            bot_run_steps=bot_run_steps,
         )
         runner.run_once()
         offers_after = loan_offers.count()
@@ -506,6 +514,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "started_at": latest_run.get("started_at"),
             "finished_at": latest_run.get("finished_at"),
             "decisions": bot_run_decisions.for_run(int(latest_run["id"])) if latest_run.get("id") else [],
+            "steps": bot_run_steps.for_run(int(latest_run["id"])) if latest_run.get("id") else [],
             "latest_run": latest_run,
         }
 
@@ -543,6 +552,7 @@ class _BotLoopController:
         market_analysis_rates: MarketAnalysisRateRepository,
         market_rates: MarketRateRepository,
         bot_run_decisions: BotRunDecisionRepository,
+        bot_run_steps: BotRunStepRepository,
     ) -> None:
         self._settings = settings
         self._bot_runs = bot_runs
@@ -554,6 +564,7 @@ class _BotLoopController:
         self._market_analysis_rates = market_analysis_rates
         self._market_rates = market_rates
         self._bot_run_decisions = bot_run_decisions
+        self._bot_run_steps = bot_run_steps
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -612,6 +623,7 @@ class _BotLoopController:
                     market_analysis_rates=self._market_analysis_rates,
                     market_rates=self._market_rates,
                     bot_run_decisions=self._bot_run_decisions,
+                    bot_run_steps=self._bot_run_steps,
                 )
                 created_offers = runner.run_once_with_retry()
                 wait_seconds = self._sleep_seconds(created_offers)
@@ -726,6 +738,7 @@ def _create_runner(
     market_analysis_rates: MarketAnalysisRateRepository,
     market_rates: MarketRateRepository,
     bot_run_decisions: BotRunDecisionRepository,
+    bot_run_steps: BotRunStepRepository,
 ) -> BotRunner:
     return BotRunner(
         settings=settings,
@@ -740,6 +753,7 @@ def _create_runner(
         market_recorder=MarketRecorder(market_rates),
         notifier=Notifier(settings=settings),
         decision_snapshots=bot_run_decisions,
+        run_steps=bot_run_steps,
     )
 
 

@@ -19,6 +19,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunDecisionRepository,
     BotRunRepository,
+    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
@@ -317,6 +318,7 @@ def _create_runner(settings: Settings) -> BotRunner:
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
         notifier=Notifier(settings=settings),
         decision_snapshots=BotRunDecisionRepository(settings.database_url),
+        run_steps=BotRunStepRepository(settings.database_url),
     )
 
 

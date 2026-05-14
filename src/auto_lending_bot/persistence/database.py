@@ -60,6 +60,18 @@ CREATE TABLE IF NOT EXISTS bot_run_decisions (
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
 );
 
+CREATE TABLE IF NOT EXISTS bot_run_steps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bot_run_id INTEGER NOT NULL,
+    step_key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at TEXT,
+    message TEXT,
+    FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
+);
+
 CREATE TABLE IF NOT EXISTS market_rates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     currency TEXT NOT NULL,

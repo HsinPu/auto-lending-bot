@@ -73,6 +73,17 @@ export type BotRun = {
   message: string
 }
 
+export type BotRunStep = {
+  id: number
+  bot_run_id: number
+  step_key: string
+  label: string
+  status: string
+  started_at: string
+  finished_at: string | null
+  message: string
+}
+
 export type LoanOffer = {
   id: number
   bot_run_id?: number

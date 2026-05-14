@@ -12,6 +12,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunDecisionRepository,
     BotRunRepository,
+    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
@@ -37,6 +38,7 @@ class BotRunner:
         market_recorder: MarketRecorder,
         notifier: Notifier,
         decision_snapshots: BotRunDecisionRepository | None = None,
+        run_steps: BotRunStepRepository | None = None,
     ) -> None:
         self._settings = settings
         self._exchange = exchange
@@ -50,6 +52,7 @@ class BotRunner:
         self._market_recorder = market_recorder
         self._notifier = notifier
         self._decision_snapshots = decision_snapshots
+        self._run_steps = run_steps
 
     def run(self) -> None:
         loops_completed = 0
@@ -84,16 +87,60 @@ class BotRunner:
         bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run)
         created_offers = 0
         live_lend_amount = 0.0
+        current_step_id: int | None = None
 
         try:
+            self._record_completed_step(
+                bot_run_id,
+                "create-run",
+                "建立本次執行紀錄",
+                f"Bot run #{bot_run_id} started.",
+            )
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "sync-active-loans",
+                "同步放貸中資料",
+            )
             previous_active_loan_ids = {
                 str(row["external_loan_id"]) for row in self._active_loans.recent(1000)
             }
             active_loans = self._exchange.get_active_loans()
             self._active_loans.replace_all(active_loans)
             self._notify_new_active_loans(previous_active_loan_ids, active_loans)
+            self._finish_step(current_step_id, message=f"Synced {len(active_loans)} active loan(s).")
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "sync-balances",
+                "讀取可用 Lending 餘額",
+            )
             balances = self._exchange.get_lending_balances()
+            self._finish_step(current_step_id, message=f"Loaded {len(balances)} lending balance(s).")
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "rebalance-open-offers",
+                "檢查未成交委託",
+            )
             self._rebalance_open_offers(balances)
+            self._finish_step(
+                current_step_id,
+                message=(
+                    "Open offer rebalance checked."
+                    if self._settings.auto_rebalance_open_offers
+                    else "Skipped because AUTO_REBALANCE_OPEN_OFFERS is disabled."
+                ),
+            )
+            current_step_id = None
+
+            current_step_id = self._start_step(
+                bot_run_id,
+                "evaluate-currencies",
+                "讀取市場、計算策略並建立委託",
+            )
             for balance in balances:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._market_recorder.record_orders(orders)
@@ -166,8 +213,14 @@ class BotRunner:
                             raise
                         live_lend_amount += offer.amount
                     created_offers += 1
+            self._finish_step(
+                current_step_id,
+                message=f"Evaluated {len(balances)} currency balance(s) and created {created_offers} offer(s).",
+            )
+            current_step_id = None
 
             message = f"Completed with {created_offers} offer(s)."
+            current_step_id = self._start_step(bot_run_id, "finish-run", "發送通知並完成本次執行")
             self._bot_runs.finish(bot_run_id, status="completed", message=message)
             self._notifier.run_summary(
                 created_offers=created_offers,
@@ -175,11 +228,42 @@ class BotRunner:
                 dry_run=self._settings.dry_run,
             )
             self._maybe_send_periodic_summary(active_loans)
+            self._finish_step(current_step_id, message=message)
             return created_offers
         except Exception as error:
+            self._finish_step(current_step_id, status="failed", message=str(error))
             self._bot_runs.finish(bot_run_id, status="failed", message=str(error))
             self._notify_caught_exception(str(error))
             raise
+
+    def _start_step(self, bot_run_id: int, step_key: str, label: str) -> int | None:
+        if self._run_steps is None:
+            return None
+
+        return self._run_steps.start(bot_run_id, step_key, label)
+
+    def _finish_step(
+        self,
+        step_id: int | None,
+        status: str = "completed",
+        message: str = "",
+    ) -> None:
+        if step_id is None or self._run_steps is None:
+            return
+
+        self._run_steps.finish(step_id, status=status, message=message)
+
+    def _record_completed_step(
+        self,
+        bot_run_id: int,
+        step_key: str,
+        label: str,
+        message: str = "",
+    ) -> None:
+        if self._run_steps is None:
+            return
+
+        self._run_steps.record_completed(bot_run_id, step_key, label, message=message)
 
     def _sleep_seconds(self, created_offers: int) -> int:
         if created_offers > 0:

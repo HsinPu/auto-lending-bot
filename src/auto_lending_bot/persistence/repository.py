@@ -315,6 +315,53 @@ class BotRunDecisionRepository:
             return decisions
 
 
+class BotRunStepRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def start(self, bot_run_id: int, step_key: str, label: str) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO bot_run_steps (bot_run_id, step_key, label, status, message)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (bot_run_id, step_key, label, "running", ""),
+            )
+            return int(cursor.lastrowid)
+
+    def finish(self, step_id: int, status: str = "completed", message: str = "") -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                UPDATE bot_run_steps
+                SET status = ?,
+                    finished_at = CURRENT_TIMESTAMP,
+                    message = ?
+                WHERE id = ?
+                """,
+                (status, message, step_id),
+            )
+
+    def record_completed(self, bot_run_id: int, step_key: str, label: str, message: str = "") -> int:
+        step_id = self.start(bot_run_id, step_key, label)
+        self.finish(step_id, message=message)
+        return step_id
+
+    def for_run(self, bot_run_id: int) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, bot_run_id, step_key, label, status, started_at, finished_at, message
+                FROM bot_run_steps
+                WHERE bot_run_id = ?
+                ORDER BY id
+                """,
+                (bot_run_id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+
 class NotificationStateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

@@ -7,6 +7,7 @@ from auto_lending_bot.persistence.repository import (
     AppSettingRepository,
     BotRunDecisionRepository,
     BotRunRepository,
+    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
@@ -130,6 +131,24 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
     assert rows[0]["currency"] == "BTC"
     assert rows[0]["offer_count"] == 1
     assert rows[0]["offers"] == [{"currency": "BTC", "amount": 0.1}]
+
+
+def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=True)
+    steps = BotRunStepRepository(database_url)
+
+    running_step_id = steps.start(bot_run_id, "sync-balances", "讀取可用 Lending 餘額")
+    steps.finish(running_step_id, message="Loaded 3 lending balance(s).")
+    steps.record_completed(bot_run_id, "finish-run", "完成本次執行", "Completed with 6 offer(s).")
+
+    rows = steps.for_run(bot_run_id)
+
+    assert [row["step_key"] for row in rows] == ["sync-balances", "finish-run"]
+    assert rows[0]["status"] == "completed"
+    assert rows[0]["message"] == "Loaded 3 lending balance(s)."
+    assert rows[0]["finished_at"] is not None
 
 
 def test_lending_history_repository_upserts_entries(tmp_path) -> None:

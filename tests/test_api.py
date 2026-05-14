@@ -477,6 +477,11 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert body["started_at"] == body["latest_run"]["started_at"]
     assert body["finished_at"] == body["latest_run"]["finished_at"]
     assert body["latest_run"]["status"] == "completed"
+    assert len(body["decisions"]) == 3
+    assert body["decisions"][0]["bot_run_id"] == body["bot_run_id"]
+    decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")
+    assert decisions_response.status_code == 200
+    assert decisions_response.json() == body["decisions"]
 
 
 def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:

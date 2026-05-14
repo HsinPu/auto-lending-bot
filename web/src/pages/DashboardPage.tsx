@@ -452,6 +452,7 @@ function RunOnceFlowModal({
   const running = flow.status === 'running'
   const failed = flow.status === 'error'
   const runSummary = runOnceResultSummary(flow.result)
+  const visibleDecisions = runOnceResultDecisions(flow.result) ?? decisions
 
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
@@ -491,11 +492,11 @@ function RunOnceFlowModal({
             </dl>
           </section>
         ) : null}
-        {decisions.length > 0 ? (
+        {visibleDecisions.length > 0 ? (
           <section className="run-flow-decision-panel">
             <h3>逐幣別策略決策</h3>
             <div className="run-flow-decision-list">
-              {decisions.map((decision) => (
+              {visibleDecisions.map((decision) => (
                 <article key={decision.currency}>
                   <div>
                     <strong>{decision.currency}</strong>
@@ -563,6 +564,10 @@ function runOnceResultSummary(result: SafeActionResponse | undefined) {
     startedAt: String(result?.started_at ?? latestRun?.started_at ?? '-'),
     status: String(result?.status ?? latestRun?.status ?? '-'),
   }
+}
+
+function runOnceResultDecisions(result: SafeActionResponse | undefined): StrategyDecision[] | null {
+  return Array.isArray(result?.decisions) ? (result.decisions as StrategyDecision[]) : null
 }
 
 const runOnceFlowSteps = [

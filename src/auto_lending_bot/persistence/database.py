@@ -38,6 +38,28 @@ CREATE TABLE IF NOT EXISTS loan_offers (
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
 );
 
+CREATE TABLE IF NOT EXISTS bot_run_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bot_run_id INTEGER NOT NULL,
+    currency TEXT NOT NULL,
+    balance REAL NOT NULL,
+    active_amount REAL NOT NULL,
+    open_offer_amount REAL NOT NULL,
+    best_market_rate REAL NOT NULL,
+    configured_min_daily_rate REAL NOT NULL,
+    suggested_min_daily_rate REAL,
+    effective_min_daily_rate REAL NOT NULL,
+    max_daily_rate REAL NOT NULL,
+    max_to_lend REAL,
+    max_percent_to_lend REAL NOT NULL,
+    max_active_amount REAL,
+    offer_count INTEGER NOT NULL,
+    offers_json TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
+);
+
 CREATE TABLE IF NOT EXISTS market_rates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     currency TEXT NOT NULL,

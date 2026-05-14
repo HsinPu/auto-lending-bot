@@ -1,3 +1,5 @@
+import json
+
 from auto_lending_bot.domain.models import (
     ActiveLoan,
     LendingHistoryEntry,
@@ -226,6 +228,91 @@ class BotRunRepository:
                 (limit,),
             ).fetchall()
             return [dict(row) for row in rows]
+
+
+class BotRunDecisionRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def add(self, decision: dict[str, object]) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO bot_run_decisions (
+                    bot_run_id,
+                    currency,
+                    balance,
+                    active_amount,
+                    open_offer_amount,
+                    best_market_rate,
+                    configured_min_daily_rate,
+                    suggested_min_daily_rate,
+                    effective_min_daily_rate,
+                    max_daily_rate,
+                    max_to_lend,
+                    max_percent_to_lend,
+                    max_active_amount,
+                    offer_count,
+                    offers_json,
+                    reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    decision["bot_run_id"],
+                    decision["currency"],
+                    decision["balance"],
+                    decision["active_amount"],
+                    decision["open_offer_amount"],
+                    decision["best_market_rate"],
+                    decision["configured_min_daily_rate"],
+                    decision["suggested_min_daily_rate"],
+                    decision["effective_min_daily_rate"],
+                    decision["max_daily_rate"],
+                    decision["max_to_lend"],
+                    decision["max_percent_to_lend"],
+                    decision["max_active_amount"],
+                    decision["offer_count"],
+                    json.dumps(decision["offers"], separators=(",", ":")),
+                    decision["reason"],
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def for_run(self, bot_run_id: int) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    id,
+                    bot_run_id,
+                    currency,
+                    balance,
+                    active_amount,
+                    open_offer_amount,
+                    best_market_rate,
+                    configured_min_daily_rate,
+                    suggested_min_daily_rate,
+                    effective_min_daily_rate,
+                    max_daily_rate,
+                    max_to_lend,
+                    max_percent_to_lend,
+                    max_active_amount,
+                    offer_count,
+                    offers_json,
+                    reason,
+                    created_at
+                FROM bot_run_decisions
+                WHERE bot_run_id = ?
+                ORDER BY currency
+                """,
+                (bot_run_id,),
+            ).fetchall()
+            decisions = []
+            for row in rows:
+                decision = dict(row)
+                decision["offers"] = json.loads(str(decision.pop("offers_json")))
+                decisions.append(decision)
+            return decisions
 
 
 class NotificationStateRepository:

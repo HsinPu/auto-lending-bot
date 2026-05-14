@@ -10,6 +10,7 @@ from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    BotRunDecisionRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -35,6 +36,7 @@ class BotRunner:
         market_analysis_rates: MarketAnalysisRateRepository,
         market_recorder: MarketRecorder,
         notifier: Notifier,
+        decision_snapshots: BotRunDecisionRepository | None = None,
     ) -> None:
         self._settings = settings
         self._exchange = exchange
@@ -47,6 +49,7 @@ class BotRunner:
         self._market_analysis_rates = market_analysis_rates
         self._market_recorder = market_recorder
         self._notifier = notifier
+        self._decision_snapshots = decision_snapshots
 
     def run(self) -> None:
         loops_completed = 0
@@ -96,14 +99,27 @@ class BotRunner:
                 self._market_recorder.record_orders(orders)
                 strategy = strategy_config_for(self._settings, balance.currency)
                 frr_daily_rate = self._frr_daily_rate(balance.currency, strategy.frr_as_min)
+                suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
+                active_amount = self._active_amount(active_loans, balance.currency)
                 decision = build_lending_decision(
                     balance=balance,
                     order_book=orders,
                     strategy=strategy,
                     frr_daily_rate=frr_daily_rate,
                     btc_price=self._btc_price(balance.currency, strategy.gap_mode),
-                    suggested_min_daily_rate=self._suggested_min_daily_rate(balance.currency),
-                    active_amount=self._active_amount(active_loans, balance.currency),
+                    suggested_min_daily_rate=suggested_min_daily_rate,
+                    active_amount=active_amount,
+                )
+                self._record_decision_snapshot(
+                    bot_run_id=bot_run_id,
+                    balance=balance,
+                    active_amount=active_amount,
+                    open_offer_amount=self._open_offer_amount(balance.currency),
+                    order_book=orders,
+                    strategy=strategy,
+                    frr_daily_rate=frr_daily_rate,
+                    suggested_min_daily_rate=suggested_min_daily_rate,
+                    decision=decision,
                 )
 
                 logger.info("%s: %s", decision.currency, decision.reason)
@@ -269,6 +285,53 @@ class BotRunner:
             active_loan.amount
             for active_loan in active_loans
             if active_loan.currency.upper() == currency.upper()
+        )
+
+    def _open_offer_amount(self, currency: str) -> float:
+        return sum(
+            float(row["amount"])
+            for row in self._open_offers.recent(1000)
+            if str(row["currency"]).upper() == currency.upper()
+        )
+
+    def _record_decision_snapshot(
+        self,
+        bot_run_id: int,
+        balance: CurrencyBalance,
+        active_amount: float,
+        open_offer_amount: float,
+        order_book: list,
+        strategy,
+        frr_daily_rate: float | None,
+        suggested_min_daily_rate: float | None,
+        decision,
+    ) -> None:
+        if self._decision_snapshots is None:
+            return
+
+        self._decision_snapshots.add(
+            {
+                "bot_run_id": bot_run_id,
+                "currency": balance.currency,
+                "balance": balance.amount,
+                "active_amount": active_amount,
+                "open_offer_amount": open_offer_amount,
+                "best_market_rate": max((order.daily_rate for order in order_book), default=0.0),
+                "configured_min_daily_rate": strategy.min_daily_rate,
+                "suggested_min_daily_rate": suggested_min_daily_rate,
+                "effective_min_daily_rate": max(
+                    strategy.min_daily_rate,
+                    suggested_min_daily_rate or 0,
+                    frr_daily_rate + strategy.frr_delta if frr_daily_rate is not None else 0,
+                ),
+                "max_daily_rate": strategy.max_daily_rate,
+                "max_to_lend": strategy.max_amount_to_lend,
+                "max_percent_to_lend": strategy.max_percent_to_lend,
+                "max_active_amount": strategy.max_active_amount,
+                "offer_count": len(decision.offers),
+                "offers": [offer.__dict__ for offer in decision.offers],
+                "reason": decision.reason,
+            }
         )
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:

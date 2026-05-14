@@ -17,6 +17,7 @@ from auto_lending_bot.operations.transfers import build_transfer_preview, execut
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    BotRunDecisionRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -315,6 +316,7 @@ def _create_runner(settings: Settings) -> BotRunner:
         market_analysis_rates=MarketAnalysisRateRepository(settings.database_url),
         market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
         notifier=Notifier(settings=settings),
+        decision_snapshots=BotRunDecisionRepository(settings.database_url),
     )
 
 

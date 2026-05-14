@@ -5,6 +5,7 @@ from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
+    BotRunDecisionRepository,
     BotRunRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
@@ -95,6 +96,40 @@ def test_active_loan_repository_replaces_snapshot(tmp_path) -> None:
     active_loans.replace_all([])
 
     assert active_loans.count() == 0
+
+
+def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=True)
+    decisions = BotRunDecisionRepository(database_url)
+
+    decisions.add(
+        {
+            "bot_run_id": bot_run_id,
+            "currency": "BTC",
+            "balance": 0.1,
+            "active_amount": 0.0,
+            "open_offer_amount": 0.0,
+            "best_market_rate": 0.00008,
+            "configured_min_daily_rate": 0.00005,
+            "suggested_min_daily_rate": None,
+            "effective_min_daily_rate": 0.00005,
+            "max_daily_rate": 0.05,
+            "max_to_lend": None,
+            "max_percent_to_lend": 100.0,
+            "max_active_amount": None,
+            "offer_count": 1,
+            "offers": [{"currency": "BTC", "amount": 0.1}],
+            "reason": "Created lending offers from available balance.",
+        }
+    )
+
+    rows = decisions.for_run(bot_run_id)
+
+    assert rows[0]["currency"] == "BTC"
+    assert rows[0]["offer_count"] == 1
+    assert rows[0]["offers"] == [{"currency": "BTC", "amount": 0.1}]
 
 
 def test_lending_history_repository_upserts_entries(tmp_path) -> None:

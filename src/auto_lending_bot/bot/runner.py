@@ -137,26 +137,71 @@ class BotRunner:
             )
             current_step_id = None
 
-            current_step_id = self._start_step(
-                bot_run_id,
-                "evaluate-currencies",
-                "讀取市場、計算策略並建立委託",
-            )
             for balance in balances:
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "load-market-orders",
+                    run_step_label("load-market-orders"),
+                )
                 orders = self._exchange.get_loan_orders(balance.currency)
+                self._finish_step(
+                    current_step_id,
+                    message=f"Loaded {len(orders)} market order(s) for {balance.currency}.",
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "record-market-orders",
+                    run_step_label("record-market-orders"),
+                )
                 self._market_recorder.record_orders(orders)
+                self._finish_step(
+                    current_step_id,
+                    message=f"Recorded {len(orders)} market order(s) for {balance.currency}.",
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "load-strategy-inputs",
+                    run_step_label("load-strategy-inputs"),
+                )
                 strategy = strategy_config_for(self._settings, balance.currency)
                 frr_daily_rate = self._frr_daily_rate(balance.currency, strategy.frr_as_min)
                 suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
                 active_amount = self._active_amount(active_loans, balance.currency)
+                btc_price = self._btc_price(balance.currency, strategy.gap_mode)
+                self._finish_step(
+                    current_step_id,
+                    message=f"Loaded strategy inputs for {balance.currency}.",
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "calculate-decisions",
+                    run_step_label("calculate-decisions"),
+                )
                 decision = build_lending_decision(
                     balance=balance,
                     order_book=orders,
                     strategy=strategy,
                     frr_daily_rate=frr_daily_rate,
-                    btc_price=self._btc_price(balance.currency, strategy.gap_mode),
+                    btc_price=btc_price,
                     suggested_min_daily_rate=suggested_min_daily_rate,
                     active_amount=active_amount,
+                )
+                self._finish_step(
+                    current_step_id,
+                    message=f"Calculated {balance.currency} decision with {len(decision.offers)} offer(s).",
+                )
+                current_step_id = None
+
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "record-decisions",
+                    run_step_label("record-decisions"),
                 )
                 self._record_decision_snapshot(
                     bot_run_id=bot_run_id,
@@ -169,10 +214,25 @@ class BotRunner:
                     suggested_min_daily_rate=suggested_min_daily_rate,
                     decision=decision,
                 )
+                self._finish_step(
+                    current_step_id,
+                    message=f"Recorded {balance.currency} decision snapshot.",
+                )
+                current_step_id = None
 
                 logger.info("%s: %s", decision.currency, decision.reason)
                 if self._settings.strategy_debug:
                     self._log_strategy_debug(balance, orders, strategy, decision, frr_daily_rate)
+                current_step_id = self._start_step(
+                    bot_run_id,
+                    "prepare-offers",
+                    run_step_label("prepare-offers"),
+                )
+                self._finish_step(
+                    current_step_id,
+                    message=f"Prepared {len(decision.offers)} offer(s) for {balance.currency}.",
+                )
+                current_step_id = None
                 for offer in decision.offers:
                     if self._settings.dry_run:
                         status = "dry_run"
@@ -214,11 +274,6 @@ class BotRunner:
                             raise
                         live_lend_amount += offer.amount
                     created_offers += 1
-            self._finish_step(
-                current_step_id,
-                message=f"Evaluated {len(balances)} currency balance(s) and created {created_offers} offer(s).",
-            )
-            current_step_id = None
 
             message = f"Completed with {created_offers} offer(s)."
             current_step_id = self._start_step(bot_run_id, "finish-run", run_step_label("finish-run"))

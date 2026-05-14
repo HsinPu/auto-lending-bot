@@ -40,6 +40,9 @@ class BitfinexClient:
     def get_exchange_balances(self) -> list[CurrencyBalance]:
         return self._balances_by_type("exchange")
 
+    def get_margin_balances(self) -> list[CurrencyBalance]:
+        return self._balances_by_type("trading")
+
     def _balances_by_type(self, wallet_type: str) -> list[CurrencyBalance]:
         response = self._private_query("/v1/balances", {})
         if not isinstance(response, list):

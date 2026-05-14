@@ -148,9 +148,15 @@ class BotRunner:
                 run_step_label("read-lending-balances"),
             )
             balances = self._exchange.get_lending_balances()
+            exchange_balances = _optional_exchange_balances(self._exchange, "get_exchange_balances")
+            margin_balances = _optional_exchange_balances(self._exchange, "get_margin_balances")
             self._finish_step(
                 current_step_id,
-                message=f"讀取 {len(balances)} 筆 Lending 可用餘額：{_balance_summary(balances)}",
+                message=(
+                    f"Funding/Lending wallet：{_balance_summary(balances)} "
+                    f"Exchange wallet：{_balance_summary(exchange_balances)} "
+                    f"Margin/Trading wallet：{_balance_summary(margin_balances)}"
+                ),
             )
             current_step_id = None
 
@@ -818,3 +824,10 @@ def _market_order_summary(orders: list[LoanOrder]) -> str:
         return "沒有市場利率資料。"
     best_order = max(orders, key=lambda order: order.daily_rate)
     return f"最佳日利率 {best_order.daily_rate:g}，可用量 {best_order.amount:g}。"
+
+
+def _optional_exchange_balances(exchange: ExchangeClient, method_name: str) -> list[CurrencyBalance]:
+    method = getattr(exchange, method_name, None)
+    if method is None:
+        return []
+    return method()

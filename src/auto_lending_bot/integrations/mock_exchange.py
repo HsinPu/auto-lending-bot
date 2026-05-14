@@ -25,6 +25,9 @@ class MockExchangeClient:
             CurrencyBalance(currency="ETH", amount=1.0),
         ]
 
+    def get_margin_balances(self) -> list[CurrencyBalance]:
+        return [CurrencyBalance(currency="USDT", amount=100.0)]
+
     def get_loan_orders(self, currency: str) -> list[LoanOrder]:
         order_books = {
             "BTC": [LoanOrder(currency="BTC", amount=0.5, daily_rate=0.00008)],

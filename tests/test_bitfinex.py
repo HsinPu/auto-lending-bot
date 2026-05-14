@@ -70,6 +70,23 @@ def test_bitfinex_client_reads_exchange_balances() -> None:
     assert balances[0].amount == 2.0
 
 
+def test_bitfinex_client_reads_margin_balances() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FakeHttpClient(
+            '[{"type":"deposit","currency":"btc","available":"0.25"},'
+            '{"type":"trading","currency":"ust","available":"100.0"}]'
+        ),
+    )
+
+    balances = client.get_margin_balances()
+
+    assert len(balances) == 1
+    assert balances[0].currency == "USDT"
+    assert balances[0].amount == 100.0
+
+
 def test_bitfinex_client_skips_invalid_lending_balances() -> None:
     client = BitfinexClient(
         api_key="key",

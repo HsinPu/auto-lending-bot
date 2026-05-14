@@ -16,6 +16,9 @@ class ExchangeClient(Protocol):
     def get_exchange_balances(self) -> list[CurrencyBalance]:
         pass
 
+    def get_margin_balances(self) -> list[CurrencyBalance]:
+        pass
+
     def get_loan_orders(self, currency: str) -> list[LoanOrder]:
         pass
 

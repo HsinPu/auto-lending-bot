@@ -481,10 +481,17 @@ function RunOnceFlowModal({
                 {group.steps.map((step, index) => (
                   <li key={step.key} className={stepStatusClass(step.status, flow.status)}>
                     <span>{stepMarker(step.status, flow.status, index)}</span>
-                    <div>
-                      <strong>{step.label}</strong>
-                      <p>{step.description}</p>
-                    </div>
+                    <details className="run-flow-step-detail">
+                      <summary>
+                        <div>
+                          <strong>{step.label}</strong>
+                          <p>{step.summary}</p>
+                        </div>
+                      </summary>
+                      <div className="run-flow-step-body">
+                        <p>{step.detail}</p>
+                      </div>
+                    </details>
                   </li>
                 ))}
               </ol>
@@ -585,7 +592,14 @@ function runOnceResultDecisions(result: SafeActionResponse | undefined): Strateg
 
 function runOnceResultSteps(result: SafeActionResponse | undefined) {
   if (!Array.isArray(result?.steps)) {
-    return runOnceFlowSteps
+    return runOnceFlowSteps.map((step) => ({
+      key: step.key,
+      stepKey: step.stepKey,
+      label: step.label,
+      status: step.status,
+      summary: step.description,
+      detail: '尚未收到後端執行紀錄。',
+    }))
   }
 
   const steps = result.steps as BotRunStep[]
@@ -594,8 +608,13 @@ function runOnceResultSteps(result: SafeActionResponse | undefined) {
     stepKey: step.step_key,
     label: step.label,
     status: step.status,
-    description: step.message || stepTimeRange(step),
+    summary: runOnceStepSummary(step.step_key),
+    detail: step.message || stepTimeRange(step),
   }))
+}
+
+function runOnceStepSummary(stepKey: string) {
+  return runOnceFlowSteps.find((step) => step.stepKey === stepKey)?.description ?? '後端回傳的實際執行步驟。'
 }
 
 function runOnceStepGroups(steps: RunOnceStepView[]) {
@@ -650,7 +669,8 @@ type RunOnceStepView = {
   stepKey: string
   label: string
   status: string
-  description: string
+  summary: string
+  detail: string
 }
 
 const runOnceFlowGroups = [

@@ -1251,6 +1251,46 @@ h1 {
   background: rgba(2, 6, 23, 0.28);
 }
 
+.run-flow-step-detail {
+  min-width: 0;
+}
+
+.run-flow-step-detail summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.run-flow-step-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.run-flow-step-detail summary::after {
+  content: '展開';
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.run-flow-step-detail[open] summary::after {
+  content: '收合';
+}
+
+.run-flow-step-body {
+  margin-top: 10px;
+  border-top: 1px solid rgba(147, 197, 253, 0.14);
+  padding-top: 10px;
+}
+
+.run-flow-step-body p {
+  color: #dbeafe;
+}
+
 .run-flow-steps li > span {
   display: grid;
   place-items: center;

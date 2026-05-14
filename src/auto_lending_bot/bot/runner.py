@@ -3,7 +3,7 @@ import time
 
 from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.exchange import ExchangeClient
@@ -118,7 +118,10 @@ class BotRunner:
                 run_step_label("read-active-loans"),
             )
             active_loans = self._exchange.get_active_loans()
-            self._finish_step(current_step_id, message=f"讀取 {len(active_loans)} 筆交易所放貸中資料。")
+            self._finish_step(
+                current_step_id,
+                message=f"讀取 {len(active_loans)} 筆交易所放貸中資料：{_active_loan_summary(active_loans)}",
+            )
             current_step_id = None
 
             current_step_id = self._start_step(
@@ -145,7 +148,10 @@ class BotRunner:
                 run_step_label("read-lending-balances"),
             )
             balances = self._exchange.get_lending_balances()
-            self._finish_step(current_step_id, message=f"Loaded {len(balances)} lending balance(s).")
+            self._finish_step(
+                current_step_id,
+                message=f"讀取 {len(balances)} 筆 Lending 可用餘額：{_balance_summary(balances)}",
+            )
             current_step_id = None
 
             self._rebalance_open_offers(bot_run_id, balances)
@@ -159,7 +165,7 @@ class BotRunner:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。",
+                    message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。{_market_order_summary(orders)}",
                 )
                 current_step_id = None
 
@@ -790,3 +796,25 @@ def _summary_message(
             f"total={float(row['total_earned']):.8f}."
         )
     return "\n".join(lines)
+
+
+def _balance_summary(balances: list[CurrencyBalance]) -> str:
+    if not balances:
+        return "沒有可用餘額。"
+    return "、".join(f"{balance.currency} {balance.amount:g}" for balance in balances) + "。"
+
+
+def _active_loan_summary(active_loans: list[ActiveLoan]) -> str:
+    if not active_loans:
+        return "目前沒有放貸中資料。"
+    return "、".join(
+        f"{loan.currency} {loan.amount:g} @ {loan.daily_rate:g} / {loan.duration_days}天"
+        for loan in active_loans
+    ) + "。"
+
+
+def _market_order_summary(orders: list[LoanOrder]) -> str:
+    if not orders:
+        return "沒有市場利率資料。"
+    best_order = max(orders, key=lambda order: order.daily_rate)
+    return f"最佳日利率 {best_order.daily_rate:g}，可用量 {best_order.amount:g}。"

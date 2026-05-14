@@ -293,6 +293,7 @@ export function ManagedSettingsPanel({
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [showOnlyOverrides, setShowOnlyOverrides] = useState(false)
   const [settingsMode, setSettingsMode] = useState<'common' | 'advanced'>('common')
+  const [confirmResetAll, setConfirmResetAll] = useState(false)
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['managed-settings'],
     queryFn: getManagedSettings,
@@ -574,17 +575,40 @@ export function ManagedSettingsPanel({
           type="button"
           className="secondary-button"
           disabled={isPending || !data}
-          onClick={() => {
-            if (window.confirm('確定要清除所有 SQLite 設定覆寫值？')) {
-              resetMutation.mutate(null)
-            }
-          }}
+          onClick={() => setConfirmResetAll(true)}
         >
           全部重設為預設值
         </button>
         {message ? <span className="settings-message">{message}</span> : null}
         {error ? <span className="settings-message error">{error}</span> : null}
       </div>
+      {confirmResetAll ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reset-settings-title">
+          <section className="confirm-modal danger">
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">重設設定</p>
+                <h2 id="reset-settings-title">清除所有 SQLite 設定覆寫值？</h2>
+                <p>這會讓所有管理設定回到環境變數或預設值。API Key/Secret 等覆寫值也會被清除。</p>
+              </div>
+            </div>
+            <div className="confirm-actions">
+              <button type="button" className="secondary-button" onClick={() => setConfirmResetAll(false)}>取消</button>
+              <button
+                type="button"
+                className="danger-button"
+                disabled={isPending}
+                onClick={() => {
+                  setConfirmResetAll(false)
+                  resetMutation.mutate(null)
+                }}
+              >
+                確認重設
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   )
 }

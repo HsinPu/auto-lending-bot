@@ -39,6 +39,8 @@ export function DashboardPage() {
   const queryClient = useQueryClient()
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
+  const [runOnceFlow, setRunOnceFlow] = useState<RunOnceFlowState | null>(null)
+  const [pendingLiveAction, setPendingLiveAction] = useState<SafeActionName | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const [adminToken, setAdminToken] = useState(loadAdminToken)
   const [activePage, setActivePage] = useState<PageKey>(loadActivePage)
@@ -53,19 +55,32 @@ export function DashboardPage() {
     onSuccess: (result) => {
       setLatestResult(result)
       setLatestError(null)
+      if (result.action === 'run-once') {
+        setRunOnceFlow({ status: 'success', message: '執行一次完成，Dashboard 資料已重新整理。' })
+      }
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
-    onError: (mutationError) => {
+    onError: (mutationError, variables) => {
       setLatestResult(null)
       setLatestError((mutationError as Error).message)
+      if (variables.action === 'run-once') {
+        setRunOnceFlow({ status: 'error', message: (mutationError as Error).message })
+      }
     },
   })
   const runAction = (action: SafeActionName, dryRun: boolean) => {
     const confirmLive = shouldConfirmLive(action, dryRun)
-    if (confirmLive && !window.confirm('Live 模式會執行真實交易所操作。確定要繼續？')) {
+    if (confirmLive) {
+      setPendingLiveAction(action)
       return
     }
 
+    startAction(action, confirmLive, dryRun)
+  }
+  const startAction = (action: SafeActionName, confirmLive: boolean, dryRun: boolean) => {
+    if (action === 'run-once') {
+      setRunOnceFlow({ status: 'running', message: dryRun ? '模擬執行中，不會送出真實委託。' : 'Live 執行中，後端安全檢查會逐項阻擋不安全操作。' })
+    }
     actionMutation.mutate({ action, confirmLive })
   }
   useEffect(() => {
@@ -318,8 +333,27 @@ export function DashboardPage() {
           </div>
         </div>
       </main>
+      {runOnceFlow ? (
+        <RunOnceFlowModal flow={runOnceFlow} onClose={() => setRunOnceFlow(null)} />
+      ) : null}
+      {pendingLiveAction && data ? (
+        <LiveActionConfirmModal
+          action={pendingLiveAction}
+          onCancel={() => setPendingLiveAction(null)}
+          onConfirm={() => {
+            const action = pendingLiveAction
+            setPendingLiveAction(null)
+            startAction(action, true, data.status.dry_run)
+          }}
+        />
+      ) : null}
     </>
   )
+}
+
+type RunOnceFlowState = {
+  status: 'running' | 'success' | 'error'
+  message: string
 }
 
 type PageKey =
@@ -400,6 +434,103 @@ function PagePlaceholder({ page }: { page: PageKey }) {
     </section>
   )
 }
+
+function RunOnceFlowModal({ flow, onClose }: { flow: RunOnceFlowState; onClose: () => void }) {
+  const running = flow.status === 'running'
+  const failed = flow.status === 'error'
+
+  return (
+    <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-flow-title">
+      <section className={`run-flow-modal ${flow.status}`}>
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">執行一次流程</p>
+            <h2 id="run-flow-title">{running ? 'Bot 正在跑一輪策略' : failed ? '執行失敗' : '執行完成'}</h2>
+            <p>{flow.message}</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose}>
+            關閉
+          </button>
+        </div>
+        <ol className="run-flow-steps">
+          {runOnceFlowSteps.map((step, index) => (
+            <li key={step.title} className={flow.status}>
+              <span>{running ? index + 1 : failed ? '!' : '✓'}</span>
+              <div>
+                <strong>{step.title}</strong>
+                <p>{step.description}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="run-flow-note">
+          目前後端一次回傳整輪結果，所以這裡顯示的是固定執行順序；完成後請看「幣種狀態」、「委託管理」與「執行紀錄」確認實際結果。
+        </p>
+      </section>
+    </div>
+  )
+}
+
+function LiveActionConfirmModal({
+  action,
+  onCancel,
+  onConfirm,
+}: {
+  action: SafeActionName
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const actionLabel = actions.find((item) => item.action === action)?.label ?? action
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="live-confirm-title">
+      <section className="confirm-modal danger">
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">Live 操作確認</p>
+            <h2 id="live-confirm-title">確認執行「{actionLabel}」？</h2>
+            <p>Live 模式會執行真實交易所操作。後端仍會套用安全保險絲，但請確認金額上限與 API 權限後再繼續。</p>
+          </div>
+        </div>
+        <div className="confirm-actions">
+          <button type="button" className="secondary-button" onClick={onCancel}>取消</button>
+          <button type="button" className="danger-button" onClick={onConfirm}>確認執行</button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+const runOnceFlowSteps = [
+  {
+    title: '同步放貸中資料',
+    description: '讀取交易所 active loans，更新本地放貸中狀態。',
+  },
+  {
+    title: '讀取可用 Lending 餘額',
+    description: '確認 Funding/Lending wallet 裡哪些幣可以放貸。',
+  },
+  {
+    title: '檢查未成交委託',
+    description: '依設定同步或重整交易所未成交委託。',
+  },
+  {
+    title: '讀取市場利率',
+    description: '抓取每個可用幣別的 lendbook，記錄市場利率快照。',
+  },
+  {
+    title: '計算放貸策略',
+    description: '套用最低利率、最大金額、放貸中上限與市場分析建議。',
+  },
+  {
+    title: '建立委託或模擬委託',
+    description: '模擬模式只寫本地紀錄；Live 模式需通過所有安全保險絲。',
+  },
+  {
+    title: '寫入執行紀錄',
+    description: '保存本輪成功/失敗訊息，Dashboard 重新整理後顯示結果。',
+  },
+]
 
 function PageActionStrip({
   title,

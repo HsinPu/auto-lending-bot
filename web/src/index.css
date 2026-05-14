@@ -1143,6 +1143,123 @@ h1 {
   box-shadow: 0 28px 90px rgba(2, 6, 23, 0.48);
 }
 
+.confirm-modal {
+  width: min(520px, 100%);
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 26px;
+  padding: 24px;
+  background: #0f172a;
+  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.52);
+}
+
+.confirm-modal.danger {
+  border-color: rgba(251, 113, 133, 0.36);
+  background:
+    radial-gradient(circle at top left, rgba(251, 113, 133, 0.12), transparent 34%),
+    #0f172a;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.danger-button {
+  border: 1px solid rgba(251, 113, 133, 0.48);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #450a0a;
+  background: #fda4af;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.run-flow-backdrop {
+  align-items: start;
+  overflow-y: auto;
+}
+
+.run-flow-modal {
+  width: min(760px, 100%);
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  border-radius: 28px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.13), transparent 34%),
+    #0f172a;
+  box-shadow: 0 28px 90px rgba(2, 6, 23, 0.56);
+}
+
+.run-flow-modal.success {
+  border-color: rgba(134, 239, 172, 0.34);
+}
+
+.run-flow-modal.error {
+  border-color: rgba(251, 113, 133, 0.38);
+}
+
+.run-flow-steps {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run-flow-steps li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 18px;
+  padding: 13px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.run-flow-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: #052e16;
+  background: #86efac;
+  font-weight: 900;
+}
+
+.run-flow-steps li.running > span {
+  color: #082f49;
+  background: #7dd3fc;
+}
+
+.run-flow-steps li.error > span {
+  color: #450a0a;
+  background: #fda4af;
+}
+
+.run-flow-steps strong {
+  color: #f8fafc;
+}
+
+.run-flow-steps p,
+.run-flow-note {
+  margin: 6px 0 0;
+  color: #93c5fd;
+  line-height: 1.55;
+}
+
+.run-flow-note {
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
 .modal-heading {
   display: flex;
   justify-content: space-between;

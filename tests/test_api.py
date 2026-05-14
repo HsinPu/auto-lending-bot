@@ -520,6 +520,18 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
             step["step_key"] == "record-market-orders" and currency in step["message"]
             for step in body["steps"]
         )
+        assert any(
+            step["step_key"] == "calculate-decisions" and currency in step["message"]
+            for step in body["steps"]
+        )
+        assert any(
+            step["step_key"] == "record-decisions" and currency in step["message"]
+            for step in body["steps"]
+        )
+        assert any(
+            step["step_key"] == "prepare-offers" and currency in step["message"]
+            for step in body["steps"]
+        )
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)
     assert any("USDT" in message and "0" in message for message in step_messages)

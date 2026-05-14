@@ -1215,6 +1215,9 @@ h1 {
 .run-flow-step-groups {
   display: grid;
   gap: 16px;
+  max-height: min(52vh, 620px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .run-flow-step-group {
@@ -1223,9 +1226,19 @@ h1 {
 }
 
 .run-flow-step-group h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin: 0;
   color: #dbeafe;
   font-size: 0.92rem;
+}
+
+.run-flow-step-group h3 span {
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .run-flow-steps li {

@@ -473,7 +473,10 @@ function RunOnceFlowModal({
         <div className="run-flow-step-groups">
           {groupedSteps.map((group) => (
             <section className="run-flow-step-group" key={group.title}>
-              <h3>{group.title}</h3>
+              <h3>
+                {group.title}
+                <span>{group.steps.length} 筆</span>
+              </h3>
               <ol className="run-flow-steps">
                 {group.steps.map((step, index) => (
                   <li key={step.key} className={stepStatusClass(step.status, flow.status)}>

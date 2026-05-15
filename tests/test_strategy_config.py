@@ -5,12 +5,24 @@ from auto_lending_bot.persistence.repository import AppSettingRepository
 
 def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("FRR_AS_MIN", raising=False)
+    monkeypatch.delenv("GAP_MODE", raising=False)
+    monkeypatch.delenv("GAP_BOTTOM", raising=False)
+    monkeypatch.delenv("GAP_TOP", raising=False)
+    monkeypatch.delenv("RATE_OPTIMIZATION_MODE", raising=False)
+    monkeypatch.delenv("RATE_OPTIMIZATION_MIN_PROBABILITY", raising=False)
+    monkeypatch.delenv("RATE_OPTIMIZATION_SAMPLE_SIZE", raising=False)
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
 
     assert settings.frr_as_min is True
     assert strategy.frr_as_min is True
+    assert strategy.gap_mode == "raw_btc"
+    assert strategy.gap_bottom == 40
+    assert strategy.gap_top == 200
+    assert strategy.rate_optimization_mode == "fill_probability"
+    assert strategy.rate_optimization_min_probability == 0.25
+    assert strategy.rate_optimization_sample_size == 200
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
@@ -51,6 +63,9 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("XDAYS", "30")
     monkeypatch.setenv("FRR_AS_MIN", "true")
     monkeypatch.setenv("FRR_DELTA", "0.00001")
+    monkeypatch.setenv("RATE_OPTIMIZATION_MODE", "off")
+    monkeypatch.setenv("RATE_OPTIMIZATION_MIN_PROBABILITY", "0.4")
+    monkeypatch.setenv("RATE_OPTIMIZATION_SAMPLE_SIZE", "50")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -92,6 +107,9 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.xdays == 30
     assert strategy.frr_as_min is True
     assert strategy.frr_delta == 0.00001
+    assert strategy.rate_optimization_mode == "off"
+    assert strategy.rate_optimization_min_probability == 0.4
+    assert strategy.rate_optimization_sample_size == 50
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:

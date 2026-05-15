@@ -719,6 +719,29 @@ class MarketAnalysisRateRepository:
             long_average = sum(long_rates) / len(long_rates)
             return max(short_average, long_average) * multiplier
 
+    def recent_top_level_rates(
+        self,
+        currency: str,
+        limit: int,
+        max_age_seconds: int = 0,
+    ) -> list[float]:
+        if limit <= 0:
+            return []
+
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT daily_rate
+                FROM market_analysis_rates
+                WHERE currency = ? AND level = 0
+                  {_max_age_filter(max_age_seconds)}
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (currency.upper(), limit),
+            ).fetchall()
+            return [float(row["daily_rate"]) for row in rows]
+
     @staticmethod
     def _rates_since_seconds(connection, currency: str, seconds: int) -> list[float]:
         rows = connection.execute(

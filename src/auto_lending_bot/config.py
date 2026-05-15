@@ -66,6 +66,9 @@ class Settings:
     xday_spread: float
     frr_as_min: bool
     frr_delta: float
+    rate_optimization_mode: str
+    rate_optimization_min_probability: float
+    rate_optimization_sample_size: int
     max_amount_to_lend: float | None
     max_active_amount: float | None
     max_single_transfer_amount: float | None
@@ -143,14 +146,17 @@ def load_settings() -> Settings:
         notify_summary_minutes=_get_int("NOTIFY_SUMMARY_MINUTES", default=0),
         notify_xday_threshold=_get_bool("NOTIFY_XDAY_THRESHOLD", default=False),
         hide_coins=_get_bool("HIDE_COINS", default=True),
-        gap_mode=os.getenv("GAP_MODE", "off"),
-        gap_bottom=_get_float("GAP_BOTTOM", default=0.0),
-        gap_top=_get_float("GAP_TOP", default=0.0),
+        gap_mode=os.getenv("GAP_MODE", "raw_btc"),
+        gap_bottom=_get_float("GAP_BOTTOM", default=40.0),
+        gap_top=_get_float("GAP_TOP", default=200.0),
         xday_threshold=_get_float("XDAY_THRESHOLD", default=0.0),
         xdays=_get_int("XDAYS", default=2),
         xday_spread=_get_float("XDAY_SPREAD", default=0.0),
         frr_as_min=_get_bool("FRR_AS_MIN", default=True),
         frr_delta=_get_float("FRR_DELTA", default=0.0),
+        rate_optimization_mode=os.getenv("RATE_OPTIMIZATION_MODE", "fill_probability").lower(),
+        rate_optimization_min_probability=_get_float("RATE_OPTIMIZATION_MIN_PROBABILITY", default=0.25),
+        rate_optimization_sample_size=_get_int("RATE_OPTIMIZATION_SAMPLE_SIZE", default=200),
         max_amount_to_lend=_get_optional_float("MAX_TO_LEND")
         if os.getenv("MAX_TO_LEND") is not None
         else _get_optional_float("MAX_AMOUNT_TO_LEND"),
@@ -281,6 +287,18 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         xday_spread=_get_float(f"{prefix}_XDAY_SPREAD", settings.xday_spread),
         frr_as_min=_get_bool(f"{prefix}_FRR_AS_MIN", settings.frr_as_min),
         frr_delta=_get_float(f"{prefix}_FRR_DELTA", settings.frr_delta),
+        rate_optimization_mode=os.getenv(
+            f"{prefix}_RATE_OPTIMIZATION_MODE",
+            settings.rate_optimization_mode,
+        ).lower(),
+        rate_optimization_min_probability=_get_float(
+            f"{prefix}_RATE_OPTIMIZATION_MIN_PROBABILITY",
+            settings.rate_optimization_min_probability,
+        ),
+        rate_optimization_sample_size=_get_int(
+            f"{prefix}_RATE_OPTIMIZATION_SAMPLE_SIZE",
+            settings.rate_optimization_sample_size,
+        ),
         max_percent_to_lend=_get_float(
             f"{prefix}_MAX_PERCENT_TO_LEND", settings.max_percent_to_lend
         ),

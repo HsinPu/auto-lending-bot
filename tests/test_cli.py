@@ -226,6 +226,12 @@ class FakeExchange:
     def get_loan_orders(self, currency: str):
         return [LoanOrder(currency=currency, amount=1.0, daily_rate=0.00008)]
 
+    def get_frr_rate(self, currency: str) -> float:
+        return 0.00005
+
+    def get_btc_price(self, currency: str) -> float:
+        return 1.0
+
     def get_open_loan_offers(self):
         return [
             LoanOffer(

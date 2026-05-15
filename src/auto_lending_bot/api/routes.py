@@ -1145,6 +1145,11 @@ def _strategy_decisions(
             btc_price=btc_price,
             suggested_min_daily_rate=suggested_min_daily_rate,
             active_amount=active_amount,
+            historical_daily_rates=_historical_daily_rates(
+                settings,
+                market_analysis_rates,
+                currency,
+            ),
         )
 
         rows.append(
@@ -1225,6 +1230,21 @@ def _safe_frr_rate(
     except Exception as error:
         errors[currency] = f"Unable to load FRR rate: {error}"
         return None
+
+
+def _historical_daily_rates(
+    settings: Settings,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    currency: str,
+) -> list[float]:
+    if settings.rate_optimization_mode != "fill_probability":
+        return []
+
+    return market_analysis_rates.recent_top_level_rates(
+        currency,
+        settings.rate_optimization_sample_size,
+        settings.market_analysis_max_age_seconds,
+    )
 
 
 def _strategy_decision_currencies(

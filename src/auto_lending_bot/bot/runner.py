@@ -225,9 +225,13 @@ class BotRunner:
 
                 current_step_id = self._start_step(bot_run_id, "load-market-analysis-rate", run_step_label("load-market-analysis-rate"))
                 suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
+                historical_daily_rates = self._historical_daily_rates(balance.currency)
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：市場分析建議最低日利率 {suggested_min_daily_rate}。",
+                    message=(
+                        f"{balance.currency}：市場分析建議最低日利率 {suggested_min_daily_rate}；"
+                        f"最佳化樣本 {len(historical_daily_rates)} 筆。"
+                    ),
                 )
                 current_step_id = None
 
@@ -267,6 +271,7 @@ class BotRunner:
                     btc_price=btc_price,
                     suggested_min_daily_rate=suggested_min_daily_rate,
                     active_amount=active_amount,
+                    historical_daily_rates=historical_daily_rates,
                 )
                 self._finish_step(
                     current_step_id,
@@ -278,6 +283,7 @@ class BotRunner:
                         frr_daily_rate=frr_daily_rate,
                         suggested_min_daily_rate=suggested_min_daily_rate,
                         decision=decision,
+                        historical_daily_rates=historical_daily_rates,
                     ),
                 )
                 current_step_id = None
@@ -740,6 +746,16 @@ class BotRunner:
 
         return None
 
+    def _historical_daily_rates(self, currency: str) -> list[float]:
+        if self._settings.rate_optimization_mode != "fill_probability":
+            return []
+
+        return self._market_analysis_rates.recent_top_level_rates(
+            currency,
+            self._settings.rate_optimization_sample_size,
+            self._settings.market_analysis_max_age_seconds,
+        )
+
     @staticmethod
     def _active_amount(active_loans: list[ActiveLoan], currency: str) -> float:
         return sum(
@@ -964,6 +980,7 @@ def _decision_calculation_summary(
     frr_daily_rate: float | None,
     suggested_min_daily_rate: float | None,
     decision,
+    historical_daily_rates: list[float],
 ) -> str:
     best_daily_rate = max((order.daily_rate for order in order_book), default=0)
     effective_min_daily_rate = _effective_min_daily_rate(
@@ -1003,6 +1020,8 @@ def _decision_calculation_summary(
         (
             "掛單利率產生方式："
             f"GAP_MODE={strategy.gap_mode}；"
+            f"RATE_OPTIMIZATION_MODE={strategy.rate_optimization_mode}；"
+            f"最佳化樣本 {len(historical_daily_rates)} 筆；"
             f"本輪委託日利率 {_offer_rate_summary(decision.offers)}。"
         ),
         (

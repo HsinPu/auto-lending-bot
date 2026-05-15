@@ -19,6 +19,9 @@ class StrategyConfig:
     xday_spread: float
     frr_as_min: bool
     frr_delta: float
+    rate_optimization_mode: str
+    rate_optimization_min_probability: float
+    rate_optimization_sample_size: int
     max_percent_to_lend: float
     max_amount_to_lend: float | None
     max_active_amount: float | None
@@ -35,6 +38,7 @@ def build_lending_decision(
     btc_price: float | None = None,
     suggested_min_daily_rate: float | None = None,
     active_amount: float = 0.0,
+    historical_daily_rates: list[float] | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     strategy = _strategy_with_suggested_minimum(strategy, suggested_min_daily_rate)
@@ -71,7 +75,14 @@ def build_lending_decision(
 
     split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
     offer_amounts = _split_amount(lendable_amount, split_count, strategy.min_loan_size)
-    offer_rates = _offer_rates(order_book, strategy, lendable_amount, split_count, btc_price)
+    offer_rates = _offer_rates(
+        order_book,
+        strategy,
+        lendable_amount,
+        split_count,
+        btc_price,
+        historical_daily_rates or [],
+    )
     offers = [
         LoanOffer(
             currency=balance.currency,
@@ -159,7 +170,12 @@ def _offer_rates(
     lendable_amount: float,
     split_count: int,
     btc_price: float | None,
+    historical_daily_rates: list[float],
 ) -> list[float]:
+    optimized_rates = _optimized_offer_rates(order_book, strategy, split_count, historical_daily_rates)
+    if optimized_rates:
+        return optimized_rates
+
     gap_mode = strategy.gap_mode.lower().replace("-", "_")
     if gap_mode == "rawbtc":
         gap_mode = "raw_btc"
@@ -177,6 +193,48 @@ def _offer_rates(
 
     rate_step = (top_rate - bottom_rate) / (split_count - 1)
     return [_clamp_rate(bottom_rate + (rate_step * index), strategy) for index in range(split_count)]
+
+
+def _optimized_offer_rates(
+    order_book: list[LoanOrder],
+    strategy: StrategyConfig,
+    split_count: int,
+    historical_daily_rates: list[float],
+) -> list[float]:
+    if strategy.rate_optimization_mode.lower() != "fill_probability":
+        return []
+
+    sample_size = max(strategy.rate_optimization_sample_size, 1)
+    samples = [rate for rate in historical_daily_rates[:sample_size] if rate > 0]
+    if not samples:
+        return []
+
+    candidates = sorted(
+        {
+            _clamp_rate(order.daily_rate, strategy)
+            for order in order_book
+            if order.daily_rate > 0
+        }
+        | {_clamp_rate(rate, strategy) for rate in samples},
+    )
+    if not candidates:
+        return []
+
+    minimum_probability = min(max(strategy.rate_optimization_min_probability, 0), 1)
+    scored_rates = []
+    for candidate in candidates:
+        probability = sum(1 for sample in samples if sample >= candidate) / len(samples)
+        if probability >= minimum_probability:
+            scored_rates.append((candidate * probability, candidate))
+
+    if not scored_rates:
+        return []
+
+    selected_rates = [rate for _, rate in sorted(scored_rates, reverse=True)[:split_count]]
+    selected_rates.sort()
+    while len(selected_rates) < split_count:
+        selected_rates.append(selected_rates[-1])
+    return selected_rates
 
 
 def _gap_rate(

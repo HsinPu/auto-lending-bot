@@ -224,6 +224,39 @@ def test_strategy_spreads_rates_by_raw_btc_gap_depth() -> None:
     assert [offer.daily_rate for offer in decision.offers] == [0.00007, 0.00008, 0.00009]
 
 
+def test_strategy_optimizes_rate_by_fill_probability() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=1,
+            rate_optimization_mode="fill_probability",
+            rate_optimization_min_probability=0.25,
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0003]
+
+
+def test_strategy_falls_back_to_gap_rates_without_probability_samples() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=2.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00005),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00009),
+        ],
+        strategy=_strategy(spread_lend=2, gap_mode="raw", gap_bottom=1, gap_top=2, rate_optimization_mode="fill_probability"),
+        historical_daily_rates=[],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.00005, 0.00009]
+
+
 def test_strategy_uses_long_duration_above_xday_threshold() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),
@@ -278,6 +311,9 @@ def _strategy(
     xday_spread: float = 0,
     frr_as_min: bool = False,
     frr_delta: float = 0,
+    rate_optimization_mode: str = "off",
+    rate_optimization_min_probability: float = 0.25,
+    rate_optimization_sample_size: int = 200,
     max_percent_to_lend: float = 100,
     max_amount_to_lend: float | None = None,
     max_active_amount: float | None = None,
@@ -298,6 +334,9 @@ def _strategy(
         xday_spread=xday_spread,
         frr_as_min=frr_as_min,
         frr_delta=frr_delta,
+        rate_optimization_mode=rate_optimization_mode,
+        rate_optimization_min_probability=rate_optimization_min_probability,
+        rate_optimization_sample_size=rate_optimization_sample_size,
         max_percent_to_lend=max_percent_to_lend,
         max_amount_to_lend=max_amount_to_lend,
         max_active_amount=max_active_amount,

@@ -221,6 +221,22 @@ def test_market_analysis_rate_repository_calculates_macd_rate(tmp_path) -> None:
     assert repository.macd_rate("BTC", short_samples=2, long_samples=5, min_samples=6) is None
 
 
+def test_market_analysis_rate_repository_returns_recent_top_level_rates(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = MarketAnalysisRateRepository(database_url)
+
+    repository.add_many(
+        [
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00008),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00009),
+        ]
+    )
+    repository.add_many([LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001)])
+
+    assert repository.recent_top_level_rates("BTC", 2) == [0.0001, 0.00008]
+
+
 def test_market_analysis_rate_repository_calculates_macd_rate_by_seconds(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

@@ -258,6 +258,9 @@ Global settings:
 - `END_DATE`
 - `FRR_AS_MIN`
 - `FRR_DELTA`
+- `RATE_OPTIMIZATION_MODE`
+- `RATE_OPTIMIZATION_MIN_PROBABILITY`
+- `RATE_OPTIMIZATION_SAMPLE_SIZE`
 - `STRATEGY_DEBUG`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
@@ -293,6 +296,9 @@ BTC_XDAY_SPREAD=2
 BTC_END_DATE=2027-01-15
 BTC_FRR_AS_MIN=true
 BTC_FRR_DELTA=0.00001
+BTC_RATE_OPTIMIZATION_MODE=fill_probability
+BTC_RATE_OPTIMIZATION_MIN_PROBABILITY=0.25
+BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=200
 ```
 
 `FRR_AS_MIN=true` is the default Bitfinex strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
@@ -302,6 +308,8 @@ BTC_FRR_DELTA=0.00001
 `END_DATE=YYYY-MM-DD` caps offer duration so new loans finish before the date. When two or fewer days remain, the strategy stops creating new lending offers.
 
 `GAP_MODE=raw_btc` treats `GAP_BOTTOM` and `GAP_TOP` as BTC-denominated lendbook depth, matching Mika's `RawBTC` behavior when a BTC conversion price is available.
+
+`RATE_OPTIMIZATION_MODE=fill_probability` compares candidate offer rates against recent top-level market analysis samples. It estimates how often each candidate would have been fillable, scores candidates by `daily rate * fill probability`, and uses the best-scoring rates. When there are no usable samples, the bot falls back to the configured `GAP_MODE` behavior.
 
 `MARKET_ANALYSIS_CURRENCIES=BTC,ETH,USDT` records market analysis snapshots for multiple
 currencies when no explicit currency is provided to `record-market-analysis`. If it is

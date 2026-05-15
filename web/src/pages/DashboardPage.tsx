@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { getDashboardData, runSafeAction } from '../api/client'
+import { getDashboardData, getRunDecisionHistory, runSafeAction } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
 import { actions } from '../components/actionDefinitions'
@@ -348,7 +348,11 @@ export function DashboardPage() {
         />
       ) : null}
       {selectedHistoryRun ? (
-        <RunDecisionHistoryModal run={selectedHistoryRun} onClose={() => setSelectedHistoryRun(null)} />
+        <RunDecisionHistoryModal
+          run={selectedHistoryRun}
+          timeZone={displayTimeZone}
+          onClose={() => setSelectedHistoryRun(null)}
+        />
       ) : null}
       {pendingResetDryRun ? (
         <ResetDryRunConfirmModal
@@ -661,7 +665,14 @@ function RunOnceFlowModal({
   )
 }
 
-function RunDecisionHistoryModal({ run, onClose }: { run: BotRun; onClose: () => void }) {
+function RunDecisionHistoryModal({ run, timeZone, onClose }: { run: BotRun; timeZone: string; onClose: () => void }) {
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['run-decision-history', run.id],
+    queryFn: () => getRunDecisionHistory(run.id),
+  })
+  const steps = data?.steps.map(historyStepView) ?? []
+  const groupedSteps = runOnceStepGroups(steps)
+
   return (
     <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-history-title">
       <section className="run-flow-modal">
@@ -669,15 +680,94 @@ function RunDecisionHistoryModal({ run, onClose }: { run: BotRun; onClose: () =>
           <div>
             <p className="eyebrow">決策歷史</p>
             <h2 id="run-history-title">執行 #{run.id} 的策略決策</h2>
-            <p>下一個 phase 會在這裡載入逐幣別決策與計算步驟。</p>
+            <p>查看這一輪實際記錄下來的流程、逐幣別判斷與預計委託。</p>
           </div>
           <button type="button" className="modal-close-button" onClick={onClose}>
             關閉
           </button>
         </div>
+        <section className="run-flow-result-panel">
+          <h3>本輪執行結果</h3>
+          <dl>
+            <HistoryMetric label="執行編號" value={String(run.id)} />
+            <HistoryMetric label="模式" value={run.dry_run ? '模擬模式' : 'Live 模式'} />
+            <HistoryMetric label="執行狀態" value={statusLabel(run.status)} />
+            <HistoryMetric label="開始時間" value={formatTimestamp(run.started_at, timeZone)} />
+            <HistoryMetric label="結束時間" value={formatTimestamp(run.finished_at, timeZone)} />
+            <HistoryMetric label="執行訊息" value={run.message || '-'} />
+          </dl>
+        </section>
+        {isLoading ? <p className="run-flow-note">正在載入決策歷史...</p> : null}
+        {error ? <p className="run-flow-note error">載入失敗：{(error as Error).message}</p> : null}
+        {groupedSteps.length > 0 ? (
+          <div className="run-flow-step-groups">
+            {groupedSteps.map((group) => (
+              <section className="run-flow-step-group" key={group.title}>
+                <h3>
+                  {group.title}
+                  <span>{group.steps.length} 筆</span>
+                </h3>
+                <ol className="run-flow-steps">
+                  {group.steps.map((step, index) => (
+                    <li key={step.key} className={stepStatusClass(step.status, 'success')}>
+                      <span>{stepMarker(step.status, 'success', index)}</span>
+                      <details className="run-flow-step-detail">
+                        <summary>
+                          <div>
+                            <strong>{step.label}</strong>
+                            <p>{step.summary}</p>
+                          </div>
+                        </summary>
+                        <div className="run-flow-step-body">
+                          <RunFlowStepDetail detail={step.detail} />
+                        </div>
+                      </details>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))}
+          </div>
+        ) : null}
+        {data?.decisions.length ? (
+          <section className="run-flow-decision-panel">
+            <h3>逐幣別策略決策</h3>
+            <div className="run-flow-decision-list">
+              {data.decisions.map((decision) => (
+                <article key={decision.currency}>
+                  <div>
+                    <strong>{decision.currency}</strong>
+                    <span>{decision.offer_count > 0 ? `預計 ${decision.offer_count} 筆委託` : '本輪不建立委託'}</span>
+                  </div>
+                  <dl>
+                    <HistoryMetric label="可用餘額" value={amount(decision.balance)} />
+                    <HistoryMetric label="放貸中" value={amount(decision.active_amount)} />
+                    <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
+                    <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
+                    <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                    <HistoryMetric label="預計委託" value={formatDecisionOfferSummary(decision.offers, decision.offer_count)} />
+                    <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
+                  </dl>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {data && data.decisions.length === 0 ? <p className="run-flow-note">這一輪沒有記錄逐幣別決策。</p> : null}
       </section>
     </div>
   )
+}
+
+function historyStepView(step: BotRunStep): RunOnceStepView {
+  return {
+    key: String(step.id),
+    stepKey: step.step_key,
+    label: step.label,
+    status: step.status,
+    summary: runOnceStepSummary(step.step_key),
+    detail: step.message || stepTimeRange(step),
+  }
 }
 
 function LiveActionConfirmModal({

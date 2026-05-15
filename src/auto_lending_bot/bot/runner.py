@@ -182,6 +182,8 @@ class BotRunner:
                     run_step_label("load-market-orders"),
                 )
                 orders = self._exchange.get_loan_orders(balance.currency)
+                suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
+                historical_daily_rates = self._historical_daily_rates(balance.currency)
                 self._finish_step(
                     current_step_id,
                     message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。{_market_order_summary(orders)}",
@@ -194,9 +196,15 @@ class BotRunner:
                     run_step_label("record-market-orders"),
                 )
                 self._market_recorder.record_orders(orders)
+                analysis_changed_count = self._market_analysis_rates.add_many(
+                    orders[: self._settings.market_analysis_levels]
+                )
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：已記錄 {len(orders)} 筆市場資料。",
+                    message=(
+                        f"{balance.currency}：已記錄 {len(orders)} 筆市場資料；"
+                        f"同步記錄 {analysis_changed_count} 筆市場分析樣本。"
+                    ),
                 )
                 current_step_id = None
 
@@ -224,8 +232,6 @@ class BotRunner:
                 current_step_id = None
 
                 current_step_id = self._start_step(bot_run_id, "load-market-analysis-rate", run_step_label("load-market-analysis-rate"))
-                suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
-                historical_daily_rates = self._historical_daily_rates(balance.currency)
                 self._finish_step(
                     current_step_id,
                     message=(

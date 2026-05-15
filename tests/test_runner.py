@@ -64,6 +64,42 @@ def test_balance_summary_uses_full_decimal_numbers() -> None:
     assert summary == "USD 0.0000006、USDT 1096.33、TRX 0.00023792。"
 
 
+def test_runner_records_market_analysis_samples_during_run_once(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    settings = _settings(database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    run_steps = BotRunStepRepository(database_url)
+    bot_runs = BotRunRepository(database_url)
+
+    runner = BotRunner(
+        settings=settings,
+        exchange=MockExchangeClient(),
+        bot_runs=bot_runs,
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+        run_steps=run_steps,
+    )
+
+    runner.run_once()
+
+    assert market_analysis_rates.count() == 3
+    latest_run = bot_runs.latest()
+    rows = run_steps.for_run(int(latest_run["id"]))
+    assert any(
+        row["step_key"] == "record-market-orders"
+        and "同步記錄" in row["message"]
+        and "市場分析樣本" in row["message"]
+        for row in rows
+    )
+
+
 def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

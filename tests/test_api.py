@@ -556,6 +556,31 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)
     assert any("USDT" in message and "0" in message for message in step_messages)
+    assert any(
+        step["step_key"] == "replace-open-offers"
+        and "AUTO_REBALANCE_OPEN_OFFERS=false" in step["message"]
+        for step in body["steps"]
+    )
+    assert any(
+        step["step_key"] == "evaluate-open-offer-cancel"
+        and "AUTO_REBALANCE_OPEN_OFFERS=false" in step["message"]
+        for step in body["steps"]
+    )
+    assert any(
+        step["step_key"] == "load-btc-price"
+        and "GAP_MODE=off" in step["message"]
+        for step in body["steps"]
+    )
+    assert any(
+        step["step_key"] == "send-xday-notification"
+        and "NOTIFY_XDAY_THRESHOLD=false" in step["message"]
+        for step in body["steps"]
+    )
+    assert any(
+        step["step_key"] == "send-periodic-summary"
+        and "NOTIFY_SUMMARY_MINUTES=0" in step["message"]
+        for step in body["steps"]
+    )
     assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 6
     assert sum(1 for step in body["steps"] if step["step_key"] == "send-xday-notification") == 6
     decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")

@@ -228,7 +228,10 @@ class BotRunner:
                     message=(
                         f"{balance.currency}：BTC 參考價格 {btc_price}。"
                         if btc_price is not None
-                        else f"{balance.currency}：略過 BTC 價格，因為策略不需要。"
+                        else (
+                            f"{balance.currency}：略過 BTC 價格，因為 GAP_MODE={strategy.gap_mode}，"
+                            "只有 GAP_MODE=raw_btc/rawbtc 才需要 BTC 參考價格。"
+                        )
                     ),
                 )
                 current_step_id = None
@@ -420,11 +423,11 @@ class BotRunner:
                 "send-periodic-summary",
                 run_step_label("send-periodic-summary"),
             )
-            periodic_sent = self._maybe_send_periodic_summary(active_loans)
+            periodic_sent, periodic_message = self._maybe_send_periodic_summary(active_loans)
             self._finish_step(
                 current_step_id,
                 status="completed" if periodic_sent else "skipped",
-                message="已發送週期摘要通知。" if periodic_sent else "略過週期摘要通知。",
+                message=periodic_message,
             )
             return created_offers
         except Exception as error:
@@ -435,7 +438,7 @@ class BotRunner:
                 bot_run_id,
                 "send-error-notification",
                 error_notified,
-                "已發送錯誤通知。" if error_notified else "略過錯誤通知。",
+                "已發送錯誤通知。" if error_notified else "略過錯誤通知，因為 NOTIFY_CAUGHT_EXCEPTION=false。",
             )
             raise
 
@@ -490,7 +493,7 @@ class BotRunner:
             sent,
             f"{offer.currency}：已發送長天期委託通知。"
             if sent
-            else f"{offer.currency}：略過長天期委託通知。",
+            else self._xday_notification_skip_message(offer),
         )
 
     def _sleep_seconds(self, created_offers: int) -> int:
@@ -528,17 +531,17 @@ class BotRunner:
             self._record_skipped_step(
                 bot_run_id,
                 "replace-open-offers",
-                "略過更新本地未成交委託。",
+                "略過更新本地未成交委託，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以沒有同步 open offers。",
             )
             self._record_skipped_step(
                 bot_run_id,
                 "check-open-offer-cancel-setting",
-                "略過取消設定檢查，因為未同步 open offers。",
+                "略過取消設定檢查，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以未同步 open offers。",
             )
             self._record_skipped_step(
                 bot_run_id,
                 "evaluate-open-offer-cancel",
-                "略過舊委託取消評估。",
+                "略過舊委託取消評估，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以未同步 open offers。",
             )
             return
 
@@ -556,13 +559,21 @@ class BotRunner:
             run_step_label("check-open-offer-cancel-setting"),
             "允許取消舊委託。"
             if not self._settings.dry_run and self._settings.auto_cancel_open_offers
-            else "略過取消舊委託：dry-run 或 AUTO_CANCEL_OPEN_OFFERS=false。",
+            else (
+                "略過取消舊委託："
+                f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
+                f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}。"
+            ),
         )
         if self._settings.dry_run or not self._settings.auto_cancel_open_offers:
             self._record_skipped_step(
                 bot_run_id,
                 "evaluate-open-offer-cancel",
-                "略過舊委託取消評估：dry-run 或 AUTO_CANCEL_OPEN_OFFERS=false。",
+                (
+                    "略過舊委託取消評估："
+                    f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
+                    f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}。"
+                ),
             )
             return
 
@@ -723,16 +734,21 @@ class BotRunner:
             decision.reason,
         )
 
-    def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> bool:
+    def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> tuple[bool, str]:
         if self._settings.notify_summary_minutes <= 0:
-            return False
+            return False, "略過週期摘要通知，因為 NOTIFY_SUMMARY_MINUTES=0。"
 
         now = time.time()
         state_key = "telegram_summary_last_sent_at"
         last_sent_at = self._notification_state.get_float(state_key)
         interval_seconds = self._settings.notify_summary_minutes * 60
         if last_sent_at is not None and now - last_sent_at < interval_seconds:
-            return False
+            return (
+                False,
+                "略過週期摘要通知，因為 "
+                f"NOTIFY_SUMMARY_MINUTES={self._settings.notify_summary_minutes}，"
+                "距離上次發送尚未達設定間隔。",
+            )
 
         open_offers = self._open_offers.recent(1000)
         earnings = self._lending_history.earnings_summary_by_currency()
@@ -744,7 +760,7 @@ class BotRunner:
             )
         )
         self._notification_state.set_float(state_key, now)
-        return True
+        return True, "已發送週期摘要通知。"
 
     def _notify_xday_offer(self, offer: LoanOffer) -> bool:
         if not self._settings.notify_xday_threshold:
@@ -754,6 +770,13 @@ class BotRunner:
 
         self._notifier.xday_offer(offer, dry_run=self._settings.dry_run)
         return True
+
+    def _xday_notification_skip_message(self, offer: LoanOffer) -> str:
+        if not self._settings.notify_xday_threshold:
+            return f"{offer.currency}：略過長天期委託通知，因為 NOTIFY_XDAY_THRESHOLD=false。"
+        return (
+            f"{offer.currency}：略過長天期委託通知，因為委託天期 {offer.duration_days} 天 <= 2 天。"
+        )
 
     def _notify_new_active_loans(
         self,

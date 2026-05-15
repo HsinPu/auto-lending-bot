@@ -80,13 +80,19 @@ def build_lending_decision(
             reason="End date is too close to create new lending offers.",
         )
 
-    split_count = _split_count(lendable_amount, strategy.min_loan_size, strategy.spread_lend)
-    offer_amounts = _split_amount(lendable_amount, split_count, strategy.min_loan_size)
+    offer_amounts = _offer_amounts(lendable_amount, strategy)
+    if not offer_amounts:
+        return LendingDecision(
+            currency=balance.currency,
+            offers=[],
+            reason="Available balance is below the minimum loan size.",
+        )
+
     offer_rates = _offer_rates(
         order_book,
         strategy,
         lendable_amount,
-        split_count,
+        len(offer_amounts),
         btc_price,
         historical_daily_rates or [],
     )
@@ -158,6 +164,18 @@ def _should_restrict_lendable_amount(best_daily_rate: float, strategy: StrategyC
     return strategy.max_to_lend_rate == 0 or best_daily_rate <= strategy.max_to_lend_rate
 
 
+def _offer_amounts(amount: float, strategy: StrategyConfig) -> list[float]:
+    if strategy.max_offer_amount is not None and strategy.max_offer_amount >= strategy.min_loan_size:
+        return _split_amount_by_max_offer(
+            amount,
+            strategy.max_offer_amount,
+            strategy.min_offer_remainder,
+        )
+
+    split_count = _split_count(amount, strategy.min_loan_size, strategy.spread_lend)
+    return _split_amount(amount, split_count, strategy.min_loan_size)
+
+
 def _split_count(amount: float, min_loan_size: float, spread_lend: int) -> int:
     requested_count = max(spread_lend, 1)
     affordable_count = int(amount // min_loan_size)
@@ -172,6 +190,22 @@ def _split_amount(amount: float, split_count: int, min_loan_size: float) -> list
     amounts = [base_amount for _ in range(split_count)]
     remainder = round(amount - sum(amounts), 8)
     amounts[0] = round(amounts[0] + remainder, 8)
+    return amounts
+
+
+def _split_amount_by_max_offer(
+    amount: float,
+    max_offer_amount: float,
+    min_offer_remainder: float,
+) -> list[float]:
+    if amount <= max_offer_amount:
+        return [round(amount, 8)]
+
+    full_offer_count = int(amount // max_offer_amount)
+    amounts = [round(max_offer_amount, 8) for _ in range(full_offer_count)]
+    remainder = round(amount - sum(amounts), 8)
+    if remainder > max(min_offer_remainder, 0):
+        amounts.append(remainder)
     return amounts
 
 

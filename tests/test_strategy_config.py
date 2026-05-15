@@ -14,6 +14,7 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("RATE_OPTIMIZATION_MODE", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_MIN_PROBABILITY", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_SAMPLE_SIZE", raising=False)
+    monkeypatch.delenv("ALLOW_ABOVE_MARKET_OFFERS", raising=False)
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -29,6 +30,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.rate_optimization_mode == "fill_probability"
     assert strategy.rate_optimization_min_probability == 0.25
     assert strategy.rate_optimization_sample_size == 200
+    assert settings.allow_above_market_offers is True
+    assert strategy.allow_above_market_offers is True
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
@@ -72,6 +75,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("RATE_OPTIMIZATION_MODE", "off")
     monkeypatch.setenv("RATE_OPTIMIZATION_MIN_PROBABILITY", "0.4")
     monkeypatch.setenv("RATE_OPTIMIZATION_SAMPLE_SIZE", "50")
+    monkeypatch.setenv("ALLOW_ABOVE_MARKET_OFFERS", "false")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -116,6 +120,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.rate_optimization_mode == "off"
     assert strategy.rate_optimization_min_probability == 0.4
     assert strategy.rate_optimization_sample_size == 50
+    assert strategy.allow_above_market_offers is False
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
@@ -127,6 +132,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("BTC_MAX_TO_LEND_RATE", "0.00011")
     monkeypatch.setenv("BTC_END_DATE", "2027-02-20")
     monkeypatch.setenv("BTC_HIDE_COINS", "false")
+    monkeypatch.setenv("BTC_ALLOW_ABOVE_MARKET_OFFERS", "false")
     monkeypatch.setenv("BTC_GAP_MODE", "relative")
     monkeypatch.setenv("BTC_GAP_BOTTOM", "20")
     monkeypatch.setenv("BTC_XDAYS", "45")
@@ -143,6 +149,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.max_to_lend_rate == 0.00011
     assert strategy.end_date.isoformat() == "2027-02-20"
     assert strategy.hide_coins is False
+    assert strategy.allow_above_market_offers is False
     assert strategy.gap_mode == "relative"
     assert strategy.gap_bottom == 20
     assert strategy.xdays == 45

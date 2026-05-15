@@ -26,6 +26,18 @@ def test_strategy_rejects_rate_below_minimum() -> None:
     assert decision.reason == "Best daily rate is below the configured minimum."
 
 
+def test_strategy_creates_minimum_rate_offers_below_market_by_default() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USDT", amount=100.0),
+        order_book=[LoanOrder(currency="USDT", amount=1000.0, daily_rate=0.00004)],
+        strategy=_strategy(min_daily_rate=0.00005),
+    )
+
+    assert decision.should_lend is True
+    assert {offer.daily_rate for offer in decision.offers} == {0.00005}
+    assert decision.reason == "Created minimum-rate offers while market is below the configured minimum."
+
+
 def test_strategy_splits_balance_into_offers() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="ETH", amount=2.0),

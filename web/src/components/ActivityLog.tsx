@@ -53,7 +53,7 @@ export function ActivityLog({ runs, offers, latestResult, latestError, timeZone 
                     <span className={`activity-kind ${item.kind}`}>{activityKindLabel(item.kind)}</span>
                   </div>
                   <strong>{item.title}</strong>
-                  <p>{item.detail}</p>
+                  <ActivityDetail detail={item.detail} />
                 </div>
               </li>
             ))}
@@ -70,6 +70,23 @@ export function ActivityLog({ runs, offers, latestResult, latestError, timeZone 
         <p className="empty-hint padded">目前沒有活動紀錄。</p>
       )}
     </section>
+  )
+}
+
+function ActivityDetail({ detail }: { detail: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const shouldCollapse = detail.length > 220
+  const visibleDetail = shouldCollapse && !expanded ? `${detail.slice(0, 220)}...` : detail
+
+  return (
+    <div className="activity-detail">
+      <p>{visibleDetail}</p>
+      {shouldCollapse ? (
+        <button type="button" onClick={() => setExpanded((current) => !current)}>
+          {expanded ? '收合詳情' : '展開詳情'}
+        </button>
+      ) : null}
+    </div>
   )
 }
 

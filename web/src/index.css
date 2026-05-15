@@ -2386,11 +2386,28 @@ h1 {
   letter-spacing: 0.01em;
 }
 
-.activity-list p {
+.activity-detail p {
   margin: 7px 0 0;
   color: #bfdbfe;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.activity-detail button {
+  margin-top: 10px;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #dbeafe;
+  background: rgba(15, 23, 42, 0.74);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.activity-detail button:hover {
+  border-color: rgba(125, 211, 252, 0.52);
+  color: #f8fafc;
 }
 
 .activity-kind {

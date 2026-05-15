@@ -2235,6 +2235,11 @@ h1 {
   background: rgba(2, 6, 23, 0.34);
 }
 
+.strategy-detail-stack {
+  display: grid;
+  gap: 12px;
+}
+
 .strategy-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -2258,6 +2263,20 @@ h1 {
   color: #f8fafc;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.strategy-offer-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.strategy-offer-panel > strong {
+  color: #93c5fd;
+  font-size: 12px;
 }
 
 .table-inline-button {

@@ -1999,12 +1999,17 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                     {isExpanded ? (
                       <tr className="strategy-detail-row" key={`${decision.currency}-details`}>
                         <td colSpan={8}>
-                          <div className="strategy-detail-grid">
-                            <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
-                            <HistoryMetric label="最高日利率" value={rate(decision.max_daily_rate)} />
-                            <HistoryMetric label="最大可放貸" value={amount(decision.max_to_lend)} />
-                            <HistoryMetric label="最大放貸中" value={amount(decision.max_active_amount)} />
-                            <HistoryMetric label="預計委託" value={formatDecisionOfferSummary(decision.offers, decision.offer_count)} />
+                          <div className="strategy-detail-stack">
+                            <div className="strategy-detail-grid">
+                              <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
+                              <HistoryMetric label="最高日利率" value={rate(decision.max_daily_rate)} />
+                              <HistoryMetric label="最大可放貸" value={amount(decision.max_to_lend)} />
+                              <HistoryMetric label="最大放貸中" value={amount(decision.max_active_amount)} />
+                            </div>
+                            <div className="strategy-offer-panel">
+                              <strong>預計委託</strong>
+                              <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -2018,18 +2023,6 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
       )}
     </section>
   )
-}
-
-function formatDecisionOfferSummary(offers: StrategyDecisionOffer[], offerCount: number) {
-  if (offers.length === 0) {
-    return offerCount > 0 ? `${offerCount} 筆` : '-'
-  }
-  return offers
-    .map(
-      (offer) =>
-        `${amount(offer.amount)} @ ${rate(offer.daily_rate)} / ${offer.duration_days} 天 / 年化 ${rate(offer.daily_rate * 365)}`,
-    )
-    .join('；')
 }
 
 function LiveReadinessPanel({ readiness }: { readiness: LiveReadiness }) {

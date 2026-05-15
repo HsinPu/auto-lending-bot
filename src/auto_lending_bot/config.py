@@ -82,6 +82,8 @@ class Settings:
     max_to_lend_rate: float
     end_date: date | None
     spread_lend: int
+    max_offer_amount: float | None
+    min_offer_remainder: float
     database_url: str
     log_level: str
     market_analysis_interval_seconds: int = 60
@@ -172,7 +174,11 @@ def load_settings() -> Settings:
         max_percent_to_lend=_get_float("MAX_PERCENT_TO_LEND", default=100.0),
         max_to_lend_rate=_get_float("MAX_TO_LEND_RATE", default=0.0),
         end_date=_get_optional_date("END_DATE"),
-        spread_lend=_get_int("SPREAD_LEND", default=3),
+        spread_lend=_get_int("SPREAD_LEND", default=0),
+        max_offer_amount=_get_optional_float("MAX_OFFER_AMOUNT")
+        if os.getenv("MAX_OFFER_AMOUNT") is not None
+        else 500.0,
+        min_offer_remainder=_get_float("MIN_OFFER_REMAINDER", default=100.0),
         allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=True),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -281,6 +287,13 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         max_daily_rate=_get_float(f"{prefix}_MAX_DAILY_RATE", settings.max_daily_rate),
         min_loan_size=_get_float(f"{prefix}_MIN_LOAN_SIZE", settings.min_loan_size),
         spread_lend=_get_int(f"{prefix}_SPREAD_LEND", settings.spread_lend),
+        max_offer_amount=_get_optional_float(f"{prefix}_MAX_OFFER_AMOUNT")
+        if os.getenv(f"{prefix}_MAX_OFFER_AMOUNT") is not None
+        else settings.max_offer_amount,
+        min_offer_remainder=_get_float(
+            f"{prefix}_MIN_OFFER_REMAINDER",
+            settings.min_offer_remainder,
+        ),
         gap_mode=os.getenv(f"{prefix}_GAP_MODE", settings.gap_mode),
         gap_bottom=_get_float(f"{prefix}_GAP_BOTTOM", settings.gap_bottom),
         gap_top=_get_float(f"{prefix}_GAP_TOP", settings.gap_top),

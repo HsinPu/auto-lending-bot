@@ -11,6 +11,8 @@ class StrategyConfig:
     max_daily_rate: float
     min_loan_size: float
     spread_lend: int
+    max_offer_amount: float | None
+    min_offer_remainder: float
     gap_mode: str
     gap_bottom: float
     gap_top: float

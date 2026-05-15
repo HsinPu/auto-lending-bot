@@ -54,7 +54,9 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MAX_SINGLE_TRANSFER_AMOUNT", "Safety", "optional_float", "", danger_level="critical"),
     SettingDefinition("HIDE_COINS", "Strategy", "bool", "true"),
     SettingDefinition("ALLOW_ABOVE_MARKET_OFFERS", "Strategy", "bool", "true"),
-    SettingDefinition("SPREAD_LEND", "Strategy", "int", "3"),
+    SettingDefinition("SPREAD_LEND", "Strategy", "int", "0"),
+    SettingDefinition("MAX_OFFER_AMOUNT", "Strategy", "optional_float", "500"),
+    SettingDefinition("MIN_OFFER_REMAINDER", "Strategy", "float", "100"),
     SettingDefinition(
         "GAP_MODE",
         "Strategy",

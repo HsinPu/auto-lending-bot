@@ -2141,6 +2141,8 @@ const strategyLabels: Record<string, string> = {
   max_daily_rate: '最高日利率',
   min_loan_size: '最低放貸金額',
   spread_lend: '委託拆單數',
+  max_offer_amount: '單筆最大委託金額',
+  min_offer_remainder: '尾款保留門檻',
   gap_mode: 'Gap 模式',
   gap_bottom: 'Gap 下緣深度',
   gap_top: 'Gap 上緣深度',

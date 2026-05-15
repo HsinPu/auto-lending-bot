@@ -2,9 +2,9 @@ import logging
 
 import pytest
 
-from auto_lending_bot.bot.runner import BotRunner
+from auto_lending_bot.bot.runner import BotRunner, _balance_summary
 from auto_lending_bot.config import Settings
-from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LendingHistoryEntry, LoanOffer, LoanOrder
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -50,6 +50,18 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     assert loan_offers.count() == 6
     assert active_loans.count() == 1
     assert exchange.get_open_loan_offers() == []
+
+
+def test_balance_summary_uses_full_decimal_numbers() -> None:
+    summary = _balance_summary(
+        [
+            CurrencyBalance(currency="USD", amount=6e-07),
+            CurrencyBalance(currency="USDT", amount=1096.33),
+            CurrencyBalance(currency="TRX", amount=0.00023792),
+        ]
+    )
+
+    assert summary == "USD 0.0000006、USDT 1096.33、TRX 0.00023792。"
 
 
 def test_runner_logs_strategy_debug_details(tmp_path, caplog) -> None:

@@ -1,5 +1,6 @@
 import logging
 import time
+from decimal import Decimal
 
 from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
@@ -808,7 +809,12 @@ def _summary_message(
 def _balance_summary(balances: list[CurrencyBalance]) -> str:
     if not balances:
         return "沒有可用餘額。"
-    return "、".join(f"{balance.currency} {balance.amount:g}" for balance in balances) + "。"
+    return "、".join(f"{balance.currency} {_format_decimal_amount(balance.amount)}" for balance in balances) + "。"
+
+
+def _format_decimal_amount(amount: float) -> str:
+    value = format(Decimal(str(amount)), "f")
+    return value.rstrip("0").rstrip(".") if "." in value else value
 
 
 def _active_loan_summary(active_loans: list[ActiveLoan]) -> str:

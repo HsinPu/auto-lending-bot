@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from auto_lending_bot.api.app import create_app
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
-from auto_lending_bot.persistence.database import initialize_database
+from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
@@ -566,7 +566,8 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert steps_response.json() == body["steps"]
 
 
-def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path) -> None:
+def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)
     client = TestClient(create_app(settings))
@@ -575,7 +576,7 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path) -> No
     assert run_response.status_code == 200
     assert run_response.json()["created_count"] == 6
 
-    reset_response = client.post("/api/actions/reset-dry-run-records")
+    reset_response = client.post("/api/actions/reset-dry-run-records", headers=_admin_headers())
 
     assert reset_response.status_code == 200
     body = reset_response.json()
@@ -587,6 +588,67 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path) -> No
     status_response = client.get("/api/status")
     assert status_response.json()["counts"]["bot_runs"] == 0
     assert status_response.json()["counts"]["loan_offers"] == 0
+
+
+def test_api_reset_dry_run_records_preserves_live_history(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    run_response = client.post("/api/actions/run-once")
+    assert run_response.status_code == 200
+    with connect(database_url) as connection:
+        cursor = connection.execute(
+            "INSERT INTO bot_runs (status, dry_run, message) VALUES (?, ?, ?)",
+            ("completed", 0, "live run"),
+        )
+        live_run_id = int(cursor.lastrowid)
+        connection.execute(
+            """
+            INSERT INTO loan_offers (
+                bot_run_id, currency, amount, daily_rate, duration_days, status, dry_run
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (live_run_id, "USDT", 10, 0.0001, 2, "created", 0),
+        )
+        connection.execute(
+            """
+            INSERT INTO bot_run_steps (bot_run_id, step_key, label, status, message)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (live_run_id, "finish-run", "完成", "completed", "live step"),
+        )
+
+    reset_response = client.post("/api/actions/reset-dry-run-records", headers=_admin_headers())
+
+    assert reset_response.status_code == 200
+    with connect(database_url) as connection:
+        live_runs = connection.execute("SELECT COUNT(*) AS count FROM bot_runs WHERE dry_run = 0").fetchone()
+        live_offers = connection.execute("SELECT COUNT(*) AS count FROM loan_offers WHERE dry_run = 0").fetchone()
+        live_steps = connection.execute(
+            "SELECT COUNT(*) AS count FROM bot_run_steps WHERE bot_run_id = ?",
+            (live_run_id,),
+        ).fetchone()
+    assert int(live_runs["count"]) == 1
+    assert int(live_offers["count"]) == 1
+    assert int(live_steps["count"]) == 1
+
+
+def test_api_reset_dry_run_records_rejects_running_loop(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    start_response = client.post("/api/actions/start-loop")
+    reset_response = client.post("/api/actions/reset-dry-run-records", headers=_admin_headers())
+    stop_response = client.post("/api/actions/stop-loop")
+
+    assert start_response.status_code == 200
+    assert reset_response.status_code == 409
+    assert reset_response.json()["detail"] == "Stop the bot loop before resetting dry-run records."
+    assert stop_response.status_code == 200
 
 
 def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:

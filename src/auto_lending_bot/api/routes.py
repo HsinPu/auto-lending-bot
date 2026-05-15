@@ -475,7 +475,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         }
 
     @router.post("/actions/reset-dry-run-records")
-    def reset_dry_run_records() -> dict[str, object]:
+    def reset_dry_run_records(
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_admin(authorization, request)
+        if loop_controller.status()["running"]:
+            raise HTTPException(status_code=409, detail="Stop the bot loop before resetting dry-run records.")
         deleted_counts = bot_runs.delete_dry_run_records()
         return {
             "action": "reset-dry-run-records",

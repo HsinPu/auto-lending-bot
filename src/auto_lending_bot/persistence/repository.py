@@ -229,6 +229,41 @@ class BotRunRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def delete_dry_run_records(self) -> dict[str, int]:
+        with connect(self._database_url) as connection:
+            dry_run_ids = [
+                int(row["id"])
+                for row in connection.execute("SELECT id FROM bot_runs WHERE dry_run = 1").fetchall()
+            ]
+            offer_cursor = connection.execute("DELETE FROM loan_offers WHERE dry_run = 1")
+            if not dry_run_ids:
+                return {
+                    "deleted_dry_run_offers": int(offer_cursor.rowcount),
+                    "deleted_runs": 0,
+                    "deleted_decisions": 0,
+                    "deleted_steps": 0,
+                }
+
+            placeholders = ",".join("?" for _ in dry_run_ids)
+            step_cursor = connection.execute(
+                f"DELETE FROM bot_run_steps WHERE bot_run_id IN ({placeholders})",
+                dry_run_ids,
+            )
+            decision_cursor = connection.execute(
+                f"DELETE FROM bot_run_decisions WHERE bot_run_id IN ({placeholders})",
+                dry_run_ids,
+            )
+            run_cursor = connection.execute(
+                f"DELETE FROM bot_runs WHERE id IN ({placeholders})",
+                dry_run_ids,
+            )
+            return {
+                "deleted_dry_run_offers": int(offer_cursor.rowcount),
+                "deleted_runs": int(run_cursor.rowcount),
+                "deleted_decisions": int(decision_cursor.rowcount),
+                "deleted_steps": int(step_cursor.rowcount),
+            }
+
 
 class BotRunDecisionRepository:
     def __init__(self, database_url: str) -> None:

@@ -474,6 +474,16 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "market_analysis_deleted_count": market_analysis_deleted_count,
         }
 
+    @router.post("/actions/reset-dry-run-records")
+    def reset_dry_run_records() -> dict[str, object]:
+        deleted_counts = bot_runs.delete_dry_run_records()
+        return {
+            "action": "reset-dry-run-records",
+            "ok": True,
+            "deleted_count": sum(deleted_counts.values()),
+            **deleted_counts,
+        }
+
     @router.post("/actions/run-once")
     def run_once(
         request: Request,

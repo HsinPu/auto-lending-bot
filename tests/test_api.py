@@ -566,6 +566,29 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert steps_response.json() == body["steps"]
 
 
+def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    run_response = client.post("/api/actions/run-once")
+    assert run_response.status_code == 200
+    assert run_response.json()["created_count"] == 6
+
+    reset_response = client.post("/api/actions/reset-dry-run-records")
+
+    assert reset_response.status_code == 200
+    body = reset_response.json()
+    assert body["action"] == "reset-dry-run-records"
+    assert body["deleted_dry_run_offers"] == 6
+    assert body["deleted_runs"] == 1
+    assert body["deleted_decisions"] == 3
+    assert body["deleted_steps"] > 0
+    status_response = client.get("/api/status")
+    assert status_response.json()["counts"]["bot_runs"] == 0
+    assert status_response.json()["counts"]["loan_offers"] == 0
+
+
 def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

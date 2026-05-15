@@ -43,6 +43,7 @@ export function DashboardPage() {
   const [runOnceFlow, setRunOnceFlow] = useState<RunOnceFlowState | null>(null)
   const [pendingLiveAction, setPendingLiveAction] = useState<SafeActionName | null>(null)
   const [pendingResetDryRun, setPendingResetDryRun] = useState(false)
+  const [selectedHistoryRun, setSelectedHistoryRun] = useState<BotRun | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const [adminToken, setAdminToken] = useState(loadAdminToken)
   const [activePage, setActivePage] = useState<PageKey>(loadActivePage)
@@ -320,11 +321,10 @@ export function DashboardPage() {
             latestError={latestError}
             timeZone={displayTimeZone}
           />
-          <DataTable<BotRun>
-            title="最近執行"
-            description="Bot 執行狀態與訊息。"
-            rows={data.runs}
-            columns={runColumns(displayTimeZone)}
+          <RunHistoryTable
+            runs={data.runs}
+            timeZone={displayTimeZone}
+            onViewDecisions={setSelectedHistoryRun}
           />
           <DataTable<LoanOffer>
             title="最近貸出活動"
@@ -346,6 +346,9 @@ export function DashboardPage() {
           flow={runOnceFlow}
           onClose={() => setRunOnceFlow(null)}
         />
+      ) : null}
+      {selectedHistoryRun ? (
+        <RunDecisionHistoryModal run={selectedHistoryRun} onClose={() => setSelectedHistoryRun(null)} />
       ) : null}
       {pendingResetDryRun ? (
         <ResetDryRunConfirmModal
@@ -452,6 +455,66 @@ function PagePlaceholder({ page }: { page: PageKey }) {
         <p className="eyebrow">即將開放</p>
       <h2>{item?.label}</h2>
       <p>{item?.description} 會在下一個 phase 開始從總覽頁拆出來。</p>
+    </section>
+  )
+}
+
+function RunHistoryTable({
+  runs,
+  timeZone,
+  onViewDecisions,
+}: {
+  runs: BotRun[]
+  timeZone: string
+  onViewDecisions: (run: BotRun) => void
+}) {
+  return (
+    <section className="table-section">
+      <div className="section-heading">
+        <div>
+          <h2>最近執行</h2>
+          <p>Bot 執行狀態、訊息與逐幣別策略決策。</p>
+        </div>
+        <span>{runs.length} 筆</span>
+      </div>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>編號</th>
+              <th>狀態</th>
+              <th>模擬</th>
+              <th>開始時間</th>
+              <th>結束時間</th>
+              <th>訊息</th>
+              <th>決策</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.length === 0 ? (
+              <tr>
+                <td colSpan={7}>目前沒有資料</td>
+              </tr>
+            ) : (
+              runs.slice(0, 10).map((run) => (
+                <tr key={run.id}>
+                  <td>{run.id}</td>
+                  <td>{statusLabel(run.status)}</td>
+                  <td>{dryRunLabel(run.dry_run)}</td>
+                  <td>{formatTimestamp(run.started_at, timeZone)}</td>
+                  <td>{formatTimestamp(run.finished_at, timeZone)}</td>
+                  <td>{run.message || '-'}</td>
+                  <td>
+                    <button type="button" className="table-inline-button" onClick={() => onViewDecisions(run)}>
+                      查看決策
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }
@@ -593,6 +656,25 @@ function RunOnceFlowModal({
         <p className="run-flow-note">
           後端會在本輪完成後回傳實際步驟紀錄；逐幣別策略決策使用本次 run 的快照。
         </p>
+      </section>
+    </div>
+  )
+}
+
+function RunDecisionHistoryModal({ run, onClose }: { run: BotRun; onClose: () => void }) {
+  return (
+    <div className="modal-backdrop run-flow-backdrop" role="dialog" aria-modal="true" aria-labelledby="run-history-title">
+      <section className="run-flow-modal">
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">決策歷史</p>
+            <h2 id="run-history-title">執行 #{run.id} 的策略決策</h2>
+            <p>下一個 phase 會在這裡載入逐幣別決策與計算步驟。</p>
+          </div>
+          <button type="button" className="modal-close-button" onClick={onClose}>
+            關閉
+          </button>
+        </div>
       </section>
     </div>
   )
@@ -2017,15 +2099,6 @@ function formatStrategyValue(key: string, value: unknown): string {
   }
   return String(value)
 }
-
-const runColumns = (timeZone: string) => [
-  { key: 'id', label: '編號' },
-  { key: 'status', label: '狀態', format: statusLabel },
-  { key: 'dry_run', label: '模擬', format: dryRunLabel },
-  { key: 'started_at', label: '開始時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
-  { key: 'finished_at', label: '結束時間', format: (value: unknown) => formatTimestamp(value, timeZone) },
-  { key: 'message', label: '訊息' },
-] satisfies Parameters<typeof DataTable<BotRun>>[0]['columns']
 
 const offerColumns = [
   { key: 'id', label: '編號' },

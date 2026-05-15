@@ -630,6 +630,17 @@ function LiveActionConfirmModal({
 
 function RunFlowStepDetail({ detail }: { detail: string }) {
   const lines = detail.split('\n').map((line) => line.trim()).filter(Boolean)
+  const settingDetail = runFlowSettingDetail(lines)
+  if (settingDetail) {
+    return (
+      <div className="run-flow-setting-card">
+        <strong>{settingDetail.title}</strong>
+        <p>{settingDetail.impact}</p>
+        <code>{settingDetail.setting}</code>
+      </div>
+    )
+  }
+
   const heading = lines.length > 1 && !lines[0].startsWith('- ') ? lines[0] : null
   const listItems = lines.filter((line) => line.startsWith('- ')).map((line) => line.slice(2))
 
@@ -647,6 +658,18 @@ function RunFlowStepDetail({ detail }: { detail: string }) {
   }
 
   return <p>{detail}</p>
+}
+
+function runFlowSettingDetail(lines: string[]) {
+  if (lines.length !== 3 || !lines[1].startsWith('影響：') || !lines[2].startsWith('設定鍵：')) {
+    return null
+  }
+
+  return {
+    title: lines[0],
+    impact: lines[1].replace(/^影響：/, ''),
+    setting: lines[2].replace(/^設定鍵：/, ''),
+  }
 }
 
 function runOnceResultSummary(result: SafeActionResponse | undefined) {

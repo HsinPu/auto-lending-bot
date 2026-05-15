@@ -1318,6 +1318,34 @@ h1 {
   line-height: 1.6;
 }
 
+.run-flow-setting-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(147, 197, 253, 0.18);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.run-flow-setting-card strong {
+  color: #f8fafc;
+}
+
+.run-flow-setting-card p {
+  margin: 0;
+  color: #bfdbfe;
+}
+
+.run-flow-setting-card code {
+  justify-self: start;
+  border: 1px solid rgba(147, 197, 253, 0.16);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #93c5fd;
+  background: rgba(2, 6, 23, 0.38);
+  font-size: 0.78rem;
+}
+
 .run-flow-steps > li > span {
   display: grid;
   place-items: center;

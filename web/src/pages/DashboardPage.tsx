@@ -1783,7 +1783,10 @@ function formatDecisionOfferSummary(offers: StrategyDecisionOffer[], offerCount:
     return offerCount > 0 ? `${offerCount} 筆` : '-'
   }
   return offers
-    .map((offer) => `${amount(offer.amount)} @ ${rate(offer.daily_rate)} / ${offer.duration_days} 天`)
+    .map(
+      (offer) =>
+        `${amount(offer.amount)} @ ${rate(offer.daily_rate)} / ${offer.duration_days} 天 / 年化 ${rate(offer.daily_rate * 365)}`,
+    )
     .join('；')
 }
 

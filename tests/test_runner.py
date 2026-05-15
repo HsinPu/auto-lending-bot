@@ -181,6 +181,47 @@ def test_runner_records_skipped_calculation_when_no_lending_balances(tmp_path) -
     assert "放貸日利率計算" in skipped_calculation["message"]
 
 
+def test_runner_records_duration_and_annualized_rate_calculation(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_runs = BotRunRepository(database_url)
+    run_steps = BotRunStepRepository(database_url)
+
+    runner = BotRunner(
+        settings=_settings(database_url, xday_threshold=0.00007, xdays=30),
+        exchange=MockExchangeClient(),
+        bot_runs=bot_runs,
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+        run_steps=run_steps,
+    )
+
+    runner.run_once()
+
+    latest_run = bot_runs.latest()
+    rows = run_steps.for_run(int(latest_run["id"]))
+    calculation = next(
+        row
+        for row in rows
+        if row["step_key"] == "calculate-decisions" and "BTC" in row["message"]
+    )
+    assert "借出天數計算" in calculation["message"]
+    assert "XDAY_THRESHOLD=0.00007" in calculation["message"]
+    assert "XDAYS=30" in calculation["message"]
+    assert "本輪委託天期 30 天" in calculation["message"]
+    assert "年化利率換算" in calculation["message"]
+    assert "單利年化利率 = 日利率 × 365" in calculation["message"]
+    assert "市場最佳年化" in calculation["message"]
+    assert "有效最低年化" in calculation["message"]
+    assert "本輪委託年化利率" in calculation["message"]
+
+
 def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

@@ -932,6 +932,10 @@ def _format_decimal_amount(amount: float) -> str:
     return value.rstrip("0").rstrip(".") if "." in value else value
 
 
+def _format_daily_and_annual_rate(daily_rate: float) -> str:
+    return f"{_format_decimal_amount(daily_rate)}（年化 {_format_rate_percent(daily_rate * 365)}）"
+
+
 def _setting_message(title: str, status: str, impact: str, setting: str) -> str:
     return f"{title}：{status}\n影響：{impact}\n設定鍵：{setting}"
 
@@ -985,21 +989,36 @@ def _decision_calculation_summary(
         f"{balance.currency}：策略決策產生 {len(decision.offers)} 筆委託。",
         (
             "放貸日利率計算："
-            f"市場最佳日利率 {_format_decimal_amount(best_daily_rate)}；"
-            f"最低日利率 MIN_DAILY_RATE={_format_decimal_amount(strategy.min_daily_rate)}；"
-            f"最高日利率 MAX_DAILY_RATE={_format_decimal_amount(strategy.max_daily_rate)}。"
+            f"市場最佳日利率 {_format_daily_and_annual_rate(best_daily_rate)}；"
+            f"最低日利率 MIN_DAILY_RATE={_format_daily_and_annual_rate(strategy.min_daily_rate)}；"
+            f"最高日利率 MAX_DAILY_RATE={_format_daily_and_annual_rate(strategy.max_daily_rate)}。"
         ),
         (
             "有效最低日利率："
             f"max(設定最低 {_format_decimal_amount(strategy.min_daily_rate)}，"
             f"FRR 參考 {_optional_rate(_frr_min_daily_rate(strategy, frr_daily_rate))}，"
             f"市場分析 {_optional_rate(suggested_min_daily_rate)}) "
-            f"= {_format_decimal_amount(effective_min_daily_rate)}。"
+            f"= {_format_daily_and_annual_rate(effective_min_daily_rate)}。"
         ),
         (
             "掛單利率產生方式："
             f"GAP_MODE={strategy.gap_mode}；"
             f"本輪委託日利率 {_offer_rate_summary(decision.offers)}。"
+        ),
+        (
+            "借出天數計算："
+            f"XDAY_THRESHOLD={_format_decimal_amount(strategy.xday_threshold)}；"
+            f"XDAYS={strategy.xdays}；"
+            f"XDAY_SPREAD={_format_decimal_amount(strategy.xday_spread)}；"
+            f"END_DATE={strategy.end_date.isoformat() if strategy.end_date else '未設定'}；"
+            f"本輪委託天期 {_offer_duration_summary(decision.offers)}。"
+        ),
+        (
+            "年化利率換算："
+            "單利年化利率 = 日利率 × 365；"
+            f"市場最佳年化 {_format_rate_percent(best_daily_rate * 365)}；"
+            f"有效最低年化 {_format_rate_percent(effective_min_daily_rate * 365)}；"
+            f"本輪委託年化利率 {_offer_annualized_rate_summary(decision.offers)}。"
         ),
         (
             "放貸百分比計算："
@@ -1071,6 +1090,22 @@ def _offer_rate_summary(offers: list[LoanOffer]) -> str:
     if not offers:
         return "無委託利率"
     return "、".join(_format_decimal_amount(offer.daily_rate) for offer in offers)
+
+
+def _offer_duration_summary(offers: list[LoanOffer]) -> str:
+    if not offers:
+        return "無委託天期"
+    return "、".join(f"{offer.duration_days} 天" for offer in offers)
+
+
+def _offer_annualized_rate_summary(offers: list[LoanOffer]) -> str:
+    if not offers:
+        return "無委託年化利率"
+    return "、".join(_format_rate_percent(offer.daily_rate * 365) for offer in offers)
+
+
+def _format_rate_percent(rate: float) -> str:
+    return f"{_format_decimal_amount(round(rate * 100, 10))}%"
 
 
 def _optional_exchange_balances(exchange: ExchangeClient, method_name: str) -> list[CurrencyBalance]:

@@ -264,6 +264,11 @@ export type StrategyDecision = {
   reason: string
 }
 
+export type RunDecisionHistory = {
+  decisions: StrategyDecision[]
+  steps: BotRunStep[]
+}
+
 export type DashboardData = {
   status: StatusResponse
   liveReadiness: LiveReadiness

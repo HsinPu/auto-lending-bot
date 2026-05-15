@@ -1,6 +1,7 @@
 import type {
   ActiveLoan,
   BotRun,
+  BotRunStep,
   ConvertedEarnings,
   DashboardData,
   CurrencyDetail,
@@ -15,6 +16,7 @@ import type {
   ManagedSettingsData,
   ManagedSettingDefinition,
   ManagedSettingValue,
+  RunDecisionHistory,
   SafeActionName,
   SafeActionResponse,
   SettingsResponse,
@@ -97,6 +99,15 @@ export async function getManagedSettings(): Promise<ManagedSettingsData> {
   ])
 
   return { schema, values }
+}
+
+export async function getRunDecisionHistory(botRunId: number): Promise<RunDecisionHistory> {
+  const [decisions, steps] = await Promise.all([
+    getJson<StrategyDecision[]>(`/api/runs/${botRunId}/decisions`),
+    getJson<BotRunStep[]>(`/api/runs/${botRunId}/steps`),
+  ])
+
+  return { decisions, steps }
 }
 
 export async function updateManagedSettings(

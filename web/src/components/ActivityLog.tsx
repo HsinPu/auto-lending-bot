@@ -17,6 +17,7 @@ type ActivityItem = {
   time: string
   title: string
   detail: string
+  kind: 'action' | 'run' | 'offer'
   tone?: 'ok' | 'error'
 }
 
@@ -43,8 +44,14 @@ export function ActivityLog({ runs, offers, latestResult, latestError, timeZone 
           <ol className="activity-list">
             {visibleItems.map((item) => (
               <li className={item.tone ?? ''} key={item.id}>
-                <time>{item.time}</time>
-                <div>
+                <div className="activity-marker" aria-hidden="true">
+                  <span>{activityInitial(item)}</span>
+                </div>
+                <div className="activity-content">
+                  <div className="activity-topline">
+                    <time>{item.time}</time>
+                    <span className={`activity-kind ${item.kind}`}>{activityKindLabel(item.kind)}</span>
+                  </div>
                   <strong>{item.title}</strong>
                   <p>{item.detail}</p>
                 </div>
@@ -118,6 +125,7 @@ function buildActivityItems({
       time: '現在',
       title: '操作失敗',
       detail: latestError,
+      kind: 'action',
       tone: 'error',
     })
   }
@@ -127,6 +135,7 @@ function buildActivityItems({
       time: '現在',
       title: `操作完成：${actionLabel(latestResult.action)}`,
       detail: JSON.stringify(latestResult),
+      kind: 'action',
       tone: 'ok',
     })
   }
@@ -136,6 +145,7 @@ function buildActivityItems({
     time: formatTimestamp(run.finished_at ?? run.started_at, timeZone),
     title: `執行 #${run.id} ${statusLabel(run.status)}`,
     detail: run.message || '沒有訊息',
+    kind: 'run',
     tone: run.status === 'completed' ? 'ok' : run.status === 'failed' ? 'error' : undefined,
   }))
 
@@ -144,6 +154,7 @@ function buildActivityItems({
     time: formatTimestamp(offer.created_at, timeZone),
     title: `${offer.currency} 委託 ${statusLabel(offer.status ?? 'recorded')}`,
     detail: `${amount(offer.amount)}，日利率 ${rate(offer.daily_rate)}，${offer.duration_days} 天`,
+    kind: 'offer',
     tone: offer.status === 'failed' ? 'error' : 'ok',
   }))
 
@@ -186,4 +197,27 @@ function statusLabel(status: string): string {
 
 function actionLabel(action: string): string {
   return actionLabels[action] ?? action
+}
+
+function activityKindLabel(kind: ActivityItem['kind']): string {
+  if (kind === 'action') {
+    return '操作'
+  }
+  if (kind === 'offer') {
+    return '委託'
+  }
+  return '執行'
+}
+
+function activityInitial(item: ActivityItem): string {
+  if (item.tone === 'error') {
+    return '!'
+  }
+  if (item.kind === 'offer') {
+    return '委'
+  }
+  if (item.kind === 'action') {
+    return '操'
+  }
+  return '跑'
 }

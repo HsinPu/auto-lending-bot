@@ -2281,8 +2281,9 @@ h1 {
 }
 
 .activity-list {
+  position: relative;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
   padding: 0 24px 24px;
   list-style: none;
@@ -2290,35 +2291,126 @@ h1 {
 
 .activity-list li {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 14px;
-  border-left: 3px solid rgba(147, 197, 253, 0.34);
-  border-radius: 16px;
-  padding: 14px 16px;
-  background: rgba(2, 6, 23, 0.28);
+  grid-template-columns: 42px 1fr;
+  gap: 13px;
+  align-items: stretch;
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  border-radius: 20px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.44)),
+    radial-gradient(circle at top right, rgba(147, 197, 253, 0.08), transparent 34%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .activity-list li.ok {
-  border-left-color: #86efac;
+  border-color: rgba(134, 239, 172, 0.2);
 }
 
 .activity-list li.error {
-  border-left-color: #fda4af;
+  border-color: rgba(253, 164, 175, 0.34);
+  background:
+    linear-gradient(135deg, rgba(69, 10, 10, 0.38), rgba(2, 6, 23, 0.52)),
+    radial-gradient(circle at top right, rgba(253, 164, 175, 0.14), transparent 36%);
+}
+
+.activity-marker {
+  position: relative;
+  display: grid;
+  place-items: start center;
+}
+
+.activity-marker::after {
+  position: absolute;
+  top: 42px;
+  bottom: -22px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(147, 197, 253, 0.32), transparent);
+  content: '';
+}
+
+.activity-list li:last-child .activity-marker::after {
+  display: none;
+}
+
+.activity-marker span {
+  z-index: 1;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  border-radius: 999px;
+  color: #bfdbfe;
+  background: rgba(15, 23, 42, 0.96);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.activity-list li.ok .activity-marker span {
+  border-color: rgba(134, 239, 172, 0.54);
+  color: #052e16;
+  background: #86efac;
+}
+
+.activity-list li.error .activity-marker span {
+  border-color: rgba(253, 164, 175, 0.7);
+  color: #450a0a;
+  background: #fda4af;
+}
+
+.activity-content {
+  min-width: 0;
+  border-radius: 15px;
+  padding: 2px 2px 3px;
+}
+
+.activity-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
 }
 
 .activity-list time {
-  color: #93c5fd;
+  color: #7dd3fc;
   font-size: 12px;
+  font-weight: 700;
 }
 
 .activity-list strong {
   color: #f8fafc;
+  font-size: 15px;
+  letter-spacing: 0.01em;
 }
 
 .activity-list p {
-  margin: 6px 0 0;
+  margin: 7px 0 0;
   color: #bfdbfe;
+  line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.activity-kind {
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #dbeafe;
+  background: rgba(147, 197, 253, 0.08);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.activity-kind.action {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.activity-kind.offer {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .earnings-page {
@@ -2751,7 +2843,21 @@ td {
   }
 
   .activity-list li {
-    grid-template-columns: 1fr;
+    grid-template-columns: 32px 1fr;
+    padding: 10px;
+  }
+
+  .activity-marker span {
+    width: 28px;
+    height: 28px;
+  }
+
+  .activity-marker::after {
+    top: 34px;
+  }
+
+  .activity-topline {
+    justify-content: flex-start;
   }
 }
 

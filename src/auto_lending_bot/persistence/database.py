@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS lending_history (
     earned REAL NOT NULL,
     opened_at TEXT,
     closed_at TEXT,
+    dry_run INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'exchange',
     synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(external_entry_id, currency)
 );
@@ -163,6 +165,16 @@ def initialize_database(database_url: str) -> None:
         _ensure_column(connection, "bot_runs", "message", "TEXT")
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
         _ensure_column(connection, "loan_offers", "message", "TEXT")
+        _ensure_column(connection, "lending_history", "dry_run", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(connection, "lending_history", "source", "TEXT NOT NULL DEFAULT 'exchange'")
+        connection.execute(
+            """
+            UPDATE lending_history
+            SET dry_run = 1,
+                source = 'mock'
+            WHERE external_entry_id LIKE 'mock-%'
+            """
+        )
 
 
 def _ensure_column(

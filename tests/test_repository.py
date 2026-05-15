@@ -156,12 +156,18 @@ def test_lending_history_repository_upserts_entries(tmp_path) -> None:
     initialize_database(database_url)
     lending_history = LendingHistoryRepository(database_url)
 
-    assert lending_history.upsert_many([_history_entry("history-1")]) == 1
-    assert lending_history.upsert_many([_history_entry("history-1")]) == 1
+    assert lending_history.upsert_many([_history_entry("history-1")], dry_run=True, source="mock") == 1
+    assert lending_history.upsert_many([_history_entry("history-1")], dry_run=True, source="mock") == 1
 
     assert lending_history.count() == 1
-    assert lending_history.recent()[0]["external_entry_id"] == "history-1"
-    assert lending_history.earnings_summary_by_currency()[0]["total_earned"] == 0.0000085
+    recent = lending_history.recent()[0]
+    assert recent["external_entry_id"] == "history-1"
+    assert recent["dry_run"] == 1
+    assert recent["source"] == "mock"
+    earnings = lending_history.earnings_summary_by_currency()[0]
+    assert earnings["total_earned"] == 0.0000085
+    assert earnings["dry_run"] == 1
+    assert earnings["source"] == "mock"
 
 
 def test_open_loan_offer_repository_replaces_snapshot(tmp_path) -> None:

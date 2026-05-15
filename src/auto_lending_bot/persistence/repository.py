@@ -799,7 +799,7 @@ class LendingHistoryRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def upsert_many(self, entries: list[LendingHistoryEntry]) -> int:
+    def upsert_many(self, entries: list[LendingHistoryEntry], dry_run: bool = False, source: str = "exchange") -> int:
         with connect(self._database_url) as connection:
             cursor = connection.executemany(
                 """
@@ -813,8 +813,10 @@ class LendingHistoryRepository:
                     fee,
                     earned,
                     opened_at,
-                    closed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    closed_at,
+                    dry_run,
+                    source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -828,6 +830,8 @@ class LendingHistoryRepository:
                         entry.earned,
                         entry.opened_at,
                         entry.closed_at,
+                        int(dry_run),
+                        source,
                     )
                     for entry in entries
                 ],
@@ -844,7 +848,7 @@ class LendingHistoryRepository:
             rows = connection.execute(
                 """
                 SELECT id, external_entry_id, currency, amount, daily_rate, duration_days,
-                       interest, fee, earned, opened_at, closed_at, synced_at
+                       interest, fee, earned, opened_at, closed_at, dry_run, source, synced_at
                 FROM lending_history
                 ORDER BY closed_at DESC, id DESC
                 LIMIT ?
@@ -863,10 +867,12 @@ class LendingHistoryRepository:
                         AS today_earned,
                     COALESCE(SUM(CASE WHEN date(closed_at) = date('now', '-1 day') THEN earned END), 0)
                         AS yesterday_earned,
-                    COALESCE(SUM(earned), 0) AS total_earned
+                    COALESCE(SUM(earned), 0) AS total_earned,
+                    dry_run,
+                    source
                 FROM lending_history
-                GROUP BY currency
-                ORDER BY currency
+                GROUP BY currency, dry_run, source
+                ORDER BY dry_run, currency, source
                 """
             ).fetchall()
             return [dict(row) for row in rows]

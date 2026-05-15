@@ -401,6 +401,11 @@ def test_api_safe_actions_update_local_state(tmp_path) -> None:
     history_response = client.post("/api/actions/sync-history")
     assert history_response.status_code == 200
     assert history_response.json()["changed_count"] == 1
+    assert history_response.json()["dry_run"] is True
+    assert history_response.json()["source"] == "mock"
+    history_rows = client.get("/api/lending-history").json()
+    assert history_rows[0]["dry_run"] == 1
+    assert history_rows[0]["source"] == "mock"
 
     open_offers_response = client.post("/api/actions/sync-open-offers")
     assert open_offers_response.status_code == 200

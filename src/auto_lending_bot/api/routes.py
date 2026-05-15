@@ -321,11 +321,19 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def sync_history() -> dict[str, object]:
         _validate_safe_action_settings(settings)
         entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
-        changed_count = lending_history.upsert_many(entries)
+        history_source = settings.exchange.lower()
+        history_dry_run = history_source == "mock"
+        changed_count = lending_history.upsert_many(
+            entries,
+            dry_run=history_dry_run,
+            source=history_source,
+        )
         return {
             "action": "sync-history",
             "ok": True,
             "currency": settings.smoke_test_currency.upper(),
+            "dry_run": history_dry_run,
+            "source": history_source,
             "changed_count": changed_count,
         }
 

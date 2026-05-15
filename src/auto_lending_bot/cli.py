@@ -82,7 +82,12 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         initialize_database(settings.database_url)
         entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
-        changed_count = LendingHistoryRepository(settings.database_url).upsert_many(entries)
+        history_source = settings.exchange.lower()
+        changed_count = LendingHistoryRepository(settings.database_url).upsert_many(
+            entries,
+            dry_run=history_source == "mock",
+            source=history_source,
+        )
         print(
             f"Synced {changed_count} lending history row(s) "
             f"for {settings.smoke_test_currency.upper()}."

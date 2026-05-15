@@ -1483,6 +1483,39 @@ h1 {
   font-weight: 800;
 }
 
+.decision-offer-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.decision-offer-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 10px 11px;
+  background: rgba(2, 6, 23, 0.32);
+}
+
+.decision-offer-list li strong {
+  min-width: 110px;
+  font-size: 14px;
+}
+
+.decision-offer-list li span {
+  color: #dbeafe;
+  background: rgba(147, 197, 253, 0.1);
+}
+
+.decision-offer-empty {
+  margin: 0;
+  color: #93c5fd;
+}
+
 .run-flow-note {
   margin-top: 16px;
   border-radius: 16px;

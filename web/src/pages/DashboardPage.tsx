@@ -472,6 +472,12 @@ function RunHistoryTable({
   timeZone: string
   onViewDecisions: (run: BotRun) => void
 }) {
+  const [page, setPage] = useState(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(runs.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const visibleRuns = runs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   return (
     <section className="table-section">
       <div className="section-heading">
@@ -500,7 +506,7 @@ function RunHistoryTable({
                 <td colSpan={7}>目前沒有資料</td>
               </tr>
             ) : (
-              runs.slice(0, 10).map((run) => (
+              visibleRuns.map((run) => (
                 <tr key={run.id}>
                   <td>{run.id}</td>
                   <td>{statusLabel(run.status)}</td>
@@ -519,7 +525,50 @@ function RunHistoryTable({
           </tbody>
         </table>
       </div>
+      {runs.length > 0 ? (
+        <SimplePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalRows={runs.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      ) : null}
     </section>
+  )
+}
+
+function SimplePagination({
+  currentPage,
+  totalPages,
+  totalRows,
+  pageSize,
+  onPageChange,
+}: {
+  currentPage: number
+  totalPages: number
+  totalRows: number
+  pageSize: number
+  onPageChange: (page: number) => void
+}) {
+  const start = (currentPage - 1) * pageSize + 1
+  const end = Math.min(currentPage * pageSize, totalRows)
+
+  return (
+    <div className="pagination-controls">
+      <span>
+        顯示 {start}-{end} / {totalRows} 筆
+      </span>
+      <div>
+        <button type="button" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
+          上一頁
+        </button>
+        <strong>{currentPage} / {totalPages}</strong>
+        <button type="button" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
+          下一頁
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -745,9 +794,11 @@ function RunDecisionHistoryModal({ run, timeZone, onClose }: { run: BotRun; time
                     <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
                     <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
                     <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
-                    <HistoryMetric label="預計委託" value={formatDecisionOfferSummary(decision.offers, decision.offer_count)} />
+                    <HistoryMetric label="最佳市場年化" value={rate(decision.best_market_rate * 365)} />
+                    <HistoryMetric label="有效最低年化" value={rate(decision.effective_min_daily_rate * 365)} />
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
+                  <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
                 </article>
               ))}
             </div>
@@ -768,6 +819,25 @@ function historyStepView(step: BotRunStep): RunOnceStepView {
     summary: runOnceStepSummary(step.step_key),
     detail: step.message || stepTimeRange(step),
   }
+}
+
+function DecisionOfferList({ offers, offerCount }: { offers: StrategyDecisionOffer[]; offerCount: number }) {
+  if (offers.length === 0) {
+    return <p className="decision-offer-empty">{offerCount > 0 ? `預計 ${offerCount} 筆委託` : '沒有預計委託'}</p>
+  }
+
+  return (
+    <ul className="decision-offer-list">
+      {offers.map((offer) => (
+        <li key={`${offer.currency}-${offer.amount}-${offer.daily_rate}-${offer.duration_days}`}>
+          <strong>{amount(offer.amount)}</strong>
+          <span>日利率 {rate(offer.daily_rate)}</span>
+          <span>年化 {rate(offer.daily_rate * 365)}</span>
+          <span>{offer.duration_days} 天</span>
+        </li>
+      ))}
+    </ul>
+  )
 }
 
 function LiveActionConfirmModal({

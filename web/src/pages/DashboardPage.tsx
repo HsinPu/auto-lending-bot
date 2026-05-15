@@ -42,6 +42,7 @@ export function DashboardPage() {
   const [latestError, setLatestError] = useState<string | null>(null)
   const [runOnceFlow, setRunOnceFlow] = useState<RunOnceFlowState | null>(null)
   const [pendingLiveAction, setPendingLiveAction] = useState<SafeActionName | null>(null)
+  const [pendingResetDryRun, setPendingResetDryRun] = useState(false)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
   const [adminToken, setAdminToken] = useState(loadAdminToken)
   const [activePage, setActivePage] = useState<PageKey>(loadActivePage)
@@ -70,6 +71,11 @@ export function DashboardPage() {
     },
   })
   const runAction = (action: SafeActionName, dryRun: boolean) => {
+    if (action === 'reset-dry-run-records') {
+      setPendingResetDryRun(true)
+      return
+    }
+
     const confirmLive = shouldConfirmLive(action, dryRun)
     if (confirmLive) {
       setPendingLiveAction(action)
@@ -341,6 +347,15 @@ export function DashboardPage() {
           onClose={() => setRunOnceFlow(null)}
         />
       ) : null}
+      {pendingResetDryRun ? (
+        <ResetDryRunConfirmModal
+          onCancel={() => setPendingResetDryRun(false)}
+          onConfirm={() => {
+            setPendingResetDryRun(false)
+            startAction('reset-dry-run-records', false, data?.status.dry_run ?? true)
+          }}
+        />
+      ) : null}
       {pendingLiveAction && data ? (
         <LiveActionConfirmModal
           action={pendingLiveAction}
@@ -438,6 +453,46 @@ function PagePlaceholder({ page }: { page: PageKey }) {
       <h2>{item?.label}</h2>
       <p>{item?.description} 會在下一個 phase 開始從總覽頁拆出來。</p>
     </section>
+  )
+}
+
+function ResetDryRunConfirmModal({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reset-dry-run-title">
+      <section className="confirm-modal danger">
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">本地紀錄重置</p>
+            <h2 id="reset-dry-run-title">重置所有模擬紀錄？</h2>
+            <p>這只會刪除 SQLite 裡的 dry-run 紀錄，不會取消 Bitfinex 委託，也不會刪除 Live 紀錄。</p>
+          </div>
+        </div>
+        <div className="confirm-detail-list">
+          <strong>會刪除</strong>
+          <ul>
+            <li>dry-run 模擬委託</li>
+            <li>dry-run bot runs</li>
+            <li>dry-run 的逐幣別決策與執行步驟</li>
+          </ul>
+          <strong>不會刪除</strong>
+          <ul>
+            <li>Live 委託與 Live run 紀錄</li>
+            <li>收益歷史、active loans、open offers 快照</li>
+            <li>市場利率與設定資料</li>
+          </ul>
+        </div>
+        <div className="confirm-actions">
+          <button type="button" className="secondary-button" onClick={onCancel}>取消</button>
+          <button type="button" className="danger-button" onClick={onConfirm}>確認重置</button>
+        </div>
+      </section>
+    </div>
   )
 }
 

@@ -52,6 +52,11 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     description: '清理過期市場利率與市場分析紀錄。',
   },
   {
+    action: 'reset-dry-run-records',
+    label: '重置模擬紀錄',
+    description: '刪除本地 dry-run run、決策、步驟與模擬委託，不碰 Live 紀錄。',
+  },
+  {
     action: 'run-once',
     label: '執行一次',
     description: '觸發一次 bot run；Live 模式需要二次確認。',

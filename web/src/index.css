@@ -1165,6 +1165,24 @@ h1 {
   gap: 10px;
 }
 
+.confirm-detail-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  color: #dbeafe;
+}
+
+.confirm-detail-list strong {
+  color: #f8fafc;
+}
+
+.confirm-detail-list ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  color: #bfdbfe;
+  line-height: 1.6;
+}
+
 .danger-button {
   border: 1px solid rgba(251, 113, 133, 0.48);
   border-radius: 999px;

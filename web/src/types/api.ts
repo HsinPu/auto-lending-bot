@@ -287,6 +287,7 @@ export type SafeActionName =
   | 'start-market-analysis'
   | 'stop-market-analysis'
   | 'cleanup'
+  | 'reset-dry-run-records'
   | 'run-once'
   | 'start-loop'
   | 'stop-loop'

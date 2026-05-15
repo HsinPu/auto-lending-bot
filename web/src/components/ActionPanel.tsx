@@ -98,6 +98,11 @@ const actionGroups: Array<{
     actions: ['record-market-analysis', 'start-market-analysis', 'stop-market-analysis', 'cleanup'],
   },
   {
+    title: '本地資料維護',
+    description: '只整理本地 SQLite 紀錄，不會送出交易所操作。',
+    actions: ['reset-dry-run-records'],
+  },
+  {
     title: '資金與委託風險操作',
     description: 'Live 模式會碰到真實資金或真實委託，請確認安全保險絲。',
     actions: ['transfer-preview', 'transfer-funds', 'cancel-open-offers'],

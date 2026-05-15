@@ -172,6 +172,7 @@ const actionLabels: Record<string, string> = {
   'cancel-open-offers': '取消委託',
   'record-market-analysis': '記錄市場分析',
   cleanup: '清理資料',
+  'reset-dry-run-records': '重置模擬紀錄',
   'run-once': '執行一次',
   'start-loop': '開始持續執行',
   'stop-loop': '停止持續執行',

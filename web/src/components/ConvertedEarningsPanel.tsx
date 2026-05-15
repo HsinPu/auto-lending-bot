@@ -21,8 +21,8 @@ export function ConvertedEarningsPanel({ rows, btcUnit }: ConvertedEarningsPanel
       {rows.length ? (
         <div className="converted-earnings-grid">
           {rows.map((row) => (
-            <article key={row.currency}>
-              <strong>{row.currency}</strong>
+            <article key={`${row.currency}-${row.source}-${row.dry_run}`}>
+              <strong>{row.currency} {row.dry_run ? '模擬' : '真實'}</strong>
               <span>原幣 {displayAmount(row.total_earned, row.currency, btcUnit)}</span>
               <b>
                 {row.conversion_available && row.converted_total_earned !== null

@@ -1269,6 +1269,8 @@ def _converted_earnings(
                 "currency": currency,
                 "output_currency": output_currency,
                 "total_earned": total_earned,
+                "dry_run": int(row.get("dry_run", 0)),
+                "source": row.get("source", "exchange"),
                 "converted_total_earned": converted_total,
                 "conversion_available": conversion_available,
             }

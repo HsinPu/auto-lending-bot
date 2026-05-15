@@ -121,6 +121,8 @@ export type LendingHistoryEntry = {
   earned: number
   opened_at: string
   closed_at: string
+  dry_run: number
+  source: string
   synced_at: string
 }
 
@@ -129,12 +131,16 @@ export type EarningsSummary = {
   today_earned: number
   yesterday_earned: number
   total_earned: number
+  dry_run: number
+  source: string
 }
 
 export type ConvertedEarnings = {
   currency: string
   output_currency: string
   total_earned: number
+  dry_run: number
+  source: string
   converted_total_earned: number | null
   conversion_available: boolean
 }

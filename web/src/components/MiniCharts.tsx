@@ -21,8 +21,8 @@ export function MiniCharts({ earnings, marketRates, offers }: MiniChartsProps) {
           {earnings.length === 0 ? <span className="empty-hint">尚無收益資料</span> : null}
           {earnings.map((row) => (
             <MetricBar
-              key={row.currency}
-              label={row.currency}
+              key={`${row.currency}-${row.source}-${row.dry_run}`}
+              label={`${row.currency} ${row.dry_run ? '模擬' : '真實'}`}
               value={row.total_earned}
               ratio={maxEarned > 0 ? Math.abs(row.total_earned) / maxEarned : 0}
             />

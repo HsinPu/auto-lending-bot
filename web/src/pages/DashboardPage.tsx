@@ -479,11 +479,12 @@ function ResetDryRunConfirmModal({
             <li>dry-run 模擬委託</li>
             <li>dry-run bot runs</li>
             <li>dry-run 的逐幣別決策與執行步驟</li>
+            <li>模擬來源的收益紀錄</li>
           </ul>
           <strong>不會刪除</strong>
           <ul>
             <li>Live 委託與 Live run 紀錄</li>
-            <li>收益歷史、active loans、open offers 快照</li>
+            <li>真實收益歷史、active loans、open offers 快照</li>
             <li>市場利率與設定資料</li>
           </ul>
         </div>
@@ -1127,6 +1128,8 @@ function EarningsSummaryPanel({ history }: { history: LendingHistoryEntry[] }) {
   const totalFee = history.reduce((sum, row) => sum + row.fee, 0)
   const totalEarned = history.reduce((sum, row) => sum + row.earned, 0)
   const currencies = new Set(history.map((row) => row.currency)).size
+  const simulatedCount = history.filter((row) => row.dry_run).length
+  const liveCount = history.length - simulatedCount
 
   return (
     <section className="earnings-summary-panel">
@@ -1137,6 +1140,7 @@ function EarningsSummaryPanel({ history }: { history: LendingHistoryEntry[] }) {
       </div>
       <div className="earnings-summary-metrics">
         <OverviewMetric label="收益筆數" value={history.length} />
+        <OverviewMetric label="真實 / 模擬" value={`${liveCount} / ${simulatedCount}`} />
         <OverviewMetric label="涵蓋幣種" value={currencies} />
         <OverviewMetric label="利息合計" value={amount(totalInterest)} />
         <OverviewMetric label="手續費合計" value={amount(totalFee)} />
@@ -1163,7 +1167,7 @@ function LendingHistoryList({
       <div className="section-heading compact">
         <div>
           <h2>收益明細</h2>
-          <p>最近同步的 lending history，每列顯示利息、手續費與實收。</p>
+          <p>最近同步的 lending history，每列顯示真實/模擬來源、利息、手續費與實收。</p>
         </div>
         <span>{history.length} 筆</span>
       </div>
@@ -1177,6 +1181,8 @@ function LendingHistoryList({
               <thead>
                 <tr>
                   <th>編號</th>
+                  <th>模式</th>
+                  <th>來源</th>
                   <th>幣種</th>
                   <th>利息</th>
                   <th>手續費</th>
@@ -1191,6 +1197,8 @@ function LendingHistoryList({
                 {visibleRows.map((entry) => (
                   <tr key={entry.id}>
                     <td>{entry.id}</td>
+                    <td>{historyModeLabel(entry.dry_run)}</td>
+                    <td>{entry.source}</td>
                     <td>{entry.currency}</td>
                     <td>{amount(entry.interest)}</td>
                     <td>{amount(entry.fee)}</td>
@@ -1952,6 +1960,10 @@ function statusLabel(value: unknown): string {
 
 function dryRunLabel(value: unknown): string {
   return value ? '是' : '否'
+}
+
+function historyModeLabel(value: unknown): string {
+  return value ? '模擬' : '真實'
 }
 
 function formatStrategyValue(key: string, value: unknown): string {

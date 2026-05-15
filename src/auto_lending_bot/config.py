@@ -82,11 +82,11 @@ class Settings:
     max_to_lend_rate: float
     end_date: date | None
     spread_lend: int
-    allow_above_market_offers: bool
     database_url: str
     log_level: str
     market_analysis_interval_seconds: int = 60
     display_timezone: str = "UTC"
+    allow_above_market_offers: bool = True
 
 
 def load_settings() -> Settings:

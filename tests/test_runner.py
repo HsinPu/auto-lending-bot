@@ -47,7 +47,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
 
     runner.run_once()
 
-    assert loan_offers.count() == 6
+    assert loan_offers.count() == 9
     assert active_loans.count() == 1
     assert exchange.get_open_loan_offers() == []
 

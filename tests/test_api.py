@@ -475,10 +475,10 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     body = response.json()
     assert body["action"] == "run-once"
     assert body["dry_run"] is True
-    assert body["created_count"] == 6
+    assert body["created_count"] == 9
     assert body["bot_run_id"] == body["latest_run"]["id"]
     assert body["status"] == "completed"
-    assert body["message"] == "Completed with 6 offer(s)."
+    assert body["message"] == "Completed with 9 offer(s)."
     assert body["started_at"] == body["latest_run"]["started_at"]
     assert body["finished_at"] == body["latest_run"]["finished_at"]
     assert body["latest_run"]["status"] == "completed"
@@ -523,6 +523,12 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         "record-dry-run-offer",
         "send-xday-notification",
         *per_currency_steps,
+        "record-dry-run-offer",
+        "send-xday-notification",
+        "record-dry-run-offer",
+        "send-xday-notification",
+        "record-dry-run-offer",
+        "send-xday-notification",
         "finish-run",
         "send-run-summary",
         "send-periodic-summary",
@@ -569,7 +575,7 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         )
     assert any("BTC" in message and "3" in message for message in step_messages)
     assert any("ETH" in message and "3" in message for message in step_messages)
-    assert any("USDT" in message and "0" in message for message in step_messages)
+    assert any("USDT" in message and "3" in message for message in step_messages)
     assert any(
         step["step_key"] == "replace-open-offers"
         and "AUTO_REBALANCE_OPEN_OFFERS=false" in step["message"]
@@ -605,8 +611,8 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
         and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
-    assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 6
-    assert sum(1 for step in body["steps"] if step["step_key"] == "send-xday-notification") == 6
+    assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 9
+    assert sum(1 for step in body["steps"] if step["step_key"] == "send-xday-notification") == 9
     decisions_response = client.get(f"/api/runs/{body['bot_run_id']}/decisions")
     assert decisions_response.status_code == 200
     assert decisions_response.json() == body["decisions"]
@@ -623,7 +629,7 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monke
 
     run_response = client.post("/api/actions/run-once")
     assert run_response.status_code == 200
-    assert run_response.json()["created_count"] == 6
+    assert run_response.json()["created_count"] == 9
     LendingHistoryRepository(database_url).upsert_many(
         [_lending_history_entry("mock-history-reset")],
         dry_run=True,
@@ -635,7 +641,7 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monke
     assert reset_response.status_code == 200
     body = reset_response.json()
     assert body["action"] == "reset-dry-run-records"
-    assert body["deleted_dry_run_offers"] == 6
+    assert body["deleted_dry_run_offers"] == 9
     assert body["deleted_dry_run_lending_history"] == 1
     assert body["deleted_runs"] == 1
     assert body["deleted_decisions"] == 3

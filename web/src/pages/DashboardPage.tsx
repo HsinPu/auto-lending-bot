@@ -522,7 +522,7 @@ function RunOnceFlowModal({
             <h2 id="run-flow-title">{running ? 'Bot 正在跑一輪策略' : failed ? '執行失敗' : '執行完成'}</h2>
             <p>{flow.message}</p>
           </div>
-          <button type="button" className="icon-button" onClick={onClose}>
+          <button type="button" className="modal-close-button" onClick={onClose}>
             關閉
           </button>
         </div>

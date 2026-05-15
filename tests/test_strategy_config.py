@@ -3,6 +3,16 @@ from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import AppSettingRepository
 
 
+def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
+    monkeypatch.delenv("FRR_AS_MIN", raising=False)
+
+    settings = load_settings()
+    strategy = strategy_config_for(settings, "BTC")
+
+    assert settings.frr_as_min is True
+    assert strategy.frr_as_min is True
+
+
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MIN_DAILY_RATE", "0.00007")
     monkeypatch.setenv("MAX_PERCENT_TO_LEND", "75")

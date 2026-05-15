@@ -67,7 +67,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("XDAYS", "Strategy", "int", "2"),
     SettingDefinition("XDAY_SPREAD", "Strategy", "float", "0"),
     SettingDefinition("END_DATE", "Strategy", "date", ""),
-    SettingDefinition("FRR_AS_MIN", "Strategy", "bool", "false"),
+    SettingDefinition("FRR_AS_MIN", "Strategy", "bool", "true"),
     SettingDefinition("FRR_DELTA", "Strategy", "float", "0"),
     SettingDefinition("MARKET_RATE_RETENTION_DAYS", "Market Analysis", "int", "30"),
     SettingDefinition("MARKET_ANALYSIS_RETENTION_DAYS", "Market Analysis", "int", "30"),

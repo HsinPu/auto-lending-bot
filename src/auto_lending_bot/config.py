@@ -149,7 +149,7 @@ def load_settings() -> Settings:
         xday_threshold=_get_float("XDAY_THRESHOLD", default=0.0),
         xdays=_get_int("XDAYS", default=2),
         xday_spread=_get_float("XDAY_SPREAD", default=0.0),
-        frr_as_min=_get_bool("FRR_AS_MIN", default=False),
+        frr_as_min=_get_bool("FRR_AS_MIN", default=True),
         frr_delta=_get_float("FRR_DELTA", default=0.0),
         max_amount_to_lend=_get_optional_float("MAX_TO_LEND")
         if os.getenv("MAX_TO_LEND") is not None

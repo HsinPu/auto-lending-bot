@@ -320,6 +320,7 @@ def _strategy(
     max_to_lend_rate: float = 0,
     end_date: date | None = None,
     hide_coins: bool = True,
+    allow_above_market_offers: bool = True,
 ) -> StrategyConfig:
     return StrategyConfig(
         min_daily_rate=min_daily_rate,
@@ -343,4 +344,5 @@ def _strategy(
         max_to_lend_rate=max_to_lend_rate,
         end_date=end_date,
         hide_coins=hide_coins,
+        allow_above_market_offers=allow_above_market_offers,
     )

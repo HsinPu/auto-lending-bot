@@ -28,6 +28,7 @@ class StrategyConfig:
     max_to_lend_rate: float
     end_date: date | None
     hide_coins: bool
+    allow_above_market_offers: bool
 
 
 def build_lending_decision(

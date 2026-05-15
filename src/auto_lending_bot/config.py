@@ -82,6 +82,7 @@ class Settings:
     max_to_lend_rate: float
     end_date: date | None
     spread_lend: int
+    allow_above_market_offers: bool
     database_url: str
     log_level: str
     market_analysis_interval_seconds: int = 60
@@ -172,6 +173,7 @@ def load_settings() -> Settings:
         max_to_lend_rate=_get_float("MAX_TO_LEND_RATE", default=0.0),
         end_date=_get_optional_date("END_DATE"),
         spread_lend=_get_int("SPREAD_LEND", default=3),
+        allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=True),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         display_timezone=os.getenv("DISPLAY_TIMEZONE", "UTC"),
@@ -311,6 +313,10 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         if os.getenv(f"{prefix}_END_DATE") is not None
         else settings.end_date,
         hide_coins=_get_bool(f"{prefix}_HIDE_COINS", settings.hide_coins),
+        allow_above_market_offers=_get_bool(
+            f"{prefix}_ALLOW_ABOVE_MARKET_OFFERS",
+            settings.allow_above_market_offers,
+        ),
     )
 
 

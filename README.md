@@ -248,6 +248,7 @@ Global settings:
 - `MAX_AMOUNT_TO_LEND`
 - `MAX_ACTIVE_AMOUNT`
 - `HIDE_COINS`
+- `ALLOW_ABOVE_MARKET_OFFERS`
 - `SPREAD_LEND`
 - `GAP_MODE`
 - `GAP_BOTTOM`
@@ -286,6 +287,7 @@ BTC_MAX_TO_LEND=0.1
 BTC_MAX_TO_LEND_RATE=0.00008
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_MAX_ACTIVE_AMOUNT=0.5
+BTC_ALLOW_ABOVE_MARKET_OFFERS=true
 BTC_HIDE_COINS=true
 BTC_GAP_MODE=raw_btc
 BTC_GAP_BOTTOM=20
@@ -302,6 +304,8 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=200
 ```
 
 `FRR_AS_MIN=true` is the default Bitfinex strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
+
+`ALLOW_ABOVE_MARKET_OFFERS=true` is enabled by default. When the best market rate is below the effective minimum rate, the bot may still create offers at the effective minimum rate instead of skipping the currency. Set it to `false` to keep the older behavior where below-minimum markets are hidden when `HIDE_COINS=true`.
 
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 

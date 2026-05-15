@@ -53,6 +53,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MAX_TOTAL_TRANSFER_AMOUNT", "Safety", "optional_float", "", danger_level="critical"),
     SettingDefinition("MAX_SINGLE_TRANSFER_AMOUNT", "Safety", "optional_float", "", danger_level="critical"),
     SettingDefinition("HIDE_COINS", "Strategy", "bool", "true"),
+    SettingDefinition("ALLOW_ABOVE_MARKET_OFFERS", "Strategy", "bool", "true"),
     SettingDefinition("SPREAD_LEND", "Strategy", "int", "3"),
     SettingDefinition(
         "GAP_MODE",

@@ -60,7 +60,11 @@ def build_lending_decision(
             reason=_below_minimum_reason(active_amount, strategy),
         )
 
-    if best_order.daily_rate < strategy.min_daily_rate and strategy.hide_coins:
+    if (
+        best_order.daily_rate < strategy.min_daily_rate
+        and strategy.hide_coins
+        and not strategy.allow_above_market_offers
+    ):
         return LendingDecision(
             currency=balance.currency,
             offers=[],

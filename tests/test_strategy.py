@@ -19,7 +19,7 @@ def test_strategy_rejects_rate_below_minimum() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="USDT", amount=100.0),
         order_book=[LoanOrder(currency="USDT", amount=1000.0, daily_rate=0.00004)],
-        strategy=_strategy(),
+        strategy=_strategy(allow_above_market_offers=False),
     )
 
     assert decision.should_lend is False

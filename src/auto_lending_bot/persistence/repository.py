@@ -236,9 +236,11 @@ class BotRunRepository:
                 for row in connection.execute("SELECT id FROM bot_runs WHERE dry_run = 1").fetchall()
             ]
             offer_cursor = connection.execute("DELETE FROM loan_offers WHERE dry_run = 1")
+            history_cursor = connection.execute("DELETE FROM lending_history WHERE dry_run = 1")
             if not dry_run_ids:
                 return {
                     "deleted_dry_run_offers": int(offer_cursor.rowcount),
+                    "deleted_dry_run_lending_history": int(history_cursor.rowcount),
                     "deleted_runs": 0,
                     "deleted_decisions": 0,
                     "deleted_steps": 0,
@@ -259,6 +261,7 @@ class BotRunRepository:
             )
             return {
                 "deleted_dry_run_offers": int(offer_cursor.rowcount),
+                "deleted_dry_run_lending_history": int(history_cursor.rowcount),
                 "deleted_runs": int(run_cursor.rowcount),
                 "deleted_decisions": int(decision_cursor.rowcount),
                 "deleted_steps": int(step_cursor.rowcount),

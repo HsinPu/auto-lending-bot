@@ -605,6 +605,11 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monke
     run_response = client.post("/api/actions/run-once")
     assert run_response.status_code == 200
     assert run_response.json()["created_count"] == 6
+    LendingHistoryRepository(database_url).upsert_many(
+        [_lending_history_entry("mock-history-reset")],
+        dry_run=True,
+        source="mock",
+    )
 
     reset_response = client.post("/api/actions/reset-dry-run-records", headers=_admin_headers())
 
@@ -612,12 +617,14 @@ def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monke
     body = reset_response.json()
     assert body["action"] == "reset-dry-run-records"
     assert body["deleted_dry_run_offers"] == 6
+    assert body["deleted_dry_run_lending_history"] == 1
     assert body["deleted_runs"] == 1
     assert body["deleted_decisions"] == 3
     assert body["deleted_steps"] > 0
     status_response = client.get("/api/status")
     assert status_response.json()["counts"]["bot_runs"] == 0
     assert status_response.json()["counts"]["loan_offers"] == 0
+    assert status_response.json()["counts"]["lending_history"] == 0
 
 
 def test_api_reset_dry_run_records_preserves_live_history(tmp_path, monkeypatch) -> None:
@@ -628,6 +635,11 @@ def test_api_reset_dry_run_records_preserves_live_history(tmp_path, monkeypatch)
 
     run_response = client.post("/api/actions/run-once")
     assert run_response.status_code == 200
+    LendingHistoryRepository(database_url).upsert_many(
+        [_lending_history_entry("live-history-reset")],
+        dry_run=False,
+        source="bitfinex",
+    )
     with connect(database_url) as connection:
         cursor = connection.execute(
             "INSERT INTO bot_runs (status, dry_run, message) VALUES (?, ?, ?)",
@@ -660,9 +672,13 @@ def test_api_reset_dry_run_records_preserves_live_history(tmp_path, monkeypatch)
             "SELECT COUNT(*) AS count FROM bot_run_steps WHERE bot_run_id = ?",
             (live_run_id,),
         ).fetchone()
+        live_history = connection.execute(
+            "SELECT COUNT(*) AS count FROM lending_history WHERE dry_run = 0 AND source = 'bitfinex'"
+        ).fetchone()
     assert int(live_runs["count"]) == 1
     assert int(live_offers["count"]) == 1
     assert int(live_steps["count"]) == 1
+    assert int(live_history["count"]) == 1
 
 
 def test_api_reset_dry_run_records_rejects_running_loop(tmp_path, monkeypatch) -> None:
@@ -885,6 +901,21 @@ def _seed_database(database_url: str) -> None:
                 external_offer_id="offer-1",
             )
         ]
+    )
+
+
+def _lending_history_entry(external_entry_id: str) -> LendingHistoryEntry:
+    return LendingHistoryEntry(
+        currency="BTC",
+        amount=0.1,
+        daily_rate=0.00008,
+        duration_days=2,
+        interest=0.00001,
+        fee=-0.0000015,
+        earned=0.0000085,
+        opened_at="2026-01-01 00:00:00",
+        closed_at="2026-01-02 00:00:00",
+        external_entry_id=external_entry_id,
     )
 
 

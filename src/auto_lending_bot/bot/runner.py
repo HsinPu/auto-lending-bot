@@ -164,6 +164,17 @@ class BotRunner:
 
             self._rebalance_open_offers(bot_run_id, balances)
 
+            if not balances:
+                self._record_skipped_step(
+                    bot_run_id,
+                    "calculate-decisions",
+                    (
+                        "放貸日利率計算：無法計算\n"
+                        "影響：Funding/Lending wallet 沒有可用餘額，所以本輪沒有幣種可進行利率、金額與委託計算。\n"
+                        "設定鍵：需先把資金放在 Funding/Lending wallet，或執行轉帳後再跑一次。"
+                    ),
+                )
+
             for balance in balances:
                 current_step_id = self._start_step(
                     bot_run_id,

@@ -150,6 +150,37 @@ def test_runner_uses_inactive_sleep_when_no_offers_are_created(tmp_path, monkeyp
     assert sleep_calls == [300]
 
 
+def test_runner_records_skipped_calculation_when_no_lending_balances(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_runs = BotRunRepository(database_url)
+    run_steps = BotRunStepRepository(database_url)
+
+    runner = BotRunner(
+        settings=_settings(database_url),
+        exchange=NoOfferExchange(),
+        bot_runs=bot_runs,
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+        run_steps=run_steps,
+    )
+
+    runner.run_once()
+
+    latest_run = bot_runs.latest()
+    rows = run_steps.for_run(int(latest_run["id"]))
+    skipped_calculation = next(row for row in rows if row["step_key"] == "calculate-decisions")
+    assert skipped_calculation["status"] == "skipped"
+    assert "Funding/Lending wallet 沒有可用餘額" in skipped_calculation["message"]
+    assert "放貸日利率計算" in skipped_calculation["message"]
+
+
 def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

@@ -551,6 +551,17 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
             for step in body["steps"]
         )
         assert any(
+            step["step_key"] == "calculate-decisions"
+            and currency in step["message"]
+            and "放貸日利率計算" in step["message"]
+            and "有效最低日利率" in step["message"]
+            and "掛單利率產生方式" in step["message"]
+            and "放貸百分比計算" in step["message"]
+            and "MAX_PERCENT_TO_LEND" in step["message"]
+            and "本輪可放貸金額" in step["message"]
+            for step in body["steps"]
+        )
+        assert any(
             step["step_key"] == "record-decisions" and currency in step["message"]
             for step in body["steps"]
         )

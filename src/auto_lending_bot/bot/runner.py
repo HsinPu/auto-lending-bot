@@ -259,7 +259,15 @@ class BotRunner:
                 )
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：策略決策產生 {len(decision.offers)} 筆委託。",
+                    message=_decision_calculation_summary(
+                        balance=balance,
+                        active_amount=active_amount,
+                        order_book=orders,
+                        strategy=strategy,
+                        frr_daily_rate=frr_daily_rate,
+                        suggested_min_daily_rate=suggested_min_daily_rate,
+                        decision=decision,
+                    ),
                 )
                 current_step_id = None
 
@@ -931,6 +939,127 @@ def _market_order_summary(orders: list[LoanOrder]) -> str:
         return "沒有市場利率資料。"
     best_order = max(orders, key=lambda order: order.daily_rate)
     return f"最佳日利率 {best_order.daily_rate:g}，可用量 {best_order.amount:g}。"
+
+
+def _decision_calculation_summary(
+    balance: CurrencyBalance,
+    active_amount: float,
+    order_book: list[LoanOrder],
+    strategy,
+    frr_daily_rate: float | None,
+    suggested_min_daily_rate: float | None,
+    decision,
+) -> str:
+    best_daily_rate = max((order.daily_rate for order in order_book), default=0)
+    effective_min_daily_rate = _effective_min_daily_rate(
+        strategy,
+        frr_daily_rate,
+        suggested_min_daily_rate,
+    )
+    percent_amount = round(balance.amount * (strategy.max_percent_to_lend / 100), 8)
+    percent_limit_applies = _should_apply_lend_percent_limit(best_daily_rate, strategy)
+    amount_after_percent = percent_amount if percent_limit_applies else round(balance.amount, 8)
+    amount_after_max = amount_after_percent
+    if percent_limit_applies and strategy.max_amount_to_lend is not None:
+        amount_after_max = round(min(amount_after_percent, strategy.max_amount_to_lend), 8)
+
+    active_remaining = None
+    final_lendable_amount = amount_after_max
+    if strategy.max_active_amount is not None:
+        active_remaining = round(max(strategy.max_active_amount - active_amount, 0), 8)
+        final_lendable_amount = round(min(amount_after_max, active_remaining), 8)
+
+    prepared_amount = round(sum(offer.amount for offer in decision.offers), 8)
+    lines = [
+        f"{balance.currency}：策略決策產生 {len(decision.offers)} 筆委託。",
+        (
+            "放貸日利率計算："
+            f"市場最佳日利率 {_format_decimal_amount(best_daily_rate)}；"
+            f"最低日利率 MIN_DAILY_RATE={_format_decimal_amount(strategy.min_daily_rate)}；"
+            f"最高日利率 MAX_DAILY_RATE={_format_decimal_amount(strategy.max_daily_rate)}。"
+        ),
+        (
+            "有效最低日利率："
+            f"max(設定最低 {_format_decimal_amount(strategy.min_daily_rate)}，"
+            f"FRR 參考 {_optional_rate(_frr_min_daily_rate(strategy, frr_daily_rate))}，"
+            f"市場分析 {_optional_rate(suggested_min_daily_rate)}) "
+            f"= {_format_decimal_amount(effective_min_daily_rate)}。"
+        ),
+        (
+            "掛單利率產生方式："
+            f"GAP_MODE={strategy.gap_mode}；"
+            f"本輪委託日利率 {_offer_rate_summary(decision.offers)}。"
+        ),
+        (
+            "放貸百分比計算："
+            f"可用餘額 {_format_decimal_amount(balance.amount)} × "
+            f"MAX_PERCENT_TO_LEND={_format_decimal_amount(strategy.max_percent_to_lend)}% "
+            f"= {_format_decimal_amount(percent_amount)}。"
+        ),
+    ]
+    if percent_limit_applies:
+        lines.append("百分比限制：已套用。")
+    else:
+        lines.append(
+            "百分比限制：未套用，因為目前最佳日利率高於限制門檻，或未設定百分比/總額限制。"
+        )
+    lines.append(
+        "金額上限："
+        f"MAX_AMOUNT_TO_LEND={_optional_amount(strategy.max_amount_to_lend)}，"
+        f"套用後 {_format_decimal_amount(amount_after_max)}。"
+    )
+    lines.append(
+        "放貸中上限："
+        f"MAX_ACTIVE_AMOUNT={_optional_amount(strategy.max_active_amount)}，"
+        f"目前放貸中 {_format_decimal_amount(active_amount)}"
+        + (f"，剩餘可用 {_format_decimal_amount(active_remaining)}。" if active_remaining is not None else "。")
+    )
+    lines.append(
+        "本輪可放貸金額："
+        f"{_format_decimal_amount(final_lendable_amount)}；"
+        f"實際準備委託總額 {_format_decimal_amount(prepared_amount)}。"
+    )
+    return "\n".join(lines)
+
+
+def _should_apply_lend_percent_limit(best_daily_rate: float, strategy) -> bool:
+    if strategy.max_amount_to_lend is None and strategy.max_percent_to_lend >= 100:
+        return False
+    if best_daily_rate <= 0:
+        return False
+    return strategy.max_to_lend_rate == 0 or best_daily_rate <= strategy.max_to_lend_rate
+
+
+def _optional_amount(amount: float | None) -> str:
+    return "未設定" if amount is None else _format_decimal_amount(amount)
+
+
+def _effective_min_daily_rate(
+    strategy,
+    frr_daily_rate: float | None,
+    suggested_min_daily_rate: float | None,
+) -> float:
+    return max(
+        strategy.min_daily_rate,
+        suggested_min_daily_rate or 0,
+        _frr_min_daily_rate(strategy, frr_daily_rate) or 0,
+    )
+
+
+def _frr_min_daily_rate(strategy, frr_daily_rate: float | None) -> float | None:
+    if frr_daily_rate is None:
+        return None
+    return frr_daily_rate + strategy.frr_delta
+
+
+def _optional_rate(rate: float | None) -> str:
+    return "未使用" if rate is None else _format_decimal_amount(rate)
+
+
+def _offer_rate_summary(offers: list[LoanOffer]) -> str:
+    if not offers:
+        return "無委託利率"
+    return "、".join(_format_decimal_amount(offer.daily_rate) for offer in offers)
 
 
 def _optional_exchange_balances(exchange: ExchangeClient, method_name: str) -> list[CurrencyBalance]:

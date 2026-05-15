@@ -1027,6 +1027,11 @@ def _decision_calculation_summary(
             f"{_pricing_mode_label(strategy.rate_optimization_mode, strategy.gap_mode)}；"
             f"最佳化樣本 {len(historical_daily_rates)} 筆。"
         ),
+        (
+            "拆單方式："
+            f"{_split_mode_label(strategy)}；"
+            f"保留尾款 {_format_decimal_amount(round(max(final_lendable_amount - prepared_amount, 0), 8))}。"
+        ),
     ]
     if will_create_offers:
         lines.append(
@@ -1061,6 +1066,15 @@ def _should_apply_lend_percent_limit(best_daily_rate: float, strategy) -> bool:
 
 def _optional_amount(amount: float | None) -> str:
     return "未設定" if amount is None else _format_decimal_amount(amount)
+
+
+def _split_mode_label(strategy) -> str:
+    if strategy.max_offer_amount is not None and strategy.max_offer_amount >= strategy.min_loan_size:
+        return (
+            f"每筆最多 {_format_decimal_amount(strategy.max_offer_amount)}，"
+            f"尾款小於等於 {_format_decimal_amount(strategy.min_offer_remainder)} 不下單"
+        )
+    return f"固定拆成 {max(strategy.spread_lend, 1)} 筆"
 
 
 def _decision_result_summary(decision, best_daily_rate: float, effective_min_daily_rate: float) -> str:

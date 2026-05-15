@@ -564,26 +564,36 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     assert any(
         step["step_key"] == "replace-open-offers"
         and "AUTO_REBALANCE_OPEN_OFFERS=false" in step["message"]
+        and "影響：" in step["message"]
+        and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
     assert any(
         step["step_key"] == "evaluate-open-offer-cancel"
         and "AUTO_REBALANCE_OPEN_OFFERS=false" in step["message"]
+        and "影響：" in step["message"]
+        and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
     assert any(
         step["step_key"] == "load-btc-price"
         and "GAP_MODE=off" in step["message"]
+        and "BTC 價格參考" in step["message"]
+        and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
     assert any(
         step["step_key"] == "send-xday-notification"
         and "NOTIFY_XDAY_THRESHOLD=false" in step["message"]
+        and "長天期委託通知" in step["message"]
+        and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
     assert any(
         step["step_key"] == "send-periodic-summary"
         and "NOTIFY_SUMMARY_MINUTES=0" in step["message"]
+        and "週期摘要通知" in step["message"]
+        and "設定鍵：" in step["message"]
         for step in body["steps"]
     )
     assert sum(1 for step in body["steps"] if step["step_key"] == "record-dry-run-offer") == 6

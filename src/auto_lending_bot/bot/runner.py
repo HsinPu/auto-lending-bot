@@ -202,7 +202,12 @@ class BotRunner:
                     message=(
                         f"{balance.currency}：FRR 日利率 {frr_daily_rate}."
                         if strategy.frr_as_min
-                        else f"{balance.currency}：略過 FRR，因為 FRR_AS_MIN=false。"
+                        else _setting_message(
+                            f"{balance.currency} FRR 最低利率參考",
+                            "關閉",
+                            "不會讀取 FRR，也不會把 FRR 當成本輪最低放貸利率候選。",
+                            "FRR_AS_MIN=false",
+                        )
                     ),
                 )
                 current_step_id = None
@@ -228,9 +233,11 @@ class BotRunner:
                     message=(
                         f"{balance.currency}：BTC 參考價格 {btc_price}。"
                         if btc_price is not None
-                        else (
-                            f"{balance.currency}：略過 BTC 價格，因為 GAP_MODE={strategy.gap_mode}，"
-                            "只有 GAP_MODE=raw_btc/rawbtc 才需要 BTC 參考價格。"
+                        else _setting_message(
+                            f"{balance.currency} BTC 價格參考",
+                            "不需要",
+                            "目前策略不需要 BTC 參考價格；只有 GAP_MODE=raw_btc/rawbtc 時才會讀取。",
+                            f"GAP_MODE={strategy.gap_mode}",
                         )
                     ),
                 )
@@ -438,7 +445,14 @@ class BotRunner:
                 bot_run_id,
                 "send-error-notification",
                 error_notified,
-                "已發送錯誤通知。" if error_notified else "略過錯誤通知，因為 NOTIFY_CAUGHT_EXCEPTION=false。",
+                "已發送錯誤通知。"
+                if error_notified
+                else _setting_message(
+                    "錯誤通知",
+                    "關閉",
+                    "本輪失敗時不會發送 Telegram 錯誤通知。",
+                    "NOTIFY_CAUGHT_EXCEPTION=false",
+                ),
             )
             raise
 
@@ -518,30 +532,60 @@ class BotRunner:
             bot_run_id,
             "check-open-offer-rebalance-setting",
             run_step_label("check-open-offer-rebalance-setting"),
-            "AUTO_REBALANCE_OPEN_OFFERS=true."
+            _setting_message(
+                "未成交委託自動整理",
+                "開啟",
+                "會同步交易所未成交委託，並檢查是否需要保留、取消或重掛舊委託。",
+                "AUTO_REBALANCE_OPEN_OFFERS=true",
+            )
             if self._settings.auto_rebalance_open_offers
-            else "AUTO_REBALANCE_OPEN_OFFERS=false.",
+            else _setting_message(
+                "未成交委託自動整理",
+                "關閉",
+                "不會同步交易所未成交委託，也不會取消或重掛舊委託。",
+                "AUTO_REBALANCE_OPEN_OFFERS=false",
+            ),
         )
         if not self._settings.auto_rebalance_open_offers:
             self._record_skipped_step(
                 bot_run_id,
                 "sync-open-offers",
-                "略過同步未成交委託，因為 AUTO_REBALANCE_OPEN_OFFERS=false。",
+                _setting_message(
+                    "未成交委託同步",
+                    "略過",
+                    "不會讀取交易所目前還掛著的放貸委託，也不會更新本地未成交委託快照。",
+                    "AUTO_REBALANCE_OPEN_OFFERS=false",
+                ),
             )
             self._record_skipped_step(
                 bot_run_id,
                 "replace-open-offers",
-                "略過更新本地未成交委託，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以沒有同步 open offers。",
+                _setting_message(
+                    "本地未成交委託快照",
+                    "略過",
+                    "因為沒有同步交易所未成交委託，所以不會更新本地快照。",
+                    "AUTO_REBALANCE_OPEN_OFFERS=false",
+                ),
             )
             self._record_skipped_step(
                 bot_run_id,
                 "check-open-offer-cancel-setting",
-                "略過取消設定檢查，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以未同步 open offers。",
+                _setting_message(
+                    "舊委託取消設定檢查",
+                    "略過",
+                    "未同步交易所未成交委託，因此不會進一步檢查是否要取消舊委託。",
+                    "AUTO_REBALANCE_OPEN_OFFERS=false",
+                ),
             )
             self._record_skipped_step(
                 bot_run_id,
                 "evaluate-open-offer-cancel",
-                "略過舊委託取消評估，因為 AUTO_REBALANCE_OPEN_OFFERS=false，所以未同步 open offers。",
+                _setting_message(
+                    "舊委託取消評估",
+                    "略過",
+                    "未同步交易所未成交委託，因此不會逐筆評估舊委託是否要取消或重掛。",
+                    "AUTO_REBALANCE_OPEN_OFFERS=false",
+                ),
             )
             return
 
@@ -557,22 +601,35 @@ class BotRunner:
             bot_run_id,
             "check-open-offer-cancel-setting",
             run_step_label("check-open-offer-cancel-setting"),
-            "允許取消舊委託。"
+            _setting_message(
+                "舊委託自動取消",
+                "開啟",
+                "允許取消交易所上不符合目前策略的舊委託。",
+                "BOT_DRY_RUN=false，AUTO_CANCEL_OPEN_OFFERS=true",
+            )
             if not self._settings.dry_run and self._settings.auto_cancel_open_offers
-            else (
-                "略過取消舊委託："
-                f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
-                f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}。"
+            else _setting_message(
+                "舊委託自動取消",
+                "關閉",
+                "不會取消交易所上的舊委託；模擬模式或未開啟自動取消時都只會保留。",
+                (
+                    f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
+                    f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}"
+                ),
             ),
         )
         if self._settings.dry_run or not self._settings.auto_cancel_open_offers:
             self._record_skipped_step(
                 bot_run_id,
                 "evaluate-open-offer-cancel",
-                (
-                    "略過舊委託取消評估："
-                    f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
-                    f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}。"
+                _setting_message(
+                    "舊委託取消評估",
+                    "略過",
+                    "不會逐筆評估是否取消舊委託；模擬模式或未開啟自動取消時都只會保留。",
+                    (
+                        f"BOT_DRY_RUN={str(self._settings.dry_run).lower()}，"
+                        f"AUTO_CANCEL_OPEN_OFFERS={str(self._settings.auto_cancel_open_offers).lower()}"
+                    ),
                 ),
             )
             return
@@ -736,7 +793,12 @@ class BotRunner:
 
     def _maybe_send_periodic_summary(self, active_loans: list[ActiveLoan]) -> tuple[bool, str]:
         if self._settings.notify_summary_minutes <= 0:
-            return False, "略過週期摘要通知，因為 NOTIFY_SUMMARY_MINUTES=0。"
+            return False, _setting_message(
+                "週期摘要通知",
+                "關閉",
+                "不會定時發送 Telegram 放貸與收益摘要。",
+                "NOTIFY_SUMMARY_MINUTES=0",
+            )
 
         now = time.time()
         state_key = "telegram_summary_last_sent_at"
@@ -745,9 +807,12 @@ class BotRunner:
         if last_sent_at is not None and now - last_sent_at < interval_seconds:
             return (
                 False,
-                "略過週期摘要通知，因為 "
-                f"NOTIFY_SUMMARY_MINUTES={self._settings.notify_summary_minutes}，"
-                "距離上次發送尚未達設定間隔。",
+                _setting_message(
+                    "週期摘要通知",
+                    "暫不發送",
+                    "距離上次發送尚未達設定間隔，本輪不會重複發送摘要。",
+                    f"NOTIFY_SUMMARY_MINUTES={self._settings.notify_summary_minutes}",
+                ),
             )
 
         open_offers = self._open_offers.recent(1000)
@@ -773,9 +838,17 @@ class BotRunner:
 
     def _xday_notification_skip_message(self, offer: LoanOffer) -> str:
         if not self._settings.notify_xday_threshold:
-            return f"{offer.currency}：略過長天期委託通知，因為 NOTIFY_XDAY_THRESHOLD=false。"
-        return (
-            f"{offer.currency}：略過長天期委託通知，因為委託天期 {offer.duration_days} 天 <= 2 天。"
+            return _setting_message(
+                f"{offer.currency} 長天期委託通知",
+                "關閉",
+                "不會針對長天期委託發送 Telegram 提醒。",
+                "NOTIFY_XDAY_THRESHOLD=false",
+            )
+        return _setting_message(
+            f"{offer.currency} 長天期委託通知",
+            "不需要",
+            f"本筆委託天期是 {offer.duration_days} 天，未超過長天期通知門檻。",
+            f"duration_days={offer.duration_days}",
         )
 
     def _notify_new_active_loans(
@@ -838,6 +911,10 @@ def _balance_summary(balances: list[CurrencyBalance]) -> str:
 def _format_decimal_amount(amount: float) -> str:
     value = format(Decimal(str(amount)), "f")
     return value.rstrip("0").rstrip(".") if "." in value else value
+
+
+def _setting_message(title: str, status: str, impact: str, setting: str) -> str:
+    return f"{title}：{status}\n影響：{impact}\n設定鍵：{setting}"
 
 
 def _active_loan_summary(active_loans: list[ActiveLoan]) -> str:

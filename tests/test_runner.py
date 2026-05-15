@@ -247,15 +247,11 @@ def test_runner_records_duration_and_annualized_rate_calculation(tmp_path) -> No
         for row in rows
         if row["step_key"] == "calculate-decisions" and "BTC" in row["message"]
     )
-    assert "借出天數計算" in calculation["message"]
-    assert "XDAY_THRESHOLD=0.00007" in calculation["message"]
-    assert "XDAYS=30" in calculation["message"]
-    assert "本輪委託天期 30 天" in calculation["message"]
-    assert "年化利率換算" in calculation["message"]
-    assert "單利年化利率 = 日利率 × 365" in calculation["message"]
-    assert "市場最佳年化" in calculation["message"]
-    assert "有效最低年化" in calculation["message"]
-    assert "本輪委託年化利率" in calculation["message"]
+    assert "利率比較" in calculation["message"]
+    assert "最低要求來源" in calculation["message"]
+    assert "定價方式" in calculation["message"]
+    assert "預計掛單" in calculation["message"]
+    assert "天期 30 天" in calculation["message"]
 
 
 def test_runner_rebalances_open_offers_without_canceling_in_dry_run(tmp_path) -> None:

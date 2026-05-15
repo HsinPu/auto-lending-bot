@@ -1008,72 +1008,46 @@ def _decision_calculation_summary(
         final_lendable_amount = round(min(amount_after_max, active_remaining), 8)
 
     prepared_amount = round(sum(offer.amount for offer in decision.offers), 8)
+    will_create_offers = len(decision.offers) > 0
     lines = [
-        f"{balance.currency}：策略決策產生 {len(decision.offers)} 筆委託。",
+        f"{balance.currency}：{_decision_result_summary(decision, best_daily_rate, effective_min_daily_rate)}",
         (
-            "放貸日利率計算："
-            f"市場最佳日利率 {_format_daily_and_annual_rate(best_daily_rate)}；"
-            f"最低日利率 MIN_DAILY_RATE={_format_daily_and_annual_rate(strategy.min_daily_rate)}；"
-            f"最高日利率 MAX_DAILY_RATE={_format_daily_and_annual_rate(strategy.max_daily_rate)}。"
+            "利率比較："
+            f"市場最佳 {_format_rate_percent(best_daily_rate * 365)} 年化；"
+            f"最低要求 {_format_rate_percent(effective_min_daily_rate * 365)} 年化。"
         ),
         (
-            "有效最低日利率："
-            f"max(設定最低 {_format_decimal_amount(strategy.min_daily_rate)}，"
-            f"FRR 參考 {_optional_rate(_frr_min_daily_rate(strategy, frr_daily_rate))}，"
-            f"市場分析 {_optional_rate(suggested_min_daily_rate)}) "
-            f"= {_format_daily_and_annual_rate(effective_min_daily_rate)}。"
+            "最低要求來源："
+            f"設定 {_format_rate_percent(strategy.min_daily_rate * 365)}；"
+            f"FRR {_optional_annual_rate(_frr_min_daily_rate(strategy, frr_daily_rate))}；"
+            f"市場分析 {_optional_annual_rate(suggested_min_daily_rate)}。"
         ),
         (
-            "掛單利率產生方式："
-            f"GAP_MODE={strategy.gap_mode}；"
-            f"RATE_OPTIMIZATION_MODE={strategy.rate_optimization_mode}；"
-            f"最佳化樣本 {len(historical_daily_rates)} 筆；"
-            f"本輪委託日利率 {_offer_rate_summary(decision.offers)}。"
-        ),
-        (
-            "借出天數計算："
-            f"XDAY_THRESHOLD={_format_decimal_amount(strategy.xday_threshold)}；"
-            f"XDAYS={strategy.xdays}；"
-            f"XDAY_SPREAD={_format_decimal_amount(strategy.xday_spread)}；"
-            f"END_DATE={strategy.end_date.isoformat() if strategy.end_date else '未設定'}；"
-            f"本輪委託天期 {_offer_duration_summary(decision.offers)}。"
-        ),
-        (
-            "年化利率換算："
-            "單利年化利率 = 日利率 × 365；"
-            f"市場最佳年化 {_format_rate_percent(best_daily_rate * 365)}；"
-            f"有效最低年化 {_format_rate_percent(effective_min_daily_rate * 365)}；"
-            f"本輪委託年化利率 {_offer_annualized_rate_summary(decision.offers)}。"
-        ),
-        (
-            "放貸百分比計算："
-            f"可用餘額 {_format_decimal_amount(balance.amount)} × "
-            f"MAX_PERCENT_TO_LEND={_format_decimal_amount(strategy.max_percent_to_lend)}% "
-            f"= {_format_decimal_amount(percent_amount)}。"
+            "定價方式："
+            f"{_pricing_mode_label(strategy.rate_optimization_mode, strategy.gap_mode)}；"
+            f"最佳化樣本 {len(historical_daily_rates)} 筆。"
         ),
     ]
-    if percent_limit_applies:
-        lines.append("百分比限制：已套用。")
-    else:
+    if will_create_offers:
         lines.append(
-            "百分比限制：未套用，因為目前最佳日利率高於限制門檻，或未設定百分比/總額限制。"
+            "預計掛單："
+            f"{len(decision.offers)} 筆；"
+            f"年化 {_offer_annualized_rate_summary(decision.offers)}；"
+            f"天期 {_offer_duration_summary(decision.offers)}。"
         )
     lines.append(
-        "金額上限："
-        f"MAX_AMOUNT_TO_LEND={_optional_amount(strategy.max_amount_to_lend)}，"
-        f"套用後 {_format_decimal_amount(amount_after_max)}。"
+        "金額："
+        f"可用 {_format_decimal_amount(balance.amount)}，"
+        f"本輪可放貸 {_format_decimal_amount(final_lendable_amount)}，"
+        f"實際準備 {_format_decimal_amount(prepared_amount)}。"
     )
-    lines.append(
-        "放貸中上限："
-        f"MAX_ACTIVE_AMOUNT={_optional_amount(strategy.max_active_amount)}，"
-        f"目前放貸中 {_format_decimal_amount(active_amount)}"
-        + (f"，剩餘可用 {_format_decimal_amount(active_remaining)}。" if active_remaining is not None else "。")
-    )
-    lines.append(
-        "本輪可放貸金額："
-        f"{_format_decimal_amount(final_lendable_amount)}；"
-        f"實際準備委託總額 {_format_decimal_amount(prepared_amount)}。"
-    )
+    if percent_limit_applies or strategy.max_amount_to_lend is not None or strategy.max_active_amount is not None:
+        lines.append(
+            "限制："
+            f"比例後 {_format_decimal_amount(percent_amount)}，"
+            f"金額上限後 {_format_decimal_amount(amount_after_max)}，"
+            f"目前放貸中 {_format_decimal_amount(active_amount)}。"
+        )
     return "\n".join(lines)
 
 
@@ -1087,6 +1061,28 @@ def _should_apply_lend_percent_limit(best_daily_rate: float, strategy) -> bool:
 
 def _optional_amount(amount: float | None) -> str:
     return "未設定" if amount is None else _format_decimal_amount(amount)
+
+
+def _decision_result_summary(decision, best_daily_rate: float, effective_min_daily_rate: float) -> str:
+    if decision.offers:
+        return f"會建立 {len(decision.offers)} 筆委託。"
+    if best_daily_rate < effective_min_daily_rate:
+        return "不掛單，因為市場利率低於最低要求。"
+    return f"不掛單，原因：{decision.reason}"
+
+
+def _optional_annual_rate(daily_rate: float | None) -> str:
+    return "未使用" if daily_rate is None else _format_rate_percent(daily_rate * 365)
+
+
+def _pricing_mode_label(rate_optimization_mode: str, gap_mode: str) -> str:
+    if rate_optimization_mode == "fill_probability":
+        return "用歷史樣本估算成交機率後選利率"
+    if gap_mode.lower().replace("-", "_") in {"raw_btc", "rawbtc"}:
+        return "用 BTC 深度尋找掛單利率"
+    if gap_mode.lower() == "off":
+        return "跟隨市場最佳利率"
+    return f"使用 {gap_mode} 深度策略"
 
 
 def _effective_min_daily_rate(

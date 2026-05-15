@@ -6,10 +6,10 @@ Use this checklist before any Bitfinex dry-run or live lending test. The smoke c
 
 - Create a Bitfinex API key without withdrawal permissions.
 - Keep `BOT_DRY_RUN=true` and `ALLOW_LIVE_TRADING=false`.
-- Start from `.env.bitfinex.example` and fill only `EXCHANGE_API_KEY` and `EXCHANGE_API_SECRET`.
+- Start from `.env.example`, set `EXCHANGE=bitfinex`, and fill only `EXCHANGE_API_KEY` and `EXCHANGE_API_SECRET`.
 
 ```powershell
-Copy-Item .env.bitfinex.example .env
+Copy-Item .env.example .env
 ```
 
 ## 2. Confirm Safe Settings

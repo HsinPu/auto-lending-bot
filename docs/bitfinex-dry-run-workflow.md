@@ -5,12 +5,13 @@ Use this workflow after `docs/bitfinex-smoke-checklist.md` passes. Dry-run mode 
 ## 1. Start From Safe Env
 
 ```powershell
-Copy-Item .env.bitfinex.example .env
+Copy-Item .env.example .env
 ```
 
-Fill in only the API credentials first:
+Set Bitfinex as the exchange and fill in only the API credentials first:
 
 ```env
+EXCHANGE=bitfinex
 EXCHANGE_API_KEY=your-key
 EXCHANGE_API_SECRET=your-secret
 ```

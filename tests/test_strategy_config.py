@@ -15,6 +15,9 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("RATE_OPTIMIZATION_MIN_PROBABILITY", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_SAMPLE_SIZE", raising=False)
     monkeypatch.delenv("ALLOW_ABOVE_MARKET_OFFERS", raising=False)
+    monkeypatch.delenv("SPREAD_LEND", raising=False)
+    monkeypatch.delenv("MAX_OFFER_AMOUNT", raising=False)
+    monkeypatch.delenv("MIN_OFFER_REMAINDER", raising=False)
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -32,6 +35,9 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.rate_optimization_sample_size == 200
     assert settings.allow_above_market_offers is True
     assert strategy.allow_above_market_offers is True
+    assert strategy.spread_lend == 0
+    assert strategy.max_offer_amount == 500
+    assert strategy.min_offer_remainder == 100
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
@@ -76,6 +82,9 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("RATE_OPTIMIZATION_MIN_PROBABILITY", "0.4")
     monkeypatch.setenv("RATE_OPTIMIZATION_SAMPLE_SIZE", "50")
     monkeypatch.setenv("ALLOW_ABOVE_MARKET_OFFERS", "false")
+    monkeypatch.setenv("SPREAD_LEND", "2")
+    monkeypatch.setenv("MAX_OFFER_AMOUNT", "250")
+    monkeypatch.setenv("MIN_OFFER_REMAINDER", "75")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -121,12 +130,18 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.rate_optimization_min_probability == 0.4
     assert strategy.rate_optimization_sample_size == 50
     assert strategy.allow_above_market_offers is False
+    assert strategy.spread_lend == 2
+    assert strategy.max_offer_amount == 250
+    assert strategy.min_offer_remainder == 75
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("MIN_DAILY_RATE", "0.00007")
     monkeypatch.setenv("BTC_MIN_DAILY_RATE", "0.00009")
     monkeypatch.setenv("BTC_MIN_LOAN_SIZE", "0.02")
+    monkeypatch.setenv("BTC_SPREAD_LEND", "4")
+    monkeypatch.setenv("BTC_MAX_OFFER_AMOUNT", "0.5")
+    monkeypatch.setenv("BTC_MIN_OFFER_REMAINDER", "0.1")
     monkeypatch.setenv("BTC_MAX_AMOUNT_TO_LEND", "0.25")
     monkeypatch.setenv("BTC_MAX_ACTIVE_AMOUNT", "0.75")
     monkeypatch.setenv("BTC_MAX_TO_LEND_RATE", "0.00011")
@@ -144,6 +159,9 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
 
     assert strategy.min_daily_rate == 0.00009
     assert strategy.min_loan_size == 0.02
+    assert strategy.spread_lend == 4
+    assert strategy.max_offer_amount == 0.5
+    assert strategy.min_offer_remainder == 0.1
     assert strategy.max_amount_to_lend == 0.25
     assert strategy.max_active_amount == 0.75
     assert strategy.max_to_lend_rate == 0.00011

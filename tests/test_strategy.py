@@ -51,6 +51,58 @@ def test_strategy_splits_balance_into_offers() -> None:
     assert {offer.daily_rate for offer in decision.offers} == {0.00006}
 
 
+def test_strategy_splits_by_max_offer_amount() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USD", amount=10000.0),
+        order_book=[LoanOrder(currency="USD", amount=10000.0, daily_rate=0.0001)],
+        strategy=_strategy(max_offer_amount=500, min_offer_remainder=100),
+    )
+
+    assert len(decision.offers) == 20
+    assert {offer.amount for offer in decision.offers} == {500}
+
+
+def test_strategy_drops_small_remainder_when_splitting_by_max_offer_amount() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USD", amount=1095.75),
+        order_book=[LoanOrder(currency="USD", amount=10000.0, daily_rate=0.0001)],
+        strategy=_strategy(max_offer_amount=500, min_offer_remainder=100),
+    )
+
+    assert [offer.amount for offer in decision.offers] == [500, 500]
+
+
+def test_strategy_keeps_large_remainder_when_splitting_by_max_offer_amount() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USD", amount=1150.0),
+        order_book=[LoanOrder(currency="USD", amount=10000.0, daily_rate=0.0001)],
+        strategy=_strategy(max_offer_amount=500, min_offer_remainder=100),
+    )
+
+    assert [offer.amount for offer in decision.offers] == [500, 500, 150]
+
+
+def test_strategy_keeps_single_offer_below_max_offer_amount() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USD", amount=480.0),
+        order_book=[LoanOrder(currency="USD", amount=10000.0, daily_rate=0.0001)],
+        strategy=_strategy(max_offer_amount=500, min_offer_remainder=100),
+    )
+
+    assert [offer.amount for offer in decision.offers] == [480]
+
+
+def test_strategy_uses_spread_lend_when_max_offer_amount_is_disabled() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="USD", amount=10000.0),
+        order_book=[LoanOrder(currency="USD", amount=10000.0, daily_rate=0.0001)],
+        strategy=_strategy(spread_lend=3, max_offer_amount=None),
+    )
+
+    assert len(decision.offers) == 3
+    assert sum(offer.amount for offer in decision.offers) == 10000.0
+
+
 def test_strategy_caps_rate_at_configured_maximum() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

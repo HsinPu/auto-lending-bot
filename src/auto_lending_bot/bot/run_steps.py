@@ -42,32 +42,32 @@ RUN_STEP_DEFINITIONS = (
     RunStepDefinition(
         key="check-open-offer-rebalance-setting",
         label="檢查未成交委託同步設定",
-        description="檢查是否啟用 open offer rebalance。",
+        description="檢查是否要讀取交易所上的未成交放貸委託，並允許後續整理舊委託。",
     ),
     RunStepDefinition(
         key="sync-open-offers",
         label="檢查未成交委託",
-        description="視設定同步目前還掛在市場上的未成交委託。",
+        description="同步交易所目前還掛著、尚未成交的放貸委託，供後續判斷是否保留、取消或重掛。",
     ),
     RunStepDefinition(
         key="replace-open-offers",
         label="更新本地未成交委託",
-        description="用交易所最新 open offers 更新本地快照。",
+        description="用交易所最新未成交委託更新本地 SQLite 快照，避免後續策略重複使用已掛出的額度。",
     ),
     RunStepDefinition(
         key="check-open-offer-cancel-setting",
         label="檢查舊委託取消設定",
-        description="檢查目前是否允許取消舊委託。",
+        description="檢查目前是否允許 bot 自動取消交易所上不符合新策略的舊委託。",
     ),
     RunStepDefinition(
         key="rebalance-open-offers",
         label="處理舊委託",
-        description="視設定決定是否保留或取消不符合策略的舊委託。",
+        description="依目前策略和安全設定，決定交易所上的舊委託要保留還是取消。",
     ),
     RunStepDefinition(
         key="evaluate-open-offer-cancel",
         label="評估舊委託是否取消",
-        description="逐筆判斷舊委託是否應該保留或取消。",
+        description="逐筆檢查交易所上的未成交舊委託，判斷是否仍符合目前利率與金額策略。",
     ),
     RunStepDefinition(
         key="cancel-open-offer",
@@ -92,12 +92,12 @@ RUN_STEP_DEFINITIONS = (
     RunStepDefinition(
         key="load-frr-rate",
         label="讀取 FRR 利率",
-        description="需要 FRR 作為最低利率時，讀取該幣 FRR。",
+        description="當策略設定要參考 FRR 時，讀取該幣的 Flash Return Rate 作為最低利率候選。",
     ),
     RunStepDefinition(
         key="load-btc-price",
         label="讀取 BTC 參考價格",
-        description="需要 BTC depth 換算時，讀取該幣 BTC 價格。",
+        description="當策略用 BTC 深度計算資金量時，讀取該幣對 BTC 的參考價格。",
     ),
     RunStepDefinition(
         key="load-market-analysis-rate",
@@ -162,17 +162,17 @@ RUN_STEP_DEFINITIONS = (
     RunStepDefinition(
         key="send-periodic-summary",
         label="發送週期摘要通知",
-        description="依通知間隔設定發送週期放貸摘要。",
+        description="依 Telegram 摘要通知間隔，決定是否發送目前放貸與收益摘要。",
     ),
     RunStepDefinition(
         key="send-xday-notification",
         label="發送長天期委託通知",
-        description="當委託天期超過門檻且通知啟用時發送通知。",
+        description="當委託天期超過設定門檻且通知啟用時，發送長天期委託提醒。",
     ),
     RunStepDefinition(
         key="send-error-notification",
         label="發送錯誤通知",
-        description="執行失敗且錯誤通知啟用時發送通知。",
+        description="當本輪執行失敗且錯誤通知啟用時，透過 Telegram 發送錯誤提醒。",
     ),
 )
 

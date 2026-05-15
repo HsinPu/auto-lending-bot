@@ -290,9 +290,9 @@ BTC_HIDE_COINS=true
 BTC_GAP_MODE=raw_btc
 BTC_GAP_BOTTOM=20
 BTC_GAP_TOP=100
-BTC_XDAY_THRESHOLD=0.001
-BTC_XDAYS=30
-BTC_XDAY_SPREAD=2
+BTC_XDAY_THRESHOLD=0.0005479452054794521
+BTC_XDAYS=120
+BTC_XDAY_SPREAD=0
 BTC_END_DATE=2027-01-15
 BTC_FRR_AS_MIN=true
 BTC_FRR_DELTA=0.00001
@@ -306,6 +306,8 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=200
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 
 `END_DATE=YYYY-MM-DD` caps offer duration so new loans finish before the date. When two or fewer days remain, the strategy stops creating new lending offers.
+
+By default, `XDAY_THRESHOLD=0.0005479452054794521`, `XDAYS=120`, and `XDAY_SPREAD=0`, so offers stay at 2 days unless the selected offer rate reaches roughly 20% annualized. At or above that threshold, the bot uses 120 days.
 
 `GAP_MODE=raw_btc` treats `GAP_BOTTOM` and `GAP_TOP` as BTC-denominated lendbook depth, matching Mika's `RawBTC` behavior when a BTC conversion price is available.
 

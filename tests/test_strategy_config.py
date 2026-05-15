@@ -8,6 +8,9 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("GAP_MODE", raising=False)
     monkeypatch.delenv("GAP_BOTTOM", raising=False)
     monkeypatch.delenv("GAP_TOP", raising=False)
+    monkeypatch.delenv("XDAY_THRESHOLD", raising=False)
+    monkeypatch.delenv("XDAYS", raising=False)
+    monkeypatch.delenv("XDAY_SPREAD", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_MODE", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_MIN_PROBABILITY", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_SAMPLE_SIZE", raising=False)
@@ -20,6 +23,9 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.gap_mode == "raw_btc"
     assert strategy.gap_bottom == 40
     assert strategy.gap_top == 200
+    assert strategy.xday_threshold == 0.0005479452054794521
+    assert strategy.xdays == 120
+    assert strategy.xday_spread == 0
     assert strategy.rate_optimization_mode == "fill_probability"
     assert strategy.rate_optimization_min_probability == 0.25
     assert strategy.rate_optimization_sample_size == 200

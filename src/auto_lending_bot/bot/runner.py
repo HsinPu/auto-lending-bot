@@ -1065,6 +1065,8 @@ def _optional_amount(amount: float | None) -> str:
 
 def _decision_result_summary(decision, best_daily_rate: float, effective_min_daily_rate: float) -> str:
     if decision.offers:
+        if best_daily_rate < effective_min_daily_rate:
+            return f"會用有效最低利率先建立 {len(decision.offers)} 筆委託。"
         return f"會建立 {len(decision.offers)} 筆委託。"
     if best_daily_rate < effective_min_daily_rate:
         return "不掛單，因為市場利率低於最低要求。"

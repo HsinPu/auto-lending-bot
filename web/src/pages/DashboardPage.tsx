@@ -2162,6 +2162,7 @@ const strategyLabels: Record<string, string> = {
   max_to_lend_rate: 'Max-to-lend 啟用利率',
   end_date: '停止放貸日期',
   hide_coins: '低於最低利率時保留資金',
+  allow_above_market_offers: '低於市場時仍用最低利率掛單',
 }
 
 const readinessLabels: Record<string, string> = {
@@ -2181,6 +2182,7 @@ const readinessLabels: Record<string, string> = {
 
 const reasonLabels: Record<string, string> = {
   'Created lending offers from available balance.': '已依可用餘額建立預計委託。',
+  'Created minimum-rate offers while market is below the configured minimum.': '市場低於最低要求，已依設定用有效最低利率先建立預計委託。',
   'No loan orders are available.': '目前沒有可參考的放貸簿委託。',
   'Available balance is below the minimum loan size.': '可用餘額低於最低放貸金額。',
   'Active lending amount is at or above the configured maximum.': '放貸中金額已達或超過設定上限。',

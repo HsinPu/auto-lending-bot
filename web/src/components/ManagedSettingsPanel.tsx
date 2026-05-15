@@ -144,6 +144,7 @@ const settingHelp: Record<string, string> = {
   GAP_MODE: '決定 GAP_BOTTOM/GAP_TOP 如何解讀。關閉時使用最佳市場利率。',
   GAP_TOP: '委託利率區間上緣使用的放貸簿深度。',
   HIDE_COINS: '市場利率低於最低利率時，是否先保留資金不放貸。',
+  ALLOW_ABOVE_MARKET_OFFERS: '市場利率低於有效最低利率時，是否仍用有效最低利率先掛單。',
   HTTP_TIMEOUT_SECONDS: '呼叫交易所或外部 API 的逾時秒數。',
   KEEP_STUCK_ORDERS: '小於最低放貸金額的殘留委託是否保留，避免取消後無法再放。',
   LOG_LEVEL: '後端 log 詳細程度。一般使用 INFO。',

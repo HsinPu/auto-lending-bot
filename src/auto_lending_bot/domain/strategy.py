@@ -98,10 +98,14 @@ def build_lending_decision(
         for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
 
+    reason = "Created lending offers from available balance."
+    if best_order.daily_rate < strategy.min_daily_rate:
+        reason = "Created minimum-rate offers while market is below the configured minimum."
+
     return LendingDecision(
         currency=balance.currency,
         offers=offers,
-        reason="Created lending offers from available balance.",
+        reason=reason,
     )
 
 

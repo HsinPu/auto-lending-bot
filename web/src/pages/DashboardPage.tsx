@@ -657,6 +657,16 @@ function RunFlowStepDetail({ detail }: { detail: string }) {
     )
   }
 
+  if (lines.length > 1) {
+    return (
+      <div className="run-flow-detail-lines">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    )
+  }
+
   return <p>{detail}</p>
 }
 

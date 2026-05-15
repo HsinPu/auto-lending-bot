@@ -1318,6 +1318,22 @@ h1 {
   line-height: 1.6;
 }
 
+.run-flow-detail-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.run-flow-detail-lines p {
+  margin: 0;
+  color: #dbeafe;
+  line-height: 1.6;
+}
+
+.run-flow-detail-lines p:first-child {
+  color: #f8fafc;
+  font-weight: 800;
+}
+
 .run-flow-setting-card {
   display: grid;
   gap: 8px;

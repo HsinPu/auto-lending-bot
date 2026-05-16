@@ -26,6 +26,7 @@ This project currently runs as a single bot profile. There is no user account sy
 - `DashboardReadService` centralizes read-only dashboard queries for the default profile.
 - API runtime controllers are wrapped with profile context, but there is still only one process-local bot loop and one market-analysis loop.
 - Continuous loop starts create `bot_jobs` rows with `profile_id` and a settings snapshot. The running job uses that snapshot until stopped, so later setting edits require a new job to take effect.
+- API startup restores the newest default-profile `running` bot job from its saved snapshot. `stopping` jobs are reconciled to `stopped`, and older extra `running` jobs are marked `failed` because the current runtime can only own one loop.
 
 ## Boundaries To Keep Clean
 
@@ -158,7 +159,8 @@ If profile support is needed later, the likely migration path is:
 3. Add a `bot_profiles` table and seed a default profile.
 4. Scope settings, runs, offers, loans, history, and market-analysis rows by profile.
 5. Scope job execution by profile using `bot_jobs.profile_id` and one active job per runnable profile.
-6. Add profile-aware API routes while keeping existing routes mapped to the default profile.
-7. Add frontend profile selection after backend data isolation exists.
+6. Replace the single-loop restore path with a profile-aware scheduler that can restore one safe running job per runnable profile after process restart.
+7. Add profile-aware API routes while keeping existing routes mapped to the default profile.
+8. Add frontend profile selection after backend data isolation exists.
 
 Do not add login or user-account behavior as part of these readiness steps.

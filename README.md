@@ -382,13 +382,15 @@ Managed settings writes and live actions use backend/admin authorization. Local 
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.
 - Starting the loop from the API/dashboard creates a `bot_jobs` row with a settings snapshot. That job keeps using the snapshot it started with; later dashboard setting changes apply only after stopping and starting a new loop job.
+- On API/Docker restart, an interrupted `running` loop job is restored from its saved settings snapshot so it can continue without manual restart. Jobs that were already `stopping` are marked `stopped` during startup reconciliation.
+- The current API runtime supports one active loop. If multiple `running` jobs exist in SQLite, startup restores the newest one and marks the older running jobs as `failed` with a single-loop runtime message.
 - Use `GET /api/jobs` or the dashboard job history to review recent loop jobs and their safe snapshot summaries.
 - Set `BOT_INACTIVE_SLEEP_SECONDS` to use a longer delay when a run creates no offers.
 - Set `AUTO_REBALANCE_OPEN_OFFERS=true` to sync open offers before each run. `AUTO_CANCEL_OPEN_OFFERS=true` additionally cancels them, but only when live mode is explicitly enabled.
 - Keep `KEEP_STUCK_ORDERS=true` to avoid canceling tiny partially-filled offers that would fall below `MIN_LOAN_SIZE` after cancellation.
 - Use `RETRY_ATTEMPTS` and `RETRY_BACKOFF_SECONDS` for transient failure retries.
 - Authentication failures are not retried; fix the key/secret or permissions before restarting.
-- On startup, interrupted `running` bot runs are marked as `failed`.
+- Invalid or unsafe saved job snapshots are marked as `failed` during restore instead of being executed.
 - Use `auto-lending-bot cleanup` to delete old market-rate rows based on `MARKET_RATE_RETENTION_DAYS`.
 - Market analysis rows are cleaned by the same command based on `MARKET_ANALYSIS_RETENTION_DAYS`.
 - `scripts/dev.ps1` runs `uv sync`, tests, and ruff once `uv` is installed.

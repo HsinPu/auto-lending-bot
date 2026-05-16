@@ -1024,7 +1024,7 @@ def _decision_calculation_summary(
         ),
         (
             "定價方式："
-            f"{_pricing_mode_label(strategy.rate_optimization_mode, strategy.gap_mode)}；"
+            f"{_decision_pricing_mode_label(decision, strategy)}；"
             f"最佳化樣本 {len(historical_daily_rates)} 筆。"
         ),
         (
@@ -1099,6 +1099,12 @@ def _pricing_mode_label(rate_optimization_mode: str, gap_mode: str) -> str:
     if gap_mode.lower() == "off":
         return "跟隨市場最佳利率"
     return f"使用 {gap_mode} 深度策略"
+
+
+def _decision_pricing_mode_label(decision, strategy) -> str:
+    if decision.reason == "Created minimum-rate offers while market is below the configured minimum.":
+        return "市場低於最低要求，直接使用有效最低利率掛單"
+    return _pricing_mode_label(strategy.rate_optimization_mode, strategy.gap_mode)
 
 
 def _effective_min_daily_rate(

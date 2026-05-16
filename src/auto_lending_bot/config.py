@@ -158,8 +158,8 @@ def load_settings() -> Settings:
         frr_as_min=_get_bool("FRR_AS_MIN", default=True),
         frr_delta=_get_float("FRR_DELTA", default=0.0),
         rate_optimization_mode=os.getenv("RATE_OPTIMIZATION_MODE", "fill_probability").lower(),
-        rate_optimization_min_probability=_get_float("RATE_OPTIMIZATION_MIN_PROBABILITY", default=0.25),
-        rate_optimization_sample_size=_get_int("RATE_OPTIMIZATION_SAMPLE_SIZE", default=200),
+        rate_optimization_min_probability=_get_float("RATE_OPTIMIZATION_MIN_PROBABILITY", default=0.10),
+        rate_optimization_sample_size=_get_int("RATE_OPTIMIZATION_SAMPLE_SIZE", default=50),
         max_amount_to_lend=_get_optional_float("MAX_TO_LEND")
         if os.getenv("MAX_TO_LEND") is not None
         else _get_optional_float("MAX_AMOUNT_TO_LEND"),

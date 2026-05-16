@@ -31,8 +31,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.xdays == 120
     assert strategy.xday_spread == 0
     assert strategy.rate_optimization_mode == "fill_probability"
-    assert strategy.rate_optimization_min_probability == 0.25
-    assert strategy.rate_optimization_sample_size == 200
+    assert strategy.rate_optimization_min_probability == 0.10
+    assert strategy.rate_optimization_sample_size == 50
     assert settings.allow_above_market_offers is True
     assert strategy.allow_above_market_offers is True
     assert strategy.spread_lend == 0

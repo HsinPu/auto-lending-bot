@@ -88,14 +88,17 @@ def build_lending_decision(
             reason="Available balance is below the minimum loan size.",
         )
 
-    offer_rates = _offer_rates(
-        order_book,
-        strategy,
-        lendable_amount,
-        len(offer_amounts),
-        btc_price,
-        historical_daily_rates or [],
-    )
+    if best_order.daily_rate < strategy.min_daily_rate:
+        offer_rates = [_clamp_rate(strategy.min_daily_rate, strategy) for _ in offer_amounts]
+    else:
+        offer_rates = _offer_rates(
+            order_book,
+            strategy,
+            lendable_amount,
+            len(offer_amounts),
+            btc_price,
+            historical_daily_rates or [],
+        )
     offers = [
         LoanOffer(
             currency=balance.currency,

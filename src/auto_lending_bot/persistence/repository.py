@@ -8,6 +8,7 @@ from auto_lending_bot.domain.models import (
     LoanOrder,
 )
 from auto_lending_bot.persistence.database import connect
+from auto_lending_bot.profiles import BotProfileContext, ensure_default_profile
 from auto_lending_bot.settings_security import decrypt_secret, encrypt_secret, mask_secret
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, validate_setting_value
 
@@ -115,6 +116,177 @@ class AppSettingRepository:
                 LIMIT ?
                 """,
                 (limit,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def _public_row(self, row: dict[str, object]) -> dict[str, object]:
+        if not int(row["is_secret"]):
+            return row
+        try:
+            plain_value = decrypt_secret(str(row["value"]), self._encryption_key)
+        except ValueError:
+            plain_value = ""
+        row["value"] = mask_secret(plain_value)
+        row["is_set"] = bool(plain_value)
+        return row
+
+
+class ProfileAppSettingRepository:
+    def __init__(self, database_url: str, encryption_key: str = "") -> None:
+        self._database_url = database_url
+        self._encryption_key = encryption_key
+
+    def get_many(
+        self,
+        profile_context: BotProfileContext,
+    ) -> dict[str, dict[str, object]]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT profile_id, key, value, value_type, is_secret, updated_at
+                FROM profile_app_settings
+                WHERE profile_id = ?
+                ORDER BY key
+                """,
+                (profile_context.id,),
+            ).fetchall()
+            return {row["key"]: self._public_row(dict(row)) for row in rows}
+
+    def plain_values(self, profile_context: BotProfileContext) -> dict[str, str]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT key, value, is_secret
+                FROM profile_app_settings
+                WHERE profile_id = ?
+                ORDER BY key
+                """,
+                (profile_context.id,),
+            ).fetchall()
+            values = {}
+            for row in rows:
+                value = str(row["value"])
+                if int(row["is_secret"]):
+                    value = decrypt_secret(value, self._encryption_key)
+                values[str(row["key"])] = value
+            return values
+
+    def set_many(
+        self,
+        profile_context: BotProfileContext,
+        values: dict[str, str],
+        source: str = "api",
+    ) -> None:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            for key, value in values.items():
+                definition = SETTING_DEFINITIONS_BY_KEY.get(key)
+                if definition is None:
+                    msg = f"Unknown setting: {key}"
+                    raise ValueError(msg)
+
+                old_row = connection.execute(
+                    """
+                    SELECT value
+                    FROM profile_app_settings
+                    WHERE profile_id = ? AND key = ?
+                    """,
+                    (profile_context.id, key),
+                ).fetchone()
+                old_value = old_row["value"] if old_row is not None else None
+                validated_value = validate_setting_value(definition, value)
+                stored_value = (
+                    encrypt_secret(validated_value, self._encryption_key)
+                    if definition.secret
+                    else validated_value
+                )
+                connection.execute(
+                    """
+                    INSERT INTO profile_app_settings (
+                        profile_id, key, value, value_type, is_secret, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(profile_id, key) DO UPDATE SET
+                        value = excluded.value,
+                        value_type = excluded.value_type,
+                        is_secret = excluded.is_secret,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        profile_context.id,
+                        key,
+                        stored_value,
+                        definition.value_type,
+                        int(definition.secret),
+                    ),
+                )
+                audit_old_value = (
+                    "<secret updated>" if definition.secret and old_value else old_value
+                )
+                audit_new_value = "<secret updated>" if definition.secret else validated_value
+                connection.execute(
+                    """
+                    INSERT INTO profile_app_setting_audit_log (
+                        profile_id, key, old_value, new_value, source
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (profile_context.id, key, audit_old_value, audit_new_value, source),
+                )
+
+    def reset(self, profile_context: BotProfileContext, key: str, source: str = "api") -> None:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            old_row = connection.execute(
+                """
+                SELECT value
+                FROM profile_app_settings
+                WHERE profile_id = ? AND key = ?
+                """,
+                (profile_context.id, key),
+            ).fetchone()
+            connection.execute(
+                "DELETE FROM profile_app_settings WHERE profile_id = ? AND key = ?",
+                (profile_context.id, key),
+            )
+            connection.execute(
+                """
+                INSERT INTO profile_app_setting_audit_log (
+                    profile_id, key, old_value, new_value, source
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    profile_context.id,
+                    key,
+                    old_row["value"] if old_row is not None else None,
+                    None,
+                    source,
+                ),
+            )
+
+    def reset_all(self, profile_context: BotProfileContext, source: str = "api") -> None:
+        for key in list(self.get_many(profile_context)):
+            self.reset(profile_context, key, source=source)
+
+    def audit_log(
+        self,
+        profile_context: BotProfileContext,
+        limit: int = 50,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, profile_id, key, old_value, new_value, changed_at, source
+                FROM profile_app_setting_audit_log
+                WHERE profile_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 

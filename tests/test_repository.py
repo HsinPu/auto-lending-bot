@@ -14,7 +14,9 @@ from auto_lending_bot.persistence.repository import (
     MarketRateRepository,
     NotificationStateRepository,
     OpenLoanOfferRepository,
+    ProfileAppSettingRepository,
 )
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, setting_schema
 
 
@@ -33,6 +35,31 @@ def test_initialize_database_seeds_default_profile_tables(tmp_path) -> None:
 
     assert dict(profile) == {"id": "default", "name": "Default"}
     assert {column[1] for column in setting_columns} >= {"profile_id", "key", "value"}
+
+
+def test_profile_app_setting_repository_manages_default_profile_settings(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = ProfileAppSettingRepository(database_url, encryption_key="test-key")
+
+    repository.set_many(
+        DEFAULT_PROFILE_CONTEXT,
+        {"BOT_LABEL": "Profile Bot", "EXCHANGE_API_SECRET": "secret"},
+        source="test",
+    )
+
+    values = repository.get_many(DEFAULT_PROFILE_CONTEXT)
+    plain_values = repository.plain_values(DEFAULT_PROFILE_CONTEXT)
+    audit_log = repository.audit_log(DEFAULT_PROFILE_CONTEXT)
+
+    assert values["BOT_LABEL"]["value"] == "Profile Bot"
+    assert values["EXCHANGE_API_SECRET"]["value"] == "********cret"
+    assert plain_values["EXCHANGE_API_SECRET"] == "secret"
+    assert audit_log[0]["profile_id"] == "default"
+
+    repository.reset(DEFAULT_PROFILE_CONTEXT, "BOT_LABEL", source="test")
+
+    assert "BOT_LABEL" not in repository.get_many(DEFAULT_PROFILE_CONTEXT)
 
 
 def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:

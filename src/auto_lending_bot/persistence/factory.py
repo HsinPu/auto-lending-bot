@@ -13,6 +13,7 @@ from auto_lending_bot.persistence.repository import (
     MarketRateRepository,
     NotificationStateRepository,
     OpenLoanOfferRepository,
+    ProfileAppSettingRepository,
 )
 from auto_lending_bot.profiles import (
     DEFAULT_PROFILE_CONTEXT,
@@ -34,6 +35,7 @@ class RepositoryBundle:
     bot_run_decisions: BotRunDecisionRepository
     bot_run_steps: BotRunStepRepository
     app_settings: AppSettingRepository
+    profile_app_settings: ProfileAppSettingRepository
 
 
 def create_repository_bundle(
@@ -55,6 +57,10 @@ def create_repository_bundle(
         bot_run_decisions=BotRunDecisionRepository(database_url),
         bot_run_steps=BotRunStepRepository(database_url),
         app_settings=AppSettingRepository(
+            database_url,
+            encryption_key=settings_encryption_key,
+        ),
+        profile_app_settings=ProfileAppSettingRepository(
             database_url,
             encryption_key=settings_encryption_key,
         ),

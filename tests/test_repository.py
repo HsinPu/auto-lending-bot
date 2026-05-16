@@ -38,6 +38,32 @@ def test_initialize_database_seeds_default_profile_tables(tmp_path) -> None:
     assert {column[1] for column in setting_columns} >= {"profile_id", "key", "value"}
 
 
+def test_initialize_database_adds_profile_scope_to_runtime_tables(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+
+    initialize_database(database_url)
+
+    runtime_tables = [
+        "bot_runs",
+        "loan_offers",
+        "bot_run_decisions",
+        "bot_run_steps",
+        "active_loans",
+        "open_loan_offers",
+        "lending_history",
+        "market_rates",
+        "market_analysis_rates",
+        "notification_state",
+    ]
+    with connect(database_url) as connection:
+        table_columns = {
+            table: {column[1] for column in connection.execute(f"PRAGMA table_info({table})")}
+            for table in runtime_tables
+        }
+
+    assert all("profile_id" in columns for columns in table_columns.values())
+
+
 def test_profile_app_setting_repository_manages_default_profile_settings(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -121,6 +147,21 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     assert active_loans.count() == 1
     assert lending_history.count() == 1
     assert open_offers.count() == 1
+
+    with connect(database_url) as connection:
+        profile_ids = {
+            table: connection.execute(f"SELECT DISTINCT profile_id FROM {table}").fetchall()
+            for table in [
+                "bot_runs",
+                "loan_offers",
+                "market_rates",
+                "market_analysis_rates",
+                "active_loans",
+                "lending_history",
+                "open_loan_offers",
+            ]
+        }
+    assert all([row["profile_id"] for row in rows] == ["default"] for rows in profile_ids.values())
 
 
 def test_bot_run_repository_links_runs_to_jobs(tmp_path) -> None:
@@ -213,6 +254,7 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
     rows = decisions.for_run(bot_run_id)
 
     assert rows[0]["currency"] == "BTC"
+    assert rows[0]["profile_id"] == "default"
     assert rows[0]["offer_count"] == 1
     assert rows[0]["offers"] == [{"currency": "BTC", "amount": 0.1}]
 
@@ -230,6 +272,7 @@ def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:
     rows = steps.for_run(bot_run_id)
 
     assert [row["step_key"] for row in rows] == ["sync-balances", "finish-run"]
+    assert {row["profile_id"] for row in rows} == {"default"}
     assert rows[0]["status"] == "completed"
     assert rows[0]["message"] == "Loaded 3 lending balance(s)."
     assert rows[0]["finished_at"] is not None

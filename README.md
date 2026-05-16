@@ -382,6 +382,7 @@ Managed settings writes and live actions use backend/admin authorization. Local 
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.
 - Starting the loop from the API/dashboard creates a `bot_jobs` row with a settings snapshot. That job keeps using the snapshot it started with; later dashboard setting changes apply only after stopping and starting a new loop job.
+- Runtime records are stored under the default bot profile as profile-isolation groundwork. The dashboard still operates as a single-profile UI; multi-account/profile selection is not enabled.
 - On API/Docker restart, an interrupted `running` loop job is restored from its saved settings snapshot so it can continue without manual restart. Jobs that were already `stopping` are marked `stopped` during startup reconciliation.
 - The current API runtime supports one active loop. If multiple `running` jobs exist in SQLite, startup restores the newest one and marks the older running jobs as `failed` with a single-loop runtime message.
 - Use `GET /api/jobs` or the dashboard job history to review recent loop jobs and their safe snapshot summaries.

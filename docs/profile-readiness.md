@@ -9,10 +9,10 @@ This project currently runs as a single bot profile. There is no user account sy
 - `AppSettingRepository` stores settings by key only; settings are not scoped by profile.
 - `create_exchange_client(settings)` builds one exchange client from the active settings and default-profile API credentials.
 - `BotRunner` receives one `Settings` object, one exchange client, and global repositories.
-- API controllers operate on the default profile and currently read all rows in the SQLite database.
+- API controllers operate on the default profile and read default-profile scoped runtime rows.
 - CLI commands in `src/auto_lending_bot/cli.py` create exchange clients, repositories, and runners for the single active settings set.
 - Background loop state in the API is process-global and represents one running bot loop and one market-analysis collection loop.
-- SQLite tables such as `bot_runs`, `bot_run_decisions`, `bot_run_steps`, `loan_offers`, `active_loans`, `open_loan_offers`, `lending_history`, `market_rates`, and `market_analysis_rates` do not include profile scope.
+- Runtime tables such as `bot_runs`, `bot_run_decisions`, `bot_run_steps`, `loan_offers`, `active_loans`, `open_loan_offers`, `lending_history`, `market_rates`, `market_analysis_rates`, and `notification_state` include `profile_id`, but only the default profile is accepted today.
 - Dashboard API responses describe the active bot, not a selected profile.
 
 ## Current Profile-Ready Boundaries
@@ -27,6 +27,7 @@ This project currently runs as a single bot profile. There is no user account sy
 - API runtime controllers are wrapped with profile context, but there is still only one process-local bot loop and one market-analysis loop.
 - Continuous loop starts create `bot_jobs` rows with `profile_id` and a settings snapshot. The running job uses that snapshot until stopped, so later setting edits require a new job to take effect.
 - API startup restores the newest default-profile `running` bot job from its saved snapshot. `stopping` jobs are reconciled to `stopped`, and older extra `running` jobs are marked `failed` because the current runtime can only own one loop.
+- Runtime repositories write and query default-profile rows for runs, offers, snapshots, lending history, market data, and notification state. This is data-isolation groundwork only; it does not enable multi-account execution or profile selection.
 
 ## Boundaries To Keep Clean
 

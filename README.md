@@ -86,9 +86,37 @@ The compose setup mounts the local `data/` folder into the container.
 
 Use exchange API keys without withdrawal permissions.
 
+## Settings Model
+
+`.env` is now intended for bootstrap and deployment fallback, not as the main place for account or strategy settings.
+
+Keep these in `.env`:
+
+- `DATABASE_URL`
+- `SETTINGS_ENCRYPTION_KEY`
+- `ADMIN_AUTH_TOKEN`
+- `LOG_LEVEL`
+- safe startup fallbacks such as `EXCHANGE=mock`, `BOT_DRY_RUN=true`, and `BOT_MAX_LOOPS=1`
+
+Manage bot/account behavior from the dashboard after startup:
+
+- Exchange selection and API credentials.
+- Dry-run/live safety flags and live amount limits.
+- Strategy rates, split settings, RawBTC gap, X-day duration, and fill-probability optimization.
+- Market-analysis currencies and notification settings.
+
+The effective settings order is `.env` base, global SQLite `app_settings`, then default-profile SQLite `profile_app_settings`. Profile-owned settings override global/env fallbacks. Secret values written from the dashboard are encrypted with `SETTINGS_ENCRYPTION_KEY`.
+
+`GET /api/settings/schema` includes a `scope` field:
+
+- `global`: deployment/process setting.
+- `profile`: default-profile behavior setting.
+- `profile_secret`: encrypted default-profile secret.
+- `profile_safety`: default-profile live safety guard.
+
 ## Bitfinex Read-Only Smoke Test
 
-Use this before any dry-run or live test:
+Use this before any dry-run or live test. Prefer setting `EXCHANGE`, `EXCHANGE_API_KEY`, `EXCHANGE_API_SECRET`, and `SMOKE_TEST_CURRENCY` from the dashboard. The env form below remains available as fallback:
 
 ```env
 EXCHANGE=bitfinex
@@ -108,7 +136,7 @@ See `docs/bitfinex-smoke-checklist.md` for the full pre-dry-run checklist.
 
 ## Bitfinex Dry Run
 
-After smoke test succeeds, run the strategy without placing real offers:
+After smoke test succeeds, run the strategy without placing real offers. Prefer setting exchange, strategy debug, and one-shot loop behavior from the dashboard/DB; env fallback still works:
 
 ```env
 EXCHANGE=bitfinex
@@ -128,7 +156,7 @@ See `docs/bitfinex-dry-run-workflow.md` for the full dry-run calibration workflo
 
 ## Guarded Live Lending
 
-Live Bitfinex lending is intended for small beta tests only. It requires all of:
+Live Bitfinex lending is intended for small beta tests only. Prefer setting these guarded values from the dashboard so they are stored with the default profile. Env fallback still works. Live mode requires all of:
 
 ```env
 EXCHANGE=bitfinex
@@ -225,7 +253,9 @@ offer is submitted only after the live confirmation and amount guards pass.
 
 ## Strategy Settings
 
-Global settings:
+Most strategy settings are profile-owned and should normally be edited from the dashboard. Env values remain fallback inputs when SQLite has no override.
+
+Profile strategy settings:
 
 - `MIN_DAILY_RATE`
 - `MAX_DAILY_RATE`

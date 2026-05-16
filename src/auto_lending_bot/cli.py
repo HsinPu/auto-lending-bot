@@ -1,4 +1,5 @@
 import argparse
+from inspect import Parameter, signature
 import sys
 import time
 
@@ -67,7 +68,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        result = maintenance_actions.sync_history(create_exchange_client(settings))
+        result = maintenance_actions.sync_history(_exchange_client(settings))
         print(
             f"Synced {result['changed_count']} lending history row(s) "
             f"for {result['currency']}."
@@ -82,7 +83,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        result = maintenance_actions.sync_open_offers(create_exchange_client(settings))
+        result = maintenance_actions.sync_open_offers(_exchange_client(settings))
         print(f"Synced {result['changed_count']} open loan offer row(s).")
         return 0
 
@@ -93,7 +94,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             print(f"Safety check failed: {error}", file=sys.stderr)
             return 2
 
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings)
         previews = exchange_actions.transfer_previews(exchange)
         if not previews:
             print("No exchange balances match TRANSFERABLE_CURRENCIES.")
@@ -116,7 +117,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             print("Live transfer requires --confirm-live.", file=sys.stderr)
             return 2
 
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings)
         previews = exchange_actions.transfer_previews(exchange)
         try:
             validate_transfer_limits(settings, previews)
@@ -140,7 +141,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings)
         result = maintenance_actions.record_market_analysis(
             exchange=exchange,
             currency=args.currency,
@@ -164,7 +165,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings)
         result = exchange_actions.cancel_open_offers_response(exchange)
         if result["dry_run"]:
             print(f"Dry run: would cancel {result['would_cancel_count']} open loan offer(s).")
@@ -257,6 +258,21 @@ def _create_runner(settings: Settings) -> BotRunner:
     return create_default_bot_runner(settings, exchange_factory=create_exchange_client)
 
 
+def _exchange_client(settings: Settings) -> object:
+    parameters = list(signature(create_exchange_client).parameters.values())
+    accepts_profile_context = any(
+        parameter.kind == Parameter.VAR_POSITIONAL for parameter in parameters
+    ) or sum(
+        1
+        for parameter in parameters
+        if parameter.kind
+        in {Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD}
+    ) > 1
+    if accepts_profile_context:
+        return create_exchange_client(settings, DEFAULT_PROFILE_CONTEXT)
+    return create_exchange_client(settings)
+
+
 def _run_bot_with_reloaded_settings(initial_settings: Settings) -> None:
     loops_completed = 0
     settings = initial_settings
@@ -320,7 +336,7 @@ def _format_status(settings: Settings, repositories: RepositoryBundle) -> str:
 
 
 def _smoke_exchange(settings: Settings) -> str:
-    exchange = create_exchange_client(settings)
+    exchange = _exchange_client(settings)
     balances = exchange.get_lending_balances()
     orders = exchange.get_loan_orders(settings.smoke_test_currency)
     best_rate = max((order.daily_rate for order in orders), default=0)

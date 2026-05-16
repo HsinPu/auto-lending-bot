@@ -270,7 +270,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         return _converted_earnings(
             earnings_rows=dashboard_reads.earnings_summary_by_currency(),
             output_currency=settings.output_currency,
-            exchange=create_exchange_client(settings),
+            exchange=_exchange_client(settings, runtime.profile_context),
         )
 
     @router.get("/market-rates")
@@ -331,7 +331,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.post("/actions/smoke-exchange")
     def smoke_exchange() -> dict[str, object]:
         _validate_safe_action_settings(settings)
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings, runtime.profile_context)
         balances = exchange.get_lending_balances()
         orders = exchange.get_loan_orders(settings.smoke_test_currency)
         best_rate = max((order.daily_rate for order in orders), default=0)
@@ -348,17 +348,21 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.post("/actions/sync-history")
     def sync_history() -> dict[str, object]:
         _validate_safe_action_settings(settings)
-        return maintenance_actions.sync_history(create_exchange_client(settings))
+        return maintenance_actions.sync_history(
+            _exchange_client(settings, runtime.profile_context)
+        )
 
     @router.post("/actions/sync-open-offers")
     def sync_open_offers() -> dict[str, object]:
         _validate_safe_action_settings(settings)
-        return maintenance_actions.sync_open_offers(create_exchange_client(settings))
+        return maintenance_actions.sync_open_offers(
+            _exchange_client(settings, runtime.profile_context)
+        )
 
     @router.post("/actions/transfer-preview")
     def transfer_preview() -> dict[str, object]:
         _validate_transfer_action_settings(settings)
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings, runtime.profile_context)
         return exchange_actions.transfer_preview_response(
             exchange_actions.transfer_previews(exchange)
         )
@@ -375,7 +379,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live transfer requires confirm_live=true.")
 
-        exchange = create_exchange_client(settings)
+        exchange = _exchange_client(settings, runtime.profile_context)
         previews = exchange_actions.transfer_previews(exchange)
         _validate_transfer_limits(settings, previews)
         return exchange_actions.transfer_funds_response(exchange, previews)
@@ -387,7 +391,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         currency = payload.get("currency")
         levels = int(payload.get("levels") or settings.market_analysis_levels)
         return maintenance_actions.record_market_analysis(
-            exchange=create_exchange_client(settings),
+            exchange=_exchange_client(settings, runtime.profile_context),
             currency=str(currency) if currency else None,
             levels=levels,
         )
@@ -421,7 +425,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
 
-        return exchange_actions.cancel_open_offers_response(create_exchange_client(settings))
+        return exchange_actions.cancel_open_offers_response(
+            _exchange_client(settings, runtime.profile_context)
+        )
 
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
@@ -638,7 +644,7 @@ class _MarketAnalysisCollectionController:
         while not self._stop_event.is_set():
             try:
                 result = self._maintenance_actions.record_market_analysis(
-                    exchange=create_exchange_client(self._settings),
+                    exchange=_exchange_client(self._settings, DEFAULT_PROFILE_CONTEXT),
                 )
                 wait_seconds = max(self._settings.market_analysis_interval_seconds, 1)
                 with self._lock:
@@ -698,6 +704,13 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _exchange_client(
+    settings: Settings,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> object:
+    return create_exchange_client(settings, profile_context)
 
 
 def _create_runner(
@@ -1017,7 +1030,7 @@ def _strategy_decisions(
     open_offers: OpenLoanOfferRepository,
     market_analysis_rates: MarketAnalysisRateRepository,
 ) -> list[dict[str, object]]:
-    exchange = create_exchange_client(settings)
+    exchange = _exchange_client(settings)
     errors: dict[str, str] = {}
     balances = _safe_lending_balances(exchange, errors)
     active = _safe_active_loans(exchange, active_loans, errors)

@@ -22,10 +22,9 @@ from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
-from auto_lending_bot.persistence.factory import create_repository_bundle
+from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
-    AppSettingRepository,
     BotRunDecisionRepository,
     BotRunRepository,
     BotRunStepRepository,
@@ -43,7 +42,7 @@ from auto_lending_bot.safety import (
     validate_transfer_limits,
     validate_transfer_settings,
 )
-from auto_lending_bot.settings_registry import setting_schema
+from auto_lending_bot.settings_registry import GLOBAL_SETTING_SCOPE, setting_schema, setting_scope
 
 
 class _SettingsProxy:
@@ -126,7 +125,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/settings/values")
     def settings_values() -> dict[str, object]:
-        return _app_settings(settings).get_many()
+        return _settings_values(settings, runtime.profile_context)
 
     @router.put("/settings/values")
     def update_settings_values(
@@ -139,7 +138,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not isinstance(values, dict):
             raise HTTPException(status_code=400, detail="Settings values must be an object.")
         try:
-            _app_settings(settings).set_many(
+            _set_settings_values(
+                settings,
+                runtime.profile_context,
                 {str(key): str(value) for key, value in values.items()},
                 source="api",
             )
@@ -156,17 +157,16 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         _require_admin(authorization, request)
         payload = payload or {}
         key = payload.get("key")
-        repository = _app_settings(settings)
         if key:
-            repository.reset(str(key), source="api")
+            _reset_setting(settings, runtime.profile_context, str(key), source="api")
             return {"ok": True, "reset_count": 1}
-        existing_count = len(repository.get_many())
-        repository.reset_all(source="api")
+        existing_count = len(_settings_values(settings, runtime.profile_context))
+        _reset_all_settings(settings, runtime.profile_context, source="api")
         return {"ok": True, "reset_count": existing_count}
 
     @router.get("/settings/export")
     def export_settings() -> dict[str, object]:
-        values = _app_settings(settings).get_many()
+        values = _settings_values(settings, runtime.profile_context)
         exported_values = {
             key: str(row["value"])
             for key, row in values.items()
@@ -193,7 +193,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not isinstance(values, dict):
             raise HTTPException(status_code=400, detail="Settings import values must be an object.")
         try:
-            _app_settings(settings).set_many(
+            _set_settings_values(
+                settings,
+                runtime.profile_context,
                 {str(key): str(value) for key, value in values.items()},
                 source="api_import",
             )
@@ -203,7 +205,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/settings/audit-log")
     def settings_audit_log() -> list[dict[str, object]]:
-        return _app_settings(settings).audit_log()
+        return _settings_audit_log(settings, runtime.profile_context)
 
     @router.get("/status")
     def status() -> dict[str, object]:
@@ -788,23 +790,88 @@ def _validate_transfer_limits(settings: Settings, transfers: list[object]) -> No
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
-def _app_settings(settings: Settings) -> AppSettingRepository:
-    return _profile_app_settings(settings, DEFAULT_PROFILE_CONTEXT)
-
-
-def _profile_app_settings(
+def _settings_bundle(
     settings: Settings,
     profile_context: BotProfileContext,
-) -> AppSettingRepository:
+) -> RepositoryBundle:
     return create_repository_bundle(
         settings,
         profile_context=profile_context,
         settings_encryption_key=settings_encryption_key(),
-    ).app_settings
+    )
+
+
+def _settings_values(
+    settings: Settings,
+    profile_context: BotProfileContext,
+) -> dict[str, dict[str, object]]:
+    repositories = _settings_bundle(settings, profile_context)
+    values = repositories.app_settings.get_many()
+    values.update(repositories.profile_app_settings.get_many(profile_context))
+    for key, row in values.items():
+        row["scope"] = setting_scope(key)
+    return values
+
+
+def _set_settings_values(
+    settings: Settings,
+    profile_context: BotProfileContext,
+    values: dict[str, str],
+    source: str,
+) -> None:
+    global_values = {
+        key: value
+        for key, value in values.items()
+        if setting_scope(key) == GLOBAL_SETTING_SCOPE
+    }
+    profile_values = {
+        key: value
+        for key, value in values.items()
+        if setting_scope(key) != GLOBAL_SETTING_SCOPE
+    }
+    repositories = _settings_bundle(settings, profile_context)
+    if global_values:
+        repositories.app_settings.set_many(global_values, source=source)
+    if profile_values:
+        repositories.profile_app_settings.set_many(profile_context, profile_values, source=source)
+
+
+def _reset_setting(
+    settings: Settings,
+    profile_context: BotProfileContext,
+    key: str,
+    source: str,
+) -> None:
+    repositories = _settings_bundle(settings, profile_context)
+    if setting_scope(key) == GLOBAL_SETTING_SCOPE:
+        repositories.app_settings.reset(key, source=source)
+        return
+    repositories.profile_app_settings.reset(profile_context, key, source=source)
+
+
+def _reset_all_settings(
+    settings: Settings,
+    profile_context: BotProfileContext,
+    source: str,
+) -> None:
+    repositories = _settings_bundle(settings, profile_context)
+    repositories.app_settings.reset_all(source=source)
+    repositories.profile_app_settings.reset_all(profile_context, source=source)
+
+
+def _settings_audit_log(
+    settings: Settings,
+    profile_context: BotProfileContext,
+) -> list[dict[str, object]]:
+    repositories = _settings_bundle(settings, profile_context)
+    return (
+        repositories.app_settings.audit_log()
+        + repositories.profile_app_settings.audit_log(profile_context)
+    )
 
 
 def _settings_runtime(settings: Settings) -> dict[str, object]:
-    values = _app_settings(settings).get_many()
+    values = _settings_values(settings, DEFAULT_PROFILE_CONTEXT)
     updated_at_values = [str(row["updated_at"]) for row in values.values() if row.get("updated_at")]
     return {
         "hot_reload": True,

@@ -14,7 +14,9 @@ from auto_lending_bot.persistence.repository import (
     MarketAnalysisRateRepository,
     MarketRateRepository,
     OpenLoanOfferRepository,
+    ProfileAppSettingRepository,
 )
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 
 
 def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
@@ -210,6 +212,17 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     assert values_response.status_code == 200
     assert values_response.json()["BOT_LABEL"]["value"] == "Managed Bot"
     assert values_response.json()["EXCHANGE_API_SECRET"]["value"] == "********cret"
+    assert values_response.json()["BOT_LABEL"]["scope"] == "profile"
+    assert values_response.json()["DISPLAY_TIMEZONE"]["scope"] == "global"
+
+    global_values = AppSettingRepository(database_url).get_many()
+    profile_values = ProfileAppSettingRepository(database_url, "test-key").get_many(
+        DEFAULT_PROFILE_CONTEXT
+    )
+    assert "DISPLAY_TIMEZONE" in global_values
+    assert "BOT_LABEL" not in global_values
+    assert "BOT_LABEL" in profile_values
+    assert "EXCHANGE_API_SECRET" in profile_values
 
     effective_response = client.get("/api/settings/effective")
     assert effective_response.status_code == 200

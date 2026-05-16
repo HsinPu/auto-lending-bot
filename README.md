@@ -381,6 +381,8 @@ Managed settings writes and live actions use backend/admin authorization. Local 
 ## Operations
 
 - Set `BOT_MAX_LOOPS=0` for continuous execution.
+- Starting the loop from the API/dashboard creates a `bot_jobs` row with a settings snapshot. That job keeps using the snapshot it started with; later dashboard setting changes apply only after stopping and starting a new loop job.
+- Use `GET /api/jobs` or the dashboard job history to review recent loop jobs and their safe snapshot summaries.
 - Set `BOT_INACTIVE_SLEEP_SECONDS` to use a longer delay when a run creates no offers.
 - Set `AUTO_REBALANCE_OPEN_OFFERS=true` to sync open offers before each run. `AUTO_CANCEL_OPEN_OFFERS=true` additionally cancels them, but only when live mode is explicitly enabled.
 - Keep `KEEP_STUCK_ORDERS=true` to avoid canceling tiny partially-filled offers that would fall below `MIN_LOAN_SIZE` after cancellation.

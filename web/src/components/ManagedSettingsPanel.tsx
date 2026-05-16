@@ -10,6 +10,7 @@ import {
 } from '../api/client'
 import type {
   ManagedSettingDefinition,
+  ManagedSettingScope,
   ManagedSettingsExport,
   ManagedSettingValue,
 } from '../types/api'
@@ -43,6 +44,16 @@ const scopeLabels: Record<ManagedSettingDefinition['scope'], string> = {
   profile_secret: 'Profile 密鑰',
   profile_safety: 'Profile 安全',
 }
+
+type SettingScopeFilter = 'all' | ManagedSettingScope
+
+const scopeFilterOptions: Array<{ value: SettingScopeFilter; label: string }> = [
+  { value: 'all', label: '全部範圍' },
+  { value: 'global', label: scopeLabels.global },
+  { value: 'profile', label: scopeLabels.profile },
+  { value: 'profile_secret', label: scopeLabels.profile_secret },
+  { value: 'profile_safety', label: scopeLabels.profile_safety },
+]
 
 const settingLabels: Record<string, string> = {
   ALLOW_BALANCE_TRANSFERS: '允許資金轉移',
@@ -307,6 +318,7 @@ export function ManagedSettingsPanel({
   const [error, setError] = useState<string | null>(null)
   const [searchText, setSearchText] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedScope, setSelectedScope] = useState<SettingScopeFilter>('all')
   const [showOnlyOverrides, setShowOnlyOverrides] = useState(false)
   const [settingsMode, setSettingsMode] = useState<'common' | 'advanced'>('common')
   const [confirmResetAll, setConfirmResetAll] = useState(false)
@@ -412,6 +424,7 @@ export function ManagedSettingsPanel({
           draftOverrides,
           searchText,
           activeCategory,
+          selectedScope,
           showOnlyOverrides,
         )
       : groupByCategory(
@@ -422,6 +435,7 @@ export function ManagedSettingsPanel({
               draftOverrides,
               searchText,
               activeCategory,
+              selectedScope,
               showOnlyOverrides,
               false,
             ),
@@ -452,6 +466,7 @@ export function ManagedSettingsPanel({
 
       {data ? (
         <div className="settings-editor">
+          <div className="settings-top-spacer" aria-hidden="true" />
           <div className="settings-mode-panel">
             <div>
               <p className="eyebrow">設定模式</p>
@@ -505,6 +520,19 @@ export function ManagedSettingsPanel({
                 {categoryOptions.map((category) => (
                   <option value={category.value} key={category.value}>
                     {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>設定範圍</span>
+              <select
+                value={selectedScope}
+                onChange={(event) => setSelectedScope(event.currentTarget.value as SettingScopeFilter)}
+              >
+                {scopeFilterOptions.map((scope) => (
+                  <option value={scope.value} key={scope.value}>
+                    {scope.label}
                   </option>
                 ))}
               </select>
@@ -736,6 +764,7 @@ function groupCommonSettings(
   draftOverrides: Record<string, string>,
   searchText: string,
   selectedSection: string,
+  selectedScope: SettingScopeFilter,
   showOnlyOverrides: boolean,
 ): Array<[string, ManagedSettingDefinition[]]> {
   const definitionsByKey = new Map(definitions.map((definition) => [definition.key, definition]))
@@ -754,6 +783,7 @@ function groupCommonSettings(
             draftOverrides,
             searchText,
             'all',
+            selectedScope,
             showOnlyOverrides,
             true,
           ),
@@ -799,6 +829,7 @@ function shouldShowDefinition(
   draftOverrides: Record<string, string>,
   searchText: string,
   selectedCategory: string,
+  selectedScope: SettingScopeFilter,
   showOnlyOverrides: boolean,
   commonOnly: boolean,
 ): boolean {
@@ -806,6 +837,9 @@ function shouldShowDefinition(
     return false
   }
   if (selectedCategory !== 'all' && definition.category !== selectedCategory) {
+    return false
+  }
+  if (selectedScope !== 'all' && definition.scope !== selectedScope) {
     return false
   }
   if (showOnlyOverrides && !storedValue && !Object.hasOwn(draftOverrides, definition.key)) {
@@ -824,6 +858,7 @@ function shouldShowDefinition(
     settingHints[definition.key],
     definition.category,
     categoryLabels[definition.category],
+    scopeLabels[definition.scope],
     definition.value_type,
     definition.description,
   ]

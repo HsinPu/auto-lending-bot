@@ -1723,6 +1723,10 @@ h1 {
   padding: 0 24px 24px;
 }
 
+.settings-top-spacer {
+  height: 16px;
+}
+
 .settings-mode-panel {
   display: flex;
   justify-content: space-between;

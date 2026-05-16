@@ -566,13 +566,22 @@ class _BotLoopController:
             if self._thread is not None and self._thread.is_alive():
                 return self._status_unlocked()
 
-            self._stop_event = threading.Event()
-            self._bot_job_id = bot_job_id
-            self._started_at = _utc_now()
-            self._last_error = None
-            self._loops_completed = 0
-            self._thread = threading.Thread(target=self._run_loop, daemon=True)
-            self._thread.start()
+            self._start_unlocked(bot_job_id)
+            return self._status_unlocked()
+
+    def restore(self, bot_job_id: int) -> dict[str, object]:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return self._status_unlocked()
+            try:
+                job_settings = self._settings_for_job(bot_job_id)
+                validate_run_settings(job_settings)
+            except Exception as error:
+                self._bot_jobs.mark_failed(bot_job_id, str(error))
+                self._last_error = str(error)
+                return self._status_unlocked()
+
+            self._start_unlocked(bot_job_id)
             return self._status_unlocked()
 
     def stop(self) -> dict[str, object]:
@@ -595,6 +604,15 @@ class _BotLoopController:
     def status(self) -> dict[str, object]:
         with self._lock:
             return self._status_unlocked()
+
+    def _start_unlocked(self, bot_job_id: int) -> None:
+        self._stop_event = threading.Event()
+        self._bot_job_id = bot_job_id
+        self._started_at = _utc_now()
+        self._last_error = None
+        self._loops_completed = 0
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
 
     def _status_unlocked(self) -> dict[str, object]:
         running = self._thread is not None and self._thread.is_alive()
@@ -660,9 +678,15 @@ class _BotLoopController:
         if bot_job_id is None:
             msg = "Bot loop job is not initialized."
             raise RuntimeError(msg)
+        return self._settings_for_job(bot_job_id)
+
+    def _settings_for_job(self, bot_job_id: int) -> Settings:
         job = self._bot_jobs.get(bot_job_id)
         if job is None:
             msg = f"Bot job {bot_job_id} was not found."
+            raise RuntimeError(msg)
+        if job["status"] != "running":
+            msg = f"Bot job {bot_job_id} is not running."
             raise RuntimeError(msg)
         return settings_from_snapshot_json(str(job["settings_snapshot_json"]))
 

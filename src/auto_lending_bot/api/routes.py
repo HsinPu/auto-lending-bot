@@ -20,7 +20,7 @@ from auto_lending_bot.config import (
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
-from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
+from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
@@ -79,6 +79,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = repositories.lending_history
     open_offers = repositories.open_offers
     notification_state = repositories.notification_state
+    maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
     dashboard_reads = DashboardReadService(
         DashboardRepositories(
             bot_runs=bot_runs,
@@ -105,6 +106,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         market_rates=market_rates,
         bot_run_decisions=bot_run_decisions,
         bot_run_steps=bot_run_steps,
+        maintenance_actions=maintenance_actions,
     )
     bot_actions = BotActionService(
         settings=settings,
@@ -345,33 +347,12 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.post("/actions/sync-history")
     def sync_history() -> dict[str, object]:
         _validate_safe_action_settings(settings)
-        entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
-        history_source = settings.exchange.lower()
-        history_dry_run = history_source == "mock"
-        changed_count = lending_history.upsert_many(
-            entries,
-            dry_run=history_dry_run,
-            source=history_source,
-        )
-        return {
-            "action": "sync-history",
-            "ok": True,
-            "currency": settings.smoke_test_currency.upper(),
-            "dry_run": history_dry_run,
-            "source": history_source,
-            "changed_count": changed_count,
-        }
+        return maintenance_actions.sync_history(create_exchange_client(settings))
 
     @router.post("/actions/sync-open-offers")
     def sync_open_offers() -> dict[str, object]:
         _validate_safe_action_settings(settings)
-        offers = create_exchange_client(settings).get_open_loan_offers()
-        open_offers.replace_all(offers)
-        return {
-            "action": "sync-open-offers",
-            "ok": True,
-            "changed_count": len(offers),
-        }
+        return maintenance_actions.sync_open_offers(create_exchange_client(settings))
 
     @router.post("/actions/transfer-preview")
     def transfer_preview() -> dict[str, object]:
@@ -427,19 +408,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         payload = payload or {}
         currency = payload.get("currency")
         levels = int(payload.get("levels") or settings.market_analysis_levels)
-        currencies, changed_count = _record_market_analysis(
-            settings=settings,
-            market_analysis_rates=market_analysis_rates,
+        return maintenance_actions.record_market_analysis(
+            exchange=create_exchange_client(settings),
             currency=str(currency) if currency else None,
             levels=levels,
         )
-        return {
-            "action": "record-market-analysis",
-            "ok": True,
-            "currency": currencies[0],
-            "currencies": list(currencies),
-            "changed_count": changed_count,
-        }
 
     @router.post("/actions/start-market-analysis")
     def start_market_analysis() -> dict[str, object]:
@@ -493,19 +466,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
-        market_rate_deleted_count = market_rates.delete_older_than_days(
-            settings.market_rate_retention_days
-        )
-        market_analysis_deleted_count = market_analysis_rates.delete_older_than_days(
-            settings.market_analysis_retention_days
-        )
-        return {
-            "action": "cleanup",
-            "ok": True,
-            "deleted_count": market_rate_deleted_count + market_analysis_deleted_count,
-            "market_rate_deleted_count": market_rate_deleted_count,
-            "market_analysis_deleted_count": market_analysis_deleted_count,
-        }
+        return maintenance_actions.cleanup_market_data()
 
     @router.post("/actions/reset-dry-run-records")
     def reset_dry_run_records(
@@ -665,10 +626,10 @@ class _MarketAnalysisCollectionController:
     def __init__(
         self,
         settings: Settings,
-        market_analysis_rates: MarketAnalysisRateRepository,
+        maintenance_actions: MaintenanceActionService,
     ) -> None:
         self._settings = settings
-        self._market_analysis_rates = market_analysis_rates
+        self._maintenance_actions = maintenance_actions
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -717,14 +678,13 @@ class _MarketAnalysisCollectionController:
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
-                _, changed_count = _record_market_analysis(
-                    settings=self._settings,
-                    market_analysis_rates=self._market_analysis_rates,
+                result = self._maintenance_actions.record_market_analysis(
+                    exchange=create_exchange_client(self._settings),
                 )
                 wait_seconds = max(self._settings.market_analysis_interval_seconds, 1)
                 with self._lock:
                     self._loops_completed += 1
-                    self._last_changed_count = changed_count
+                    self._last_changed_count = int(result["changed_count"])
                     self._last_run_at = _utc_now()
                     self._last_error = None
             except Exception as error:
@@ -748,6 +708,7 @@ def _create_runtime_controllers(
     market_rates: MarketRateRepository,
     bot_run_decisions: BotRunDecisionRepository,
     bot_run_steps: BotRunStepRepository,
+    maintenance_actions: MaintenanceActionService,
     profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> _RuntimeControllers:
     return _RuntimeControllers(
@@ -768,7 +729,7 @@ def _create_runtime_controllers(
         ),
         market_analysis_collection=_MarketAnalysisCollectionController(
             settings=settings,
-            market_analysis_rates=market_analysis_rates,
+            maintenance_actions=maintenance_actions,
         ),
     )
 
@@ -949,34 +910,6 @@ def _cancel_open_offers(exchange, offers: list[object]) -> int:
         exchange.cancel_loan_offer(str(external_offer_id))
         canceled_count += 1
     return canceled_count
-
-
-def _market_analysis_currencies(
-    settings: Settings,
-    currency: str | None = None,
-) -> tuple[str, ...]:
-    if currency:
-        return (currency.upper(),)
-    if settings.market_analysis_currencies:
-        return settings.market_analysis_currencies
-    return (settings.smoke_test_currency.upper(),)
-
-
-def _record_market_analysis(
-    settings: Settings,
-    market_analysis_rates: MarketAnalysisRateRepository,
-    currency: str | None = None,
-    levels: int | None = None,
-) -> tuple[tuple[str, ...], int]:
-    currencies = _market_analysis_currencies(settings, currency)
-    recorder = MarketAnalysisRecorder(market_analysis_rates)
-    exchange = create_exchange_client(settings)
-    resolved_levels = levels or settings.market_analysis_levels
-    changed_count = sum(
-        recorder.record_currency(exchange=exchange, currency=currency, levels=resolved_levels)
-        for currency in currencies
-    )
-    return currencies, changed_count
 
 
 def _transfer_previews(settings: Settings, exchange) -> list:

@@ -11,7 +11,7 @@ from auto_lending_bot.config import Settings, load_effective_settings, load_sett
 from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
-from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
+from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
@@ -37,6 +37,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         profile_context=DEFAULT_PROFILE_CONTEXT,
     )
     repositories = create_repository_bundle(settings)
+    maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
 
     if args.command == "init-db":
         initialize_database(settings.database_url)
@@ -50,17 +51,11 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "cleanup":
         initialize_database(settings.database_url)
-        market_rate_deleted_count = repositories.market_rates.delete_older_than_days(
-            settings.market_rate_retention_days,
-        )
-        market_analysis_deleted_count = repositories.market_analysis_rates.delete_older_than_days(
-            settings.market_analysis_retention_days
-        )
-        deleted_count = market_rate_deleted_count + market_analysis_deleted_count
+        result = maintenance_actions.cleanup_market_data()
         print(
-            f"Deleted {deleted_count} old market data row(s) "
-            f"({market_rate_deleted_count} market rate, "
-            f"{market_analysis_deleted_count} market analysis)."
+            f"Deleted {result['deleted_count']} old market data row(s) "
+            f"({result['market_rate_deleted_count']} market rate, "
+            f"{result['market_analysis_deleted_count']} market analysis)."
         )
         return 0
 
@@ -72,16 +67,10 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
-        history_source = settings.exchange.lower()
-        changed_count = repositories.lending_history.upsert_many(
-            entries,
-            dry_run=history_source == "mock",
-            source=history_source,
-        )
+        result = maintenance_actions.sync_history(create_exchange_client(settings))
         print(
-            f"Synced {changed_count} lending history row(s) "
-            f"for {settings.smoke_test_currency.upper()}."
+            f"Synced {result['changed_count']} lending history row(s) "
+            f"for {result['currency']}."
         )
         return 0
 
@@ -93,9 +82,8 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        offers = create_exchange_client(settings).get_open_loan_offers()
-        repositories.open_offers.replace_all(offers)
-        print(f"Synced {len(offers)} open loan offer row(s).")
+        result = maintenance_actions.sync_open_offers(create_exchange_client(settings))
+        print(f"Synced {result['changed_count']} open loan offer row(s).")
         return 0
 
     if args.command == "transfer-preview":
@@ -152,17 +140,15 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        recorder = MarketAnalysisRecorder(repositories.market_analysis_rates)
         exchange = create_exchange_client(settings)
-        levels = args.levels or settings.market_analysis_levels
-        currencies = _market_analysis_currencies(settings, args.currency)
-        changed_count = sum(
-            recorder.record_currency(exchange=exchange, currency=currency, levels=levels)
-            for currency in currencies
+        result = maintenance_actions.record_market_analysis(
+            exchange=exchange,
+            currency=args.currency,
+            levels=args.levels,
         )
         print(
-            f"Recorded {changed_count} market analysis rate row(s) "
-            f"for {', '.join(currencies)}."
+            f"Recorded {result['changed_count']} market analysis rate row(s) "
+            f"for {', '.join(result['currencies'])}."
         )
         return 0
 
@@ -277,17 +263,6 @@ def _cancel_open_offers(exchange, offers: list[LoanOffer]) -> int:
         exchange.cancel_loan_offer(offer.external_offer_id)
         canceled_count += 1
     return canceled_count
-
-
-def _market_analysis_currencies(
-    settings: Settings,
-    currency: str | None = None,
-) -> tuple[str, ...]:
-    if currency:
-        return (currency.upper(),)
-    if settings.market_analysis_currencies:
-        return settings.market_analysis_currencies
-    return (settings.smoke_test_currency.upper(),)
 
 
 def _transfer_previews(settings: Settings, exchange) -> list:

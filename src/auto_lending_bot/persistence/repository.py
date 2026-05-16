@@ -8,7 +8,7 @@ from auto_lending_bot.domain.models import (
     LoanOrder,
 )
 from auto_lending_bot.persistence.database import connect
-from auto_lending_bot.profiles import BotProfileContext, ensure_default_profile
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
 from auto_lending_bot.settings_security import decrypt_secret, encrypt_secret, mask_secret
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, validate_setting_value
 
@@ -329,14 +329,20 @@ class BotRunRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def start(self, dry_run: bool, job_id: int | None = None) -> int:
+    def start(
+        self,
+        dry_run: bool,
+        job_id: int | None = None,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO bot_runs (job_id, status, dry_run, message)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO bot_runs (profile_id, job_id, status, dry_run, message)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (job_id, "running", int(dry_run), ""),
+                (profile_context.id, job_id, "running", int(dry_run), ""),
             )
             return int(cursor.lastrowid)
 
@@ -353,20 +359,27 @@ class BotRunRepository:
                 (status, message, bot_run_id),
             )
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM bot_runs").fetchone()
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM bot_runs WHERE profile_id = ?",
+                (profile_context.id,),
+            ).fetchone()
             return int(row["count"])
 
-    def latest(self) -> dict[str, object] | None:
+    def latest(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> dict[str, object] | None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
                 """
-                SELECT id, job_id, started_at, finished_at, status, dry_run, message
+                SELECT id, profile_id, job_id, started_at, finished_at, status, dry_run, message
                 FROM bot_runs
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT 1
-                """
+                """,
+                (profile_context.id,),
             ).fetchone()
 
             if row is None:
@@ -374,21 +387,31 @@ class BotRunRepository:
 
             return dict(row)
 
-    def latest_for_job(self, job_id: int) -> dict[str, object] | None:
+    def latest_for_job(
+        self,
+        job_id: int,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> dict[str, object] | None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
                 """
-                SELECT id, job_id, started_at, finished_at, status, dry_run, message
+                SELECT id, profile_id, job_id, started_at, finished_at, status, dry_run, message
                 FROM bot_runs
-                WHERE job_id = ?
+                WHERE profile_id = ? AND job_id = ?
                 ORDER BY id DESC
                 LIMIT 1
                 """,
-                (job_id,),
+                (profile_context.id, job_id),
             ).fetchone()
             return dict(row) if row is not None else None
 
-    def fail_running(self, message: str) -> int:
+    def fail_running(
+        self,
+        message: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
@@ -396,33 +419,52 @@ class BotRunRepository:
                 SET finished_at = CURRENT_TIMESTAMP,
                     status = 'failed',
                     message = ?
-                WHERE status = 'running'
+                WHERE profile_id = ? AND status = 'running'
                 """,
-                (message,),
+                (message, profile_context.id),
             )
             return int(cursor.rowcount)
 
-    def recent(self, limit: int = 10) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 10,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, job_id, started_at, finished_at, status, dry_run, message
+                SELECT id, profile_id, job_id, started_at, finished_at, status, dry_run, message
                 FROM bot_runs
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def delete_dry_run_records(self) -> dict[str, int]:
+    def delete_dry_run_records(
+        self,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> dict[str, int]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             dry_run_ids = [
                 int(row["id"])
-                for row in connection.execute("SELECT id FROM bot_runs WHERE dry_run = 1").fetchall()
+                for row in connection.execute(
+                    "SELECT id FROM bot_runs WHERE profile_id = ? AND dry_run = 1",
+                    (profile_context.id,),
+                ).fetchall()
             ]
-            offer_cursor = connection.execute("DELETE FROM loan_offers WHERE dry_run = 1")
-            history_cursor = connection.execute("DELETE FROM lending_history WHERE dry_run = 1")
+            offer_cursor = connection.execute(
+                "DELETE FROM loan_offers WHERE profile_id = ? AND dry_run = 1",
+                (profile_context.id,),
+            )
+            history_cursor = connection.execute(
+                "DELETE FROM lending_history WHERE profile_id = ? AND dry_run = 1",
+                (profile_context.id,),
+            )
             if not dry_run_ids:
                 return {
                     "deleted_dry_run_offers": int(offer_cursor.rowcount),
@@ -434,16 +476,16 @@ class BotRunRepository:
 
             placeholders = ",".join("?" for _ in dry_run_ids)
             step_cursor = connection.execute(
-                f"DELETE FROM bot_run_steps WHERE bot_run_id IN ({placeholders})",
-                dry_run_ids,
+                f"DELETE FROM bot_run_steps WHERE profile_id = ? AND bot_run_id IN ({placeholders})",
+                (profile_context.id, *dry_run_ids),
             )
             decision_cursor = connection.execute(
-                f"DELETE FROM bot_run_decisions WHERE bot_run_id IN ({placeholders})",
-                dry_run_ids,
+                f"DELETE FROM bot_run_decisions WHERE profile_id = ? AND bot_run_id IN ({placeholders})",
+                (profile_context.id, *dry_run_ids),
             )
             run_cursor = connection.execute(
-                f"DELETE FROM bot_runs WHERE id IN ({placeholders})",
-                dry_run_ids,
+                f"DELETE FROM bot_runs WHERE profile_id = ? AND id IN ({placeholders})",
+                (profile_context.id, *dry_run_ids),
             )
             return {
                 "deleted_dry_run_offers": int(offer_cursor.rowcount),
@@ -615,11 +657,17 @@ class BotRunDecisionRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def add(self, decision: dict[str, object]) -> int:
+    def add(
+        self,
+        decision: dict[str, object],
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO bot_run_decisions (
+                    profile_id,
                     bot_run_id,
                     currency,
                     balance,
@@ -636,9 +684,10 @@ class BotRunDecisionRepository:
                     offer_count,
                     offers_json,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    profile_context.id,
                     decision["bot_run_id"],
                     decision["currency"],
                     decision["balance"],
@@ -659,12 +708,18 @@ class BotRunDecisionRepository:
             )
             return int(cursor.lastrowid)
 
-    def for_run(self, bot_run_id: int) -> list[dict[str, object]]:
+    def for_run(
+        self,
+        bot_run_id: int,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
                 SELECT
                     id,
+                    profile_id,
                     bot_run_id,
                     currency,
                     balance,
@@ -683,10 +738,10 @@ class BotRunDecisionRepository:
                     reason,
                     created_at
                 FROM bot_run_decisions
-                WHERE bot_run_id = ?
+                WHERE profile_id = ? AND bot_run_id = ?
                 ORDER BY currency
                 """,
-                (bot_run_id,),
+                (profile_context.id, bot_run_id),
             ).fetchall()
             decisions = []
             for row in rows:
@@ -700,14 +755,21 @@ class BotRunStepRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def start(self, bot_run_id: int, step_key: str, label: str) -> int:
+    def start(
+        self,
+        bot_run_id: int,
+        step_key: str,
+        label: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO bot_run_steps (bot_run_id, step_key, label, status, message)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO bot_run_steps (profile_id, bot_run_id, step_key, label, status, message)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (bot_run_id, step_key, label, "running", ""),
+                (profile_context.id, bot_run_id, step_key, label, "running", ""),
             )
             return int(cursor.lastrowid)
 
@@ -724,21 +786,33 @@ class BotRunStepRepository:
                 (status, message, step_id),
             )
 
-    def record_completed(self, bot_run_id: int, step_key: str, label: str, message: str = "") -> int:
-        step_id = self.start(bot_run_id, step_key, label)
+    def record_completed(
+        self,
+        bot_run_id: int,
+        step_key: str,
+        label: str,
+        message: str = "",
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        step_id = self.start(bot_run_id, step_key, label, profile_context=profile_context)
         self.finish(step_id, message=message)
         return step_id
 
-    def for_run(self, bot_run_id: int) -> list[dict[str, object]]:
+    def for_run(
+        self,
+        bot_run_id: int,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, bot_run_id, step_key, label, status, started_at, finished_at, message
+                SELECT id, profile_id, bot_run_id, step_key, label, status, started_at, finished_at, message
                 FROM bot_run_steps
-                WHERE bot_run_id = ?
+                WHERE profile_id = ? AND bot_run_id = ?
                 ORDER BY id
                 """,
-                (bot_run_id,),
+                (profile_context.id, bot_run_id),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -747,28 +821,40 @@ class NotificationStateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def get_float(self, key: str) -> float | None:
+    def get_float(
+        self,
+        key: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> float | None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
-                "SELECT value FROM notification_state WHERE key = ?",
-                (key,),
+                "SELECT value FROM notification_state WHERE profile_id = ? AND key = ?",
+                (profile_context.id, key),
             ).fetchone()
             if row is None:
                 return None
 
             return float(row["value"])
 
-    def set_float(self, key: str, value: float) -> None:
+    def set_float(
+        self,
+        key: str,
+        value: float,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             connection.execute(
                 """
-                INSERT INTO notification_state (key, value, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO notification_state (profile_id, key, value, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(key) DO UPDATE SET
+                    profile_id = excluded.profile_id,
                     value = excluded.value,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (key, str(value)),
+                (profile_context.id, key, str(value)),
             )
 
 
@@ -776,11 +862,20 @@ class LoanOfferRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def add(self, bot_run_id: int, offer: LoanOffer, status: str, dry_run: bool) -> int:
+    def add(
+        self,
+        bot_run_id: int,
+        offer: LoanOffer,
+        status: str,
+        dry_run: bool,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO loan_offers (
+                    profile_id,
                     bot_run_id,
                     currency,
                     amount,
@@ -790,9 +885,10 @@ class LoanOfferRepository:
                     dry_run,
                     external_offer_id,
                     message
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    profile_context.id,
                     bot_run_id,
                     offer.currency,
                     offer.amount,
@@ -825,30 +921,45 @@ class LoanOfferRepository:
                 (status, external_offer_id, message, loan_offer_id),
             )
 
-    def count(self) -> int:
-        with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM loan_offers").fetchone()
-            return int(row["count"])
-
-    def count_by_status(self, status: str) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
-                "SELECT COUNT(*) AS count FROM loan_offers WHERE status = ?",
-                (status,),
+                "SELECT COUNT(*) AS count FROM loan_offers WHERE profile_id = ?",
+                (profile_context.id,),
             ).fetchone()
             return int(row["count"])
 
-    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+    def count_by_status(
+        self,
+        status: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM loan_offers WHERE profile_id = ? AND status = ?",
+                (profile_context.id, status),
+            ).fetchone()
+            return int(row["count"])
+
+    def recent(
+        self,
+        limit: int = 20,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, bot_run_id, currency, amount, daily_rate, duration_days,
+                SELECT id, profile_id, bot_run_id, currency, amount, daily_rate, duration_days,
                        status, dry_run, external_offer_id, message, created_at
                 FROM loan_offers
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -856,43 +967,63 @@ class MarketRateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def add(self, order: LoanOrder) -> int:
+    def add(
+        self,
+        order: LoanOrder,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO market_rates (currency, daily_rate, available_amount)
-                VALUES (?, ?, ?)
+                INSERT INTO market_rates (profile_id, currency, daily_rate, available_amount)
+                VALUES (?, ?, ?, ?)
                 """,
-                (order.currency, order.daily_rate, order.amount),
+                (profile_context.id, order.currency, order.daily_rate, order.amount),
             )
             return int(cursor.lastrowid)
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM market_rates").fetchone()
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM market_rates WHERE profile_id = ?",
+                (profile_context.id,),
+            ).fetchone()
             return int(row["count"])
 
-    def delete_older_than_days(self, days: int) -> int:
+    def delete_older_than_days(
+        self,
+        days: int,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
                 DELETE FROM market_rates
-                WHERE captured_at < datetime('now', ?)
+                WHERE profile_id = ? AND captured_at < datetime('now', ?)
                 """,
-                (f"-{days} days",),
+                (profile_context.id, f"-{days} days"),
             )
             return int(cursor.rowcount)
 
-    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 20,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, currency, daily_rate, available_amount, captured_at
+                SELECT id, profile_id, currency, daily_rate, available_amount, captured_at
                 FROM market_rates
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -901,56 +1032,80 @@ class MarketAnalysisRateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def add_many(self, orders: list[LoanOrder]) -> int:
+    def add_many(
+        self,
+        orders: list[LoanOrder],
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.executemany(
                 """
                 INSERT INTO market_analysis_rates (
+                    profile_id,
                     currency,
                     level,
                     daily_rate,
                     available_amount
-                ) VALUES (?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?)
                 """,
                 [
-                    (order.currency, index, order.daily_rate, order.amount)
+                    (profile_context.id, order.currency, index, order.daily_rate, order.amount)
                     for index, order in enumerate(orders)
                 ],
             )
             return int(cursor.rowcount)
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
-                "SELECT COUNT(*) AS count FROM market_analysis_rates"
+                "SELECT COUNT(*) AS count FROM market_analysis_rates WHERE profile_id = ?",
+                (profile_context.id,),
             ).fetchone()
             return int(row["count"])
 
-    def delete_older_than_days(self, days: int) -> int:
+    def delete_older_than_days(
+        self,
+        days: int,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
                 DELETE FROM market_analysis_rates
-                WHERE captured_at < datetime('now', ?)
+                WHERE profile_id = ? AND captured_at < datetime('now', ?)
                 """,
-                (f"-{days} days",),
+                (profile_context.id, f"-{days} days"),
             )
             return int(cursor.rowcount)
 
-    def recent(self, limit: int = 50) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 50,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, currency, level, daily_rate, available_amount, captured_at
+                SELECT id, profile_id, currency, level, daily_rate, available_amount, captured_at
                 FROM market_analysis_rates
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def stats_by_currency(self, max_age_seconds: int = 0) -> dict[str, dict[str, object]]:
+    def stats_by_currency(
+        self,
+        max_age_seconds: int = 0,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> dict[str, dict[str, object]]:
+        ensure_default_profile(profile_context)
         stale_expression = "0"
         stale_params: tuple[str, ...] = ()
         if max_age_seconds > 0:
@@ -967,10 +1122,11 @@ class MarketAnalysisRateRepository:
                     MAX(captured_at) AS latest_captured_at,
                     {stale_expression} AS is_stale
                 FROM market_analysis_rates
+                WHERE profile_id = ?
                 GROUP BY currency
                 ORDER BY currency
                 """,
-                stale_params,
+                (profile_context.id, *stale_params),
             ).fetchall()
             return {str(row["currency"]): dict(row) for row in rows}
 
@@ -980,17 +1136,19 @@ class MarketAnalysisRateRepository:
         percentile: float,
         min_samples: int = 0,
         max_age_seconds: int = 0,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> float | None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 f"""
                 SELECT daily_rate
                 FROM market_analysis_rates
-                WHERE currency = ?
+                WHERE profile_id = ? AND currency = ?
                   {_max_age_filter(max_age_seconds)}
                 ORDER BY daily_rate
                 """,
-                (currency.upper(),),
+                (profile_context.id, currency.upper()),
             ).fetchall()
             rates = [float(row["daily_rate"]) for row in rows]
             if len(rates) < max(min_samples, 1):
@@ -1008,19 +1166,21 @@ class MarketAnalysisRateRepository:
         multiplier: float = 1.0,
         min_samples: int = 0,
         max_age_seconds: int = 0,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> float | None:
+        ensure_default_profile(profile_context)
         sample_count = max(short_samples, long_samples, min_samples, 1)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 f"""
                 SELECT daily_rate
                 FROM market_analysis_rates
-                WHERE currency = ? AND level = 0
+                WHERE profile_id = ? AND currency = ? AND level = 0
                   {_max_age_filter(max_age_seconds)}
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (currency.upper(), sample_count),
+                (profile_context.id, currency.upper(), sample_count),
             ).fetchall()
             rates = [float(row["daily_rate"]) for row in rows]
             if len(rates) < sample_count:
@@ -1040,18 +1200,22 @@ class MarketAnalysisRateRepository:
         multiplier: float = 1.0,
         min_samples: int = 0,
         max_age_seconds: int = 0,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> float | None:
         if short_seconds <= 0 or long_seconds <= 0:
             return None
+        ensure_default_profile(profile_context)
 
         with connect(self._database_url) as connection:
             short_rates = self._rates_since_seconds(
                 connection,
+                profile_context.id,
                 currency,
                 _bounded_seconds(short_seconds, max_age_seconds),
             )
             long_rates = self._rates_since_seconds(
                 connection,
+                profile_context.id,
                 currency,
                 _bounded_seconds(long_seconds, max_age_seconds),
             )
@@ -1067,36 +1231,39 @@ class MarketAnalysisRateRepository:
         currency: str,
         limit: int,
         max_age_seconds: int = 0,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> list[float]:
         if limit <= 0:
             return []
+        ensure_default_profile(profile_context)
 
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 f"""
                 SELECT daily_rate
                 FROM market_analysis_rates
-                WHERE currency = ? AND level = 0
+                WHERE profile_id = ? AND currency = ? AND level = 0
                   {_max_age_filter(max_age_seconds)}
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (currency.upper(), limit),
+                (profile_context.id, currency.upper(), limit),
             ).fetchall()
             return [float(row["daily_rate"]) for row in rows]
 
     @staticmethod
-    def _rates_since_seconds(connection, currency: str, seconds: int) -> list[float]:
+    def _rates_since_seconds(connection, profile_id: str, currency: str, seconds: int) -> list[float]:
         rows = connection.execute(
             """
             SELECT daily_rate
             FROM market_analysis_rates
-            WHERE currency = ?
+            WHERE profile_id = ?
+              AND currency = ?
               AND level = 0
               AND captured_at >= datetime('now', ?)
             ORDER BY id DESC
             """,
-            (currency.upper(), f"-{seconds} seconds"),
+            (profile_id, currency.upper(), f"-{seconds} seconds"),
         ).fetchall()
         return [float(row["daily_rate"]) for row in rows]
 
@@ -1119,21 +1286,28 @@ class ActiveLoanRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def replace_all(self, active_loans: list[ActiveLoan]) -> None:
+    def replace_all(
+        self,
+        active_loans: list[ActiveLoan],
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            connection.execute("DELETE FROM active_loans")
+            connection.execute("DELETE FROM active_loans WHERE profile_id = ?", (profile_context.id,))
             connection.executemany(
                 """
                 INSERT INTO active_loans (
+                    profile_id,
                     currency,
                     amount,
                     daily_rate,
                     duration_days,
                     external_loan_id
-                ) VALUES (?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
+                        profile_context.id,
                         active_loan.currency,
                         active_loan.amount,
                         active_loan.daily_rate,
@@ -1144,22 +1318,32 @@ class ActiveLoanRepository:
                 ],
             )
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM active_loans").fetchone()
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM active_loans WHERE profile_id = ?",
+                (profile_context.id,),
+            ).fetchone()
             return int(row["count"])
 
-    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 20,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, currency, amount, daily_rate, duration_days,
+                SELECT id, profile_id, currency, amount, daily_rate, duration_days,
                        external_loan_id, captured_at
                 FROM active_loans
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -1168,11 +1352,19 @@ class LendingHistoryRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def upsert_many(self, entries: list[LendingHistoryEntry], dry_run: bool = False, source: str = "exchange") -> int:
+    def upsert_many(
+        self,
+        entries: list[LendingHistoryEntry],
+        dry_run: bool = False,
+        source: str = "exchange",
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.executemany(
                 """
                 INSERT OR REPLACE INTO lending_history (
+                    profile_id,
                     external_entry_id,
                     currency,
                     amount,
@@ -1185,10 +1377,11 @@ class LendingHistoryRepository:
                     closed_at,
                     dry_run,
                     source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
+                        profile_context.id,
                         entry.external_entry_id,
                         entry.currency,
                         entry.amount,
@@ -1207,26 +1400,40 @@ class LendingHistoryRepository:
             )
             return int(cursor.rowcount)
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM lending_history").fetchone()
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM lending_history WHERE profile_id = ?",
+                (profile_context.id,),
+            ).fetchone()
             return int(row["count"])
 
-    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 20,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, external_entry_id, currency, amount, daily_rate, duration_days,
+                SELECT id, profile_id, external_entry_id, currency, amount, daily_rate, duration_days,
                        interest, fee, earned, opened_at, closed_at, dry_run, source, synced_at
                 FROM lending_history
+                WHERE profile_id = ?
                 ORDER BY closed_at DESC, id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def earnings_summary_by_currency(self) -> list[dict[str, object]]:
+    def earnings_summary_by_currency(
+        self,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
@@ -1240,9 +1447,11 @@ class LendingHistoryRepository:
                     dry_run,
                     source
                 FROM lending_history
+                WHERE profile_id = ?
                 GROUP BY currency, dry_run, source
                 ORDER BY dry_run, currency, source
-                """
+                """,
+                (profile_context.id,),
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -1251,21 +1460,28 @@ class OpenLoanOfferRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def replace_all(self, offers: list[LoanOffer]) -> None:
+    def replace_all(
+        self,
+        offers: list[LoanOffer],
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            connection.execute("DELETE FROM open_loan_offers")
+            connection.execute("DELETE FROM open_loan_offers WHERE profile_id = ?", (profile_context.id,))
             connection.executemany(
                 """
                 INSERT INTO open_loan_offers (
+                    profile_id,
                     currency,
                     amount,
                     daily_rate,
                     duration_days,
                     external_offer_id
-                ) VALUES (?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
+                        profile_context.id,
                         offer.currency,
                         offer.amount,
                         offer.daily_rate,
@@ -1276,42 +1492,62 @@ class OpenLoanOfferRepository:
                 ],
             )
 
-    def count(self) -> int:
+    def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
-            row = connection.execute("SELECT COUNT(*) AS count FROM open_loan_offers").fetchone()
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM open_loan_offers WHERE profile_id = ?",
+                (profile_context.id,),
+            ).fetchone()
             return int(row["count"])
 
-    def recent(self, limit: int = 20) -> list[dict[str, object]]:
+    def recent(
+        self,
+        limit: int = 20,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, currency, amount, daily_rate, duration_days,
+                SELECT id, profile_id, currency, amount, daily_rate, duration_days,
                        external_offer_id, captured_at
                 FROM open_loan_offers
+                WHERE profile_id = ?
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def find_by_external_offer_id(self, external_offer_id: str) -> dict[str, object] | None:
+    def find_by_external_offer_id(
+        self,
+        external_offer_id: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> dict[str, object] | None:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             row = connection.execute(
                 """
-                SELECT id, currency, amount, daily_rate, duration_days,
+                SELECT id, profile_id, currency, amount, daily_rate, duration_days,
                        external_offer_id, captured_at
                 FROM open_loan_offers
-                WHERE external_offer_id = ?
+                WHERE profile_id = ? AND external_offer_id = ?
                 """,
-                (external_offer_id,),
+                (profile_context.id, external_offer_id),
             ).fetchone()
             return dict(row) if row is not None else None
 
-    def delete_by_external_offer_id(self, external_offer_id: str) -> int:
+    def delete_by_external_offer_id(
+        self,
+        external_offer_id: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             cursor = connection.execute(
-                "DELETE FROM open_loan_offers WHERE external_offer_id = ?",
-                (external_offer_id,),
+                "DELETE FROM open_loan_offers WHERE profile_id = ? AND external_offer_id = ?",
+                (profile_context.id, external_offer_id),
             )
             return int(cursor.rowcount)

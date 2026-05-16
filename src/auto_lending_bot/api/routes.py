@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from ipaddress import ip_address
 import threading
@@ -50,6 +51,13 @@ class _SettingsProxy:
         return getattr(self._provider(), name)
 
 
+@dataclass(frozen=True)
+class _RuntimeControllers:
+    profile_context: BotProfileContext
+    bot_loop: "_BotLoopController"
+    market_analysis_collection: "_MarketAnalysisCollectionController"
+
+
 def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     settings = _SettingsProxy(settings) if callable(settings) else settings
     router = APIRouter()
@@ -64,7 +72,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
     notification_state = NotificationStateRepository(settings.database_url)
-    loop_controller = _BotLoopController(
+    runtime = _create_runtime_controllers(
         settings=settings,
         bot_runs=bot_runs,
         loan_offers=loan_offers,
@@ -76,10 +84,6 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         market_rates=market_rates,
         bot_run_decisions=bot_run_decisions,
         bot_run_steps=bot_run_steps,
-    )
-    market_collection_controller = _MarketAnalysisCollectionController(
-        settings=settings,
-        market_analysis_rates=market_analysis_rates,
     )
 
     @router.get("/settings/schema")
@@ -175,14 +179,14 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def status() -> dict[str, object]:
         return {
             "label": settings.bot_label,
-            "profile": DEFAULT_PROFILE_CONTEXT.as_dict(),
+            "profile": runtime.profile_context.as_dict(),
             "database": str(sqlite_path_from_url(settings.database_url)),
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
             "live_trading_allowed": settings.allow_live_trading,
             "settings_runtime": _settings_runtime(settings),
-            "bot_loop": loop_controller.status(),
-            "market_analysis_collection": market_collection_controller.status(),
+            "bot_loop": runtime.bot_loop.status(),
+            "market_analysis_collection": runtime.market_analysis_collection.status(),
             "counts": {
                 "bot_runs": bot_runs.count(),
                 "loan_offers": loan_offers.count(),
@@ -201,11 +205,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/bot-loop")
     def bot_loop_status() -> dict[str, object]:
-        return loop_controller.status()
+        return runtime.bot_loop.status()
 
     @router.get("/market-analysis-collection")
     def market_analysis_collection_status() -> dict[str, object]:
-        return market_collection_controller.status()
+        return runtime.market_analysis_collection.status()
 
     @router.get("/runs")
     def runs() -> list[dict[str, object]]:
@@ -269,7 +273,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         )
         return {
             "label": settings.bot_label,
-            "profile": DEFAULT_PROFILE_CONTEXT.as_dict(),
+            "profile": runtime.profile_context.as_dict(),
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
             "allow_live_trading": settings.allow_live_trading,
@@ -424,7 +428,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         return {
             "action": "start-market-analysis",
             "ok": True,
-            **market_collection_controller.start(),
+            **runtime.market_analysis_collection.start(),
         }
 
     @router.post("/actions/stop-market-analysis")
@@ -432,7 +436,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         return {
             "action": "stop-market-analysis",
             "ok": True,
-            **market_collection_controller.stop(),
+            **runtime.market_analysis_collection.stop(),
         }
 
     @router.post("/actions/cancel-open-offers")
@@ -490,7 +494,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
         _require_admin(authorization, request)
-        if loop_controller.status()["running"]:
+        if runtime.bot_loop.status()["running"]:
             raise HTTPException(status_code=409, detail="Stop the bot loop before resetting dry-run records.")
         deleted_counts = bot_runs.delete_dry_run_records()
         return {
@@ -556,11 +560,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live loop requires confirm_live=true.")
 
-        return {"action": "start-loop", "ok": True, **loop_controller.start()}
+        return {"action": "start-loop", "ok": True, **runtime.bot_loop.start()}
 
     @router.post("/actions/stop-loop")
     def stop_loop() -> dict[str, object]:
-        return {"action": "stop-loop", "ok": True, **loop_controller.stop()}
+        return {"action": "stop-loop", "ok": True, **runtime.bot_loop.stop()}
 
     return router
 
@@ -569,6 +573,7 @@ class _BotLoopController:
     def __init__(
         self,
         settings: Settings,
+        profile_context: BotProfileContext,
         bot_runs: BotRunRepository,
         loan_offers: LoanOfferRepository,
         active_loans: ActiveLoanRepository,
@@ -581,6 +586,7 @@ class _BotLoopController:
         bot_run_steps: BotRunStepRepository,
     ) -> None:
         self._settings = settings
+        self._profile_context = profile_context
         self._bot_runs = bot_runs
         self._loan_offers = loan_offers
         self._active_loans = active_loans
@@ -650,6 +656,7 @@ class _BotLoopController:
                     market_rates=self._market_rates,
                     bot_run_decisions=self._bot_run_decisions,
                     bot_run_steps=self._bot_run_steps,
+                    profile_context=self._profile_context,
                 )
                 created_offers = runner.run_once_with_retry()
                 wait_seconds = self._sleep_seconds(created_offers)
@@ -746,6 +753,43 @@ class _MarketAnalysisCollectionController:
             self._stop_event.wait(wait_seconds)
 
 
+def _create_runtime_controllers(
+    settings: Settings,
+    bot_runs: BotRunRepository,
+    loan_offers: LoanOfferRepository,
+    active_loans: ActiveLoanRepository,
+    open_offers: OpenLoanOfferRepository,
+    lending_history: LendingHistoryRepository,
+    notification_state: NotificationStateRepository,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    market_rates: MarketRateRepository,
+    bot_run_decisions: BotRunDecisionRepository,
+    bot_run_steps: BotRunStepRepository,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> _RuntimeControllers:
+    return _RuntimeControllers(
+        profile_context=profile_context,
+        bot_loop=_BotLoopController(
+            settings=settings,
+            profile_context=profile_context,
+            bot_runs=bot_runs,
+            loan_offers=loan_offers,
+            active_loans=active_loans,
+            open_offers=open_offers,
+            lending_history=lending_history,
+            notification_state=notification_state,
+            market_analysis_rates=market_analysis_rates,
+            market_rates=market_rates,
+            bot_run_decisions=bot_run_decisions,
+            bot_run_steps=bot_run_steps,
+        ),
+        market_analysis_collection=_MarketAnalysisCollectionController(
+            settings=settings,
+            market_analysis_rates=market_analysis_rates,
+        ),
+    )
+
+
 def _validate_safe_action_settings(settings: Settings) -> None:
     try:
         validate_run_settings(settings)
@@ -765,6 +809,7 @@ def _create_runner(
     market_rates: MarketRateRepository,
     bot_run_decisions: BotRunDecisionRepository,
     bot_run_steps: BotRunStepRepository,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> BotRunner:
     return create_bot_runner(
         settings,
@@ -780,6 +825,7 @@ def _create_runner(
             decision_snapshots=bot_run_decisions,
             run_steps=bot_run_steps,
         ),
+        profile_context=profile_context,
     )
 
 

@@ -29,6 +29,7 @@ from auto_lending_bot.safety import (
     validate_transfer_limits,
     validate_transfer_settings,
 )
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 
 
 def main() -> None:
@@ -39,7 +40,10 @@ def run_cli(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     base_settings = load_settings()
-    settings = load_effective_settings(base_settings.database_url)
+    settings = load_effective_settings(
+        base_settings.database_url,
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
 
     if args.command == "init-db":
         initialize_database(settings.database_url)
@@ -319,7 +323,10 @@ def _run_bot_with_reloaded_settings(initial_settings: Settings) -> None:
             created_offers = _create_runner(settings).run_once_with_retry()
             loops_completed += 1
 
-            settings = load_effective_settings(database_url)
+            settings = load_effective_settings(
+                database_url,
+                profile_context=DEFAULT_PROFILE_CONTEXT,
+            )
             if settings.max_loops <= 0 or loops_completed < settings.max_loops:
                 time.sleep(_sleep_seconds(settings, created_offers))
     except KeyboardInterrupt:

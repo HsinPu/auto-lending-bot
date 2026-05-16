@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from auto_lending_bot.api.routes import create_api_router
 from auto_lending_bot.config import Settings, load_effective_settings, load_settings
 from auto_lending_bot.persistence.database import initialize_database
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -13,7 +14,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     if settings is None:
         app.include_router(
-            create_api_router(lambda: load_effective_settings(resolved_settings.database_url)),
+            create_api_router(
+                lambda: load_effective_settings(
+                    resolved_settings.database_url,
+                    profile_context=DEFAULT_PROFILE_CONTEXT,
+                )
+            ),
             prefix="/api",
         )
     else:

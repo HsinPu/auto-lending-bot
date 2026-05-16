@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from auto_lending_bot.domain.strategy import StrategyConfig
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
 
 try:
     from dotenv import load_dotenv
@@ -186,7 +187,12 @@ def load_settings() -> Settings:
     )
 
 
-def load_effective_settings(database_url: str | None = None, encryption_key: str | None = None) -> Settings:
+def load_effective_settings(
+    database_url: str | None = None,
+    encryption_key: str | None = None,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> Settings:
+    ensure_default_profile(profile_context)
     base_settings = load_settings()
     resolved_database_url = database_url or base_settings.database_url
     from auto_lending_bot.persistence.repository import AppSettingRepository

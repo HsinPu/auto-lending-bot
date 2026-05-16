@@ -1,6 +1,7 @@
 from auto_lending_bot.config import load_effective_settings, load_settings, strategy_config_for
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import AppSettingRepository
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 
 
 def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
@@ -184,7 +185,7 @@ def test_load_effective_settings_uses_database_overrides(tmp_path, monkeypatch) 
         {"BOT_LABEL": "DB Bot", "DISPLAY_TIMEZONE": "Asia/Taipei"}
     )
 
-    settings = load_effective_settings(database_url)
+    settings = load_effective_settings(database_url, profile_context=DEFAULT_PROFILE_CONTEXT)
 
     assert settings.bot_label == "DB Bot"
     assert settings.display_timezone == "Asia/Taipei"

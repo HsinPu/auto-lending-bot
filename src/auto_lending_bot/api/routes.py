@@ -20,8 +20,8 @@ from auto_lending_bot.config import (
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
+from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
-from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
@@ -80,6 +80,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     open_offers = repositories.open_offers
     notification_state = repositories.notification_state
     maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
+    exchange_actions = ExchangeActionService(settings=settings, repositories=repositories)
     dashboard_reads = DashboardReadService(
         DashboardRepositories(
             bot_runs=bot_runs,
@@ -358,14 +359,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def transfer_preview() -> dict[str, object]:
         _validate_transfer_action_settings(settings)
         exchange = create_exchange_client(settings)
-        previews = _transfer_previews(settings, exchange)
-        return {
-            "action": "transfer-preview",
-            "ok": True,
-            "dry_run": True,
-            "transfer_count": len(previews),
-            "transfers": [preview.__dict__ for preview in previews],
-        }
+        return exchange_actions.transfer_preview_response(
+            exchange_actions.transfer_previews(exchange)
+        )
 
     @router.post("/actions/transfer-funds")
     def transfer_funds(
@@ -380,27 +376,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             raise HTTPException(status_code=400, detail="Live transfer requires confirm_live=true.")
 
         exchange = create_exchange_client(settings)
-        previews = _transfer_previews(settings, exchange)
+        previews = exchange_actions.transfer_previews(exchange)
         _validate_transfer_limits(settings, previews)
-        if settings.dry_run:
-            return {
-                "action": "transfer-funds",
-                "ok": True,
-                "dry_run": True,
-                "transferred_count": 0,
-                "would_transfer_count": len(previews),
-                "transfers": [preview.__dict__ for preview in previews],
-            }
-
-        results = execute_transfers(exchange, previews)
-        return {
-            "action": "transfer-funds",
-            "ok": True,
-            "dry_run": False,
-            "transferred_count": len(results),
-            "would_transfer_count": len(previews),
-            "transfers": [result.__dict__ for result in results],
-        }
+        return exchange_actions.transfer_funds_response(exchange, previews)
 
     @router.post("/actions/record-market-analysis")
     def record_market_analysis(payload: dict[str, object] | None = None) -> dict[str, object]:
@@ -443,26 +421,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
 
-        exchange = create_exchange_client(settings)
-        offers = exchange.get_open_loan_offers()
-        if settings.dry_run:
-            return {
-                "action": "cancel-open-offers",
-                "ok": True,
-                "dry_run": True,
-                "would_cancel_count": len(offers),
-                "canceled_count": 0,
-            }
-
-        canceled_count = _cancel_open_offers(exchange, offers)
-        open_offers.replace_all([])
-        return {
-            "action": "cancel-open-offers",
-            "ok": True,
-            "dry_run": False,
-            "would_cancel_count": len(offers),
-            "canceled_count": canceled_count,
-        }
+        return exchange_actions.cancel_open_offers_response(create_exchange_client(settings))
 
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
@@ -899,25 +858,6 @@ def _readiness_section(items: list[dict[str, object]]) -> dict[str, object]:
         "items": items,
         "missing": missing,
     }
-
-
-def _cancel_open_offers(exchange, offers: list[object]) -> int:
-    canceled_count = 0
-    for offer in offers:
-        external_offer_id = getattr(offer, "external_offer_id", None)
-        if not external_offer_id:
-            continue
-        exchange.cancel_loan_offer(str(external_offer_id))
-        canceled_count += 1
-    return canceled_count
-
-
-def _transfer_previews(settings: Settings, exchange) -> list:
-    return build_transfer_preview(
-        exchange_balances=exchange.get_exchange_balances(),
-        lending_balances=exchange.get_lending_balances(),
-        transferable_currencies=settings.transferable_currencies,
-    )
 
 
 def _suggested_min_daily_rate(

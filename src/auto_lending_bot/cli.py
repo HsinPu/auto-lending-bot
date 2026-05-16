@@ -8,11 +8,10 @@ from auto_lending_bot.api.app import create_app
 from auto_lending_bot.bot.factory import create_default_bot_runner
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, load_effective_settings, load_settings, sqlite_path_from_url
-from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
+from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
-from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
 from auto_lending_bot.safety import (
@@ -38,6 +37,7 @@ def run_cli(argv: list[str] | None = None) -> int:
     )
     repositories = create_repository_bundle(settings)
     maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
+    exchange_actions = ExchangeActionService(settings=settings, repositories=repositories)
 
     if args.command == "init-db":
         initialize_database(settings.database_url)
@@ -94,7 +94,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         exchange = create_exchange_client(settings)
-        previews = _transfer_previews(settings, exchange)
+        previews = exchange_actions.transfer_previews(exchange)
         if not previews:
             print("No exchange balances match TRANSFERABLE_CURRENCIES.")
             return 0
@@ -117,7 +117,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         exchange = create_exchange_client(settings)
-        previews = _transfer_previews(settings, exchange)
+        previews = exchange_actions.transfer_previews(exchange)
         try:
             validate_transfer_limits(settings, previews)
         except SafetyError as error:
@@ -128,8 +128,8 @@ def run_cli(argv: list[str] | None = None) -> int:
             print(f"Dry run: would transfer {len(previews)} balance(s).")
             return 0
 
-        results = execute_transfers(exchange, previews)
-        print(f"Transferred {len(results)} balance(s) to lending wallet.")
+        result = exchange_actions.transfer_funds_response(exchange, previews)
+        print(f"Transferred {result['transferred_count']} balance(s) to lending wallet.")
         return 0
 
     if args.command == "record-market-analysis":
@@ -165,14 +165,12 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         initialize_database(settings.database_url)
         exchange = create_exchange_client(settings)
-        offers = exchange.get_open_loan_offers()
-        if settings.dry_run:
-            print(f"Dry run: would cancel {len(offers)} open loan offer(s).")
+        result = exchange_actions.cancel_open_offers_response(exchange)
+        if result["dry_run"]:
+            print(f"Dry run: would cancel {result['would_cancel_count']} open loan offer(s).")
             return 0
 
-        canceled_count = _cancel_open_offers(exchange, offers)
-        repositories.open_offers.replace_all([])
-        print(f"Canceled {canceled_count} open loan offer(s).")
+        print(f"Canceled {result['canceled_count']} open loan offer(s).")
         return 0
 
     if args.command == "smoke-exchange":
@@ -253,24 +251,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Required when BOT_DRY_RUN=false because real exchange offers will be canceled.",
     )
     return parser
-
-
-def _cancel_open_offers(exchange, offers: list[LoanOffer]) -> int:
-    canceled_count = 0
-    for offer in offers:
-        if not offer.external_offer_id:
-            continue
-        exchange.cancel_loan_offer(offer.external_offer_id)
-        canceled_count += 1
-    return canceled_count
-
-
-def _transfer_previews(settings: Settings, exchange) -> list:
-    return build_transfer_preview(
-        exchange_balances=exchange.get_exchange_balances(),
-        lending_balances=exchange.get_lending_balances(),
-        transferable_currencies=settings.transferable_currencies,
-    )
 
 
 def _create_runner(settings: Settings) -> BotRunner:

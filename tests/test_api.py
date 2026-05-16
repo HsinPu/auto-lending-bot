@@ -42,6 +42,8 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
     }
     assert body["bot_loop"] == {
         "running": False,
+        "bot_job_id": None,
+        "bot_job": None,
         "started_at": None,
         "last_run_at": None,
         "loops_completed": 0,
@@ -761,10 +763,15 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
 
     with connect(database_url) as connection:
         job = connection.execute(
-            "SELECT profile_id, status, settings_snapshot_json FROM bot_jobs"
+            """
+            SELECT profile_id, status, loops_completed, last_run_id, settings_snapshot_json
+            FROM bot_jobs
+            """
         ).fetchone()
     assert job["profile_id"] == "default"
-    assert job["status"] == "running"
+    assert job["status"] == "stopped"
+    assert int(job["loops_completed"]) >= 1
+    assert job["last_run_id"] is not None
     assert '"dry_run":true' in job["settings_snapshot_json"]
 
 

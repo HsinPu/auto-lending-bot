@@ -540,6 +540,8 @@ class _BotLoopController:
     def stop(self) -> dict[str, object]:
         with self._lock:
             self._stop_event.set()
+            if self._bot_job_id is not None:
+                self._bot_jobs.mark_stopping(self._bot_job_id)
             thread = self._thread
         if thread is not None and thread.is_alive():
             thread.join(timeout=2)
@@ -551,8 +553,11 @@ class _BotLoopController:
 
     def _status_unlocked(self) -> dict[str, object]:
         running = self._thread is not None and self._thread.is_alive()
+        bot_job = self._bot_jobs.get(self._bot_job_id) if self._bot_job_id is not None else None
         return {
             "running": running,
+            "bot_job_id": self._bot_job_id,
+            "bot_job": _public_bot_job(bot_job) if bot_job is not None else None,
             "started_at": self._started_at,
             "last_run_at": self._last_run_at,
             "loops_completed": self._loops_completed,
@@ -560,38 +565,50 @@ class _BotLoopController:
         }
 
     def _run_loop(self) -> None:
-        while not self._stop_event.is_set():
-            try:
-                job_settings = self._settings_for_current_job()
-                validate_run_settings(job_settings)
-                runner = _create_runner(
-                    settings=job_settings,
-                    bot_runs=self._bot_runs,
-                    loan_offers=self._loan_offers,
-                    active_loans=self._active_loans,
-                    open_offers=self._open_offers,
-                    lending_history=self._lending_history,
-                    notification_state=self._notification_state,
-                    market_analysis_rates=self._market_analysis_rates,
-                    market_rates=self._market_rates,
-                    bot_run_decisions=self._bot_run_decisions,
-                    bot_run_steps=self._bot_run_steps,
-                    profile_context=self._profile_context,
-                    bot_job_id=self._bot_job_id,
-                )
-                created_offers = runner.run_once_with_retry()
-                wait_seconds = self._sleep_seconds(job_settings, created_offers)
-                with self._lock:
-                    self._loops_completed += 1
-                    self._last_run_at = _utc_now()
-                    self._last_error = None
-            except Exception as error:
-                wait_seconds = max(self._settings.retry_backoff_seconds, 1)
-                with self._lock:
-                    self._last_error = str(error)
-                    self._last_run_at = _utc_now()
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    job_settings = self._settings_for_current_job()
+                    validate_run_settings(job_settings)
+                    runner = _create_runner(
+                        settings=job_settings,
+                        bot_runs=self._bot_runs,
+                        loan_offers=self._loan_offers,
+                        active_loans=self._active_loans,
+                        open_offers=self._open_offers,
+                        lending_history=self._lending_history,
+                        notification_state=self._notification_state,
+                        market_analysis_rates=self._market_analysis_rates,
+                        market_rates=self._market_rates,
+                        bot_run_decisions=self._bot_run_decisions,
+                        bot_run_steps=self._bot_run_steps,
+                        profile_context=self._profile_context,
+                        bot_job_id=self._bot_job_id,
+                    )
+                    created_offers = runner.run_once_with_retry()
+                    wait_seconds = self._sleep_seconds(job_settings, created_offers)
+                    with self._lock:
+                        self._loops_completed += 1
+                        self._last_run_at = _utc_now()
+                        self._last_error = None
+                        loops_completed = self._loops_completed
+                    self._record_job_loop(loops_completed, None)
+                except Exception as error:
+                    wait_seconds = max(self._settings.retry_backoff_seconds, 1)
+                    with self._lock:
+                        self._last_error = str(error)
+                        self._last_run_at = _utc_now()
+                        loops_completed = self._loops_completed
+                    self._record_job_loop(loops_completed, str(error))
 
-            self._stop_event.wait(wait_seconds)
+                self._stop_event.wait(wait_seconds)
+        except Exception as error:
+            if self._bot_job_id is not None:
+                self._bot_jobs.mark_failed(self._bot_job_id, str(error))
+            raise
+        finally:
+            if self._bot_job_id is not None:
+                self._bot_jobs.mark_stopped(self._bot_job_id)
 
     def _settings_for_current_job(self) -> Settings:
         bot_job_id = self._bot_job_id
@@ -603,6 +620,14 @@ class _BotLoopController:
             msg = f"Bot job {bot_job_id} was not found."
             raise RuntimeError(msg)
         return settings_from_snapshot_json(str(job["settings_snapshot_json"]))
+
+    def _record_job_loop(self, loops_completed: int, error: str | None) -> None:
+        bot_job_id = self._bot_job_id
+        if bot_job_id is None:
+            return
+        latest_run = self._bot_runs.latest_for_job(bot_job_id)
+        last_run_id = int(latest_run["id"]) if latest_run is not None else None
+        self._bot_jobs.record_loop(bot_job_id, loops_completed, last_run_id, error)
 
     def _sleep_seconds(self, settings: Settings, created_offers: int) -> int:
         if created_offers > 0:
@@ -774,6 +799,10 @@ def _create_runner(
 
 def _utc_now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _public_bot_job(job: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in job.items() if key != "settings_snapshot_json"}
 
 
 def _require_backend_admin(authorization: str | None, request: Request) -> None:

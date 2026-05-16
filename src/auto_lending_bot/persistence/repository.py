@@ -374,6 +374,20 @@ class BotRunRepository:
 
             return dict(row)
 
+    def latest_for_job(self, job_id: int) -> dict[str, object] | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, job_id, started_at, finished_at, status, dry_run, message
+                FROM bot_runs
+                WHERE job_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (job_id,),
+            ).fetchone()
+            return dict(row) if row is not None else None
+
     def fail_running(self, message: str) -> int:
         with connect(self._database_url) as connection:
             cursor = connection.execute(
@@ -508,6 +522,63 @@ class BotJobRepository:
                 (profile_context.id, limit),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def mark_stopping(self, bot_job_id: int, stop_reason: str = "stop requested") -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                UPDATE bot_jobs
+                SET status = 'stopping',
+                    stop_reason = ?
+                WHERE id = ? AND status = 'running'
+                """,
+                (stop_reason, bot_job_id),
+            )
+
+    def mark_stopped(self, bot_job_id: int, stop_reason: str = "stopped") -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                UPDATE bot_jobs
+                SET status = 'stopped',
+                    stopped_at = CURRENT_TIMESTAMP,
+                    stop_reason = COALESCE(stop_reason, ?)
+                WHERE id = ? AND status IN ('running', 'stopping')
+                """,
+                (stop_reason, bot_job_id),
+            )
+
+    def mark_failed(self, bot_job_id: int, error: str) -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                UPDATE bot_jobs
+                SET status = 'failed',
+                    stopped_at = CURRENT_TIMESTAMP,
+                    last_error = ?
+                WHERE id = ?
+                """,
+                (error, bot_job_id),
+            )
+
+    def record_loop(
+        self,
+        bot_job_id: int,
+        loops_completed: int,
+        last_run_id: int | None,
+        last_error: str | None = None,
+    ) -> None:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                UPDATE bot_jobs
+                SET loops_completed = ?,
+                    last_run_id = ?,
+                    last_error = ?
+                WHERE id = ?
+                """,
+                (loops_completed, last_run_id, last_error, bot_job_id),
+            )
 
 
 class BotRunDecisionRepository:

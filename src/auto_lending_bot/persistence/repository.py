@@ -329,14 +329,14 @@ class BotRunRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    def start(self, dry_run: bool) -> int:
+    def start(self, dry_run: bool, job_id: int | None = None) -> int:
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO bot_runs (status, dry_run, message)
-                VALUES (?, ?, ?)
+                INSERT INTO bot_runs (job_id, status, dry_run, message)
+                VALUES (?, ?, ?, ?)
                 """,
-                ("running", int(dry_run), ""),
+                (job_id, "running", int(dry_run), ""),
             )
             return int(cursor.lastrowid)
 
@@ -362,7 +362,7 @@ class BotRunRepository:
         with connect(self._database_url) as connection:
             row = connection.execute(
                 """
-                SELECT id, started_at, finished_at, status, dry_run, message
+                SELECT id, job_id, started_at, finished_at, status, dry_run, message
                 FROM bot_runs
                 ORDER BY id DESC
                 LIMIT 1
@@ -392,7 +392,7 @@ class BotRunRepository:
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
-                SELECT id, started_at, finished_at, status, dry_run, message
+                SELECT id, job_id, started_at, finished_at, status, dry_run, message
                 FROM bot_runs
                 ORDER BY id DESC
                 LIMIT ?

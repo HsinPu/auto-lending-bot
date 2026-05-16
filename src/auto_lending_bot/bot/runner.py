@@ -41,6 +41,7 @@ class BotRunner:
         notifier: Notifier,
         decision_snapshots: BotRunDecisionRepository | None = None,
         run_steps: BotRunStepRepository | None = None,
+        bot_job_id: int | None = None,
     ) -> None:
         self._settings = settings
         self._exchange = exchange
@@ -55,6 +56,7 @@ class BotRunner:
         self._notifier = notifier
         self._decision_snapshots = decision_snapshots
         self._run_steps = run_steps
+        self._bot_job_id = bot_job_id
 
     def run(self) -> None:
         loops_completed = 0
@@ -86,7 +88,7 @@ class BotRunner:
         return 0
 
     def run_once(self) -> int:
-        bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run)
+        bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run, job_id=self._bot_job_id)
         created_offers = 0
         live_lend_amount = 0.0
         current_step_id: int | None = None

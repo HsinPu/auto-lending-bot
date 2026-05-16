@@ -49,6 +49,7 @@ def create_bot_runner(
     repositories: RunnerRepositories,
     profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     exchange_factory: ExchangeFactory = create_exchange_client,
+    bot_job_id: int | None = None,
 ) -> BotRunner:
     return BotRunner(
         settings=settings,
@@ -64,6 +65,7 @@ def create_bot_runner(
         notifier=Notifier(settings=settings),
         decision_snapshots=repositories.decision_snapshots,
         run_steps=repositories.run_steps,
+        bot_job_id=bot_job_id,
     )
 
 

@@ -577,6 +577,7 @@ class _BotLoopController:
                     bot_run_decisions=self._bot_run_decisions,
                     bot_run_steps=self._bot_run_steps,
                     profile_context=self._profile_context,
+                    bot_job_id=self._bot_job_id,
                 )
                 created_offers = runner.run_once_with_retry()
                 wait_seconds = self._sleep_seconds(job_settings, created_offers)
@@ -750,6 +751,7 @@ def _create_runner(
     bot_run_decisions: BotRunDecisionRepository,
     bot_run_steps: BotRunStepRepository,
     profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    bot_job_id: int | None = None,
 ) -> BotRunner:
     return create_bot_runner(
         settings,
@@ -766,6 +768,7 @@ def _create_runner(
             run_steps=bot_run_steps,
         ),
         profile_context=profile_context,
+        bot_job_id=bot_job_id,
     )
 
 

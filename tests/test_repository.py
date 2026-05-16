@@ -123,6 +123,21 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     assert open_offers.count() == 1
 
 
+def test_bot_run_repository_links_runs_to_jobs(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_runs = BotRunRepository(database_url)
+    bot_job_id = BotJobRepository(database_url).create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json='{"dry_run": true}',
+    )
+
+    bot_run_id = bot_runs.start(dry_run=True, job_id=bot_job_id)
+
+    assert bot_runs.latest()["id"] == bot_run_id
+    assert bot_runs.latest()["job_id"] == bot_job_id
+
+
 def test_bot_job_repository_stores_settings_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

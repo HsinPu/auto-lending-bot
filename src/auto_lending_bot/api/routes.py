@@ -5,6 +5,7 @@ import threading
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from auto_lending_bot.bot.factory import RunnerRepositories, create_bot_runner
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import (
     Settings,
@@ -16,9 +17,7 @@ from auto_lending_bot.config import (
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
-from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
-from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
@@ -767,20 +766,20 @@ def _create_runner(
     bot_run_decisions: BotRunDecisionRepository,
     bot_run_steps: BotRunStepRepository,
 ) -> BotRunner:
-    return BotRunner(
-        settings=settings,
-        exchange=create_exchange_client(settings),
-        bot_runs=bot_runs,
-        loan_offers=loan_offers,
-        active_loans=active_loans,
-        open_offers=open_offers,
-        lending_history=lending_history,
-        notification_state=notification_state,
-        market_analysis_rates=market_analysis_rates,
-        market_recorder=MarketRecorder(market_rates),
-        notifier=Notifier(settings=settings),
-        decision_snapshots=bot_run_decisions,
-        run_steps=bot_run_steps,
+    return create_bot_runner(
+        settings,
+        RunnerRepositories(
+            bot_runs=bot_runs,
+            loan_offers=loan_offers,
+            active_loans=active_loans,
+            open_offers=open_offers,
+            lending_history=lending_history,
+            notification_state=notification_state,
+            market_analysis_rates=market_analysis_rates,
+            market_rates=market_rates,
+            decision_snapshots=bot_run_decisions,
+            run_steps=bot_run_steps,
+        ),
     )
 
 

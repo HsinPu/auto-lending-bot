@@ -5,26 +5,22 @@ import time
 import uvicorn
 
 from auto_lending_bot.api.app import create_app
+from auto_lending_bot.bot.factory import create_default_bot_runner
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import Settings, load_effective_settings, load_settings, sqlite_path_from_url
 from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.logging import configure_logging
-from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
-from auto_lending_bot.notifications.notifier import Notifier
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
-    BotRunDecisionRepository,
     BotRunRepository,
-    BotRunStepRepository,
     LendingHistoryRepository,
     LoanOfferRepository,
     MarketAnalysisRateRepository,
     MarketRateRepository,
-    NotificationStateRepository,
     OpenLoanOfferRepository,
 )
 from auto_lending_bot.safety import (
@@ -310,21 +306,7 @@ def _transfer_previews(settings: Settings, exchange) -> list:
 
 
 def _create_runner(settings: Settings) -> BotRunner:
-    return BotRunner(
-        settings=settings,
-        exchange=create_exchange_client(settings),
-        bot_runs=BotRunRepository(settings.database_url),
-        loan_offers=LoanOfferRepository(settings.database_url),
-        active_loans=ActiveLoanRepository(settings.database_url),
-        open_offers=OpenLoanOfferRepository(settings.database_url),
-        lending_history=LendingHistoryRepository(settings.database_url),
-        notification_state=NotificationStateRepository(settings.database_url),
-        market_analysis_rates=MarketAnalysisRateRepository(settings.database_url),
-        market_recorder=MarketRecorder(MarketRateRepository(settings.database_url)),
-        notifier=Notifier(settings=settings),
-        decision_snapshots=BotRunDecisionRepository(settings.database_url),
-        run_steps=BotRunStepRepository(settings.database_url),
-    )
+    return create_default_bot_runner(settings, exchange_factory=create_exchange_client)
 
 
 def _run_bot_with_reloaded_settings(initial_settings: Settings) -> None:

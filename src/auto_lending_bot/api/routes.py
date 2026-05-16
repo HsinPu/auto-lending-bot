@@ -6,6 +6,7 @@ import threading
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from auto_lending_bot.api.actions import BotActionService
 from auto_lending_bot.api.dashboard import DashboardReadService, DashboardRepositories
 from auto_lending_bot.bot.factory import RunnerRepositories, create_bot_runner
 from auto_lending_bot.bot.runner import BotRunner
@@ -104,6 +105,12 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         market_rates=market_rates,
         bot_run_decisions=bot_run_decisions,
         bot_run_steps=bot_run_steps,
+    )
+    bot_actions = BotActionService(
+        settings=settings,
+        repositories=repositories,
+        loop_controller=runtime.bot_loop,
+        profile_context=runtime.profile_context,
     )
 
     @router.get("/settings/schema")
@@ -506,15 +513,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
         _require_admin(authorization, request)
-        if runtime.bot_loop.status()["running"]:
+        if bot_actions.loop_status()["running"]:
             raise HTTPException(status_code=409, detail="Stop the bot loop before resetting dry-run records.")
-        deleted_counts = bot_runs.delete_dry_run_records()
-        return {
-            "action": "reset-dry-run-records",
-            "ok": True,
-            "deleted_count": sum(deleted_counts.values()),
-            **deleted_counts,
-        }
+        return bot_actions.reset_dry_run_records()
 
     @router.post("/actions/run-once")
     def run_once(
@@ -528,37 +529,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
 
-        offers_before = loan_offers.count()
-        runner = _create_runner(
-            settings=settings,
-            bot_runs=bot_runs,
-            loan_offers=loan_offers,
-            active_loans=active_loans,
-            open_offers=open_offers,
-            lending_history=lending_history,
-            notification_state=notification_state,
-            market_analysis_rates=market_analysis_rates,
-            market_rates=market_rates,
-            bot_run_decisions=bot_run_decisions,
-            bot_run_steps=bot_run_steps,
-        )
-        runner.run_once()
-        offers_after = loan_offers.count()
-        latest_run = bot_runs.latest() or {}
-        return {
-            "action": "run-once",
-            "ok": True,
-            "dry_run": settings.dry_run,
-            "created_count": offers_after - offers_before,
-            "bot_run_id": latest_run.get("id"),
-            "status": latest_run.get("status"),
-            "message": latest_run.get("message", ""),
-            "started_at": latest_run.get("started_at"),
-            "finished_at": latest_run.get("finished_at"),
-            "decisions": bot_run_decisions.for_run(int(latest_run["id"])) if latest_run.get("id") else [],
-            "steps": bot_run_steps.for_run(int(latest_run["id"])) if latest_run.get("id") else [],
-            "latest_run": latest_run,
-        }
+        return bot_actions.run_once()
 
     @router.post("/actions/start-loop")
     def start_loop(
@@ -572,11 +543,11 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live loop requires confirm_live=true.")
 
-        return {"action": "start-loop", "ok": True, **runtime.bot_loop.start()}
+        return bot_actions.start_loop()
 
     @router.post("/actions/stop-loop")
     def stop_loop() -> dict[str, object]:
-        return {"action": "stop-loop", "ok": True, **runtime.bot_loop.stop()}
+        return bot_actions.stop_loop()
 
     return router
 

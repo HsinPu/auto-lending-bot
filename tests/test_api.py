@@ -752,11 +752,20 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
 
     assert start_response.status_code == 200
     assert start_response.json()["action"] == "start-loop"
+    assert isinstance(start_response.json()["bot_job_id"], int)
     assert status_response.status_code == 200
     assert "running" in status_response.json()
     assert stop_response.status_code == 200
     assert stop_response.json()["action"] == "stop-loop"
     assert stop_response.json()["running"] is False
+
+    with connect(database_url) as connection:
+        job = connection.execute(
+            "SELECT profile_id, status, settings_snapshot_json FROM bot_jobs"
+        ).fetchone()
+    assert job["profile_id"] == "default"
+    assert job["status"] == "running"
+    assert '"dry_run":true' in job["settings_snapshot_json"]
 
 
 def test_api_can_start_and_stop_market_analysis_collection(tmp_path) -> None:

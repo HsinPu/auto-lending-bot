@@ -29,6 +29,7 @@ This project currently runs as a single bot profile. There is no user account sy
 ## Boundaries To Keep Clean
 
 - Keep settings loading behind `load_effective_settings()` rather than reading `app_settings` directly in feature code.
+- Keep environment variables limited to bootstrap, deployment, and fallback concerns.
 - Keep runner construction centralized so future profile-specific runners can share one creation path.
 - Keep exchange client creation behind `create_exchange_client(settings)`.
 - Keep credential lookup behind `ExchangeCredentialProvider` rather than passing profile-specific secrets directly to exchange adapters.
@@ -38,6 +39,26 @@ This project currently runs as a single bot profile. There is no user account sy
 - Keep data access through repository or service methods, not direct SQL in API handlers.
 - Avoid adding new module-level mutable runtime state unless it clearly belongs to the single active bot process.
 - Keep new API response fields additive so a future `profile` object can be introduced without breaking current clients.
+
+## Environment Boundary
+
+Environment variables are still supported as safe bootstrap and fallback values, but they should not be the primary home for account/profile behavior. New account-specific behavior should prefer dashboard-managed DB settings.
+
+Keep these in env because the app needs them before it can safely read profile settings:
+
+- `DATABASE_URL`: tells the app which database contains settings and runtime data.
+- `SETTINGS_ENCRYPTION_KEY`: decrypts secret settings; do not store this in the same SQLite database.
+- `ADMIN_AUTH_TOKEN`: protects non-local settings and live action endpoints.
+- Deployment/runtime process settings such as `LOG_LEVEL`, bind host/port, and container-specific values.
+
+Prefer dashboard/DB profile settings for values that belong to a bot account or strategy:
+
+- Exchange selection and credentials.
+- Dry-run/live safety toggles and live amount limits.
+- Currency selection, output currency, market analysis behavior, and strategy parameters.
+- Notification settings that should differ per profile.
+
+The intended operating model is `.env` for bootstrap, dashboard-managed settings for bot/account behavior, and `.env` fallback only when the database has no override.
 
 ## Settings Scope Contract
 

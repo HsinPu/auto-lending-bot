@@ -802,6 +802,24 @@ def test_api_stop_job_rejects_non_active_job(tmp_path) -> None:
     assert response.json()["detail"] == "Bot job is not running in this API process."
 
 
+def test_api_startup_marks_orphan_running_jobs_failed(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    repositories = create_repository_bundle(settings)
+    bot_job_id = repositories.bot_jobs.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json='{"dry_run": true}',
+    )
+
+    TestClient(create_app(settings))
+
+    job = repositories.bot_jobs.get(bot_job_id)
+    assert job is not None
+    assert job["status"] == "failed"
+    assert job["stop_reason"] == "API process restarted before job stopped."
+
+
 def test_api_can_start_loop_with_effective_settings_proxy(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("DATABASE_URL", database_url)

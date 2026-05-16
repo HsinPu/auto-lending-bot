@@ -580,6 +580,21 @@ class BotJobRepository:
                 (loops_completed, last_run_id, last_error, bot_job_id),
             )
 
+    def fail_running(self, message: str) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                UPDATE bot_jobs
+                SET status = 'failed',
+                    stopped_at = CURRENT_TIMESTAMP,
+                    stop_reason = ?,
+                    last_error = COALESCE(last_error, ?)
+                WHERE status IN ('running', 'stopping')
+                """,
+                (message, message),
+            )
+            return int(cursor.rowcount)
+
 
 class BotRunDecisionRepository:
     def __init__(self, database_url: str) -> None:

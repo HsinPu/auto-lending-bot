@@ -99,7 +99,13 @@ export function ActionPanel({
           </section>
         ))}
       </div>
-      <BotJobHistory jobs={botJobs} timeZone={timeZone} isPending={isPending} onStopJob={onStopJob} />
+      <BotJobHistory
+        jobs={botJobs}
+        timeZone={timeZone}
+        activeRunningJobId={botLoop.running ? botLoop.bot_job_id : null}
+        isPending={isPending}
+        onStopJob={onStopJob}
+      />
       {latestResult ? <pre className="action-result">{JSON.stringify(latestResult, null, 2)}</pre> : null}
       {latestError ? <div className="action-error">{latestError}</div> : null}
     </section>
@@ -109,11 +115,13 @@ export function ActionPanel({
 function BotJobHistory({
   jobs,
   timeZone,
+  activeRunningJobId,
   isPending,
   onStopJob,
 }: {
   jobs: BotJob[]
   timeZone: string
+  activeRunningJobId: number | null
   isPending: boolean
   onStopJob: (botJobId: number) => void
 }) {
@@ -131,7 +139,7 @@ function BotJobHistory({
               <strong>Job #{job.id}</strong>
               <div className="bot-job-card-actions">
                 <span>{job.status}</span>
-                {job.status === 'running' ? (
+                {job.status === 'running' && job.id === activeRunningJobId ? (
                   <button
                     type="button"
                     className="inline-danger-button"
@@ -140,6 +148,9 @@ function BotJobHistory({
                   >
                     停止
                   </button>
+                ) : null}
+                {job.status === 'running' && job.id !== activeRunningJobId ? (
+                  <small>非目前 API 執行中</small>
                 ) : null}
               </div>
             </div>

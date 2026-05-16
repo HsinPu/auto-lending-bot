@@ -47,6 +47,7 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
         "bot_job_id": None,
         "bot_job": None,
         "started_at": None,
+        "restored_at": None,
         "last_run_at": None,
         "loops_completed": 0,
         "last_error": None,
@@ -827,6 +828,7 @@ def test_api_startup_restores_running_jobs_and_stops_stopping_jobs(tmp_path) -> 
     assert status_response.status_code == 200
     assert status_response.json()["running"] is True
     assert status_response.json()["bot_job_id"] == running_job_id
+    assert status_response.json()["restored_at"] is not None
     assert stop_response.status_code == 200
     assert running_job is not None
     assert stopping_job is not None
@@ -858,6 +860,7 @@ def test_api_startup_restores_only_latest_running_job(tmp_path) -> None:
     assert status_response.status_code == 200
     assert status_response.json()["running"] is True
     assert status_response.json()["bot_job_id"] == newer_job_id
+    assert status_response.json()["restored_at"] is not None
     assert stop_response.status_code == 200
     assert older_job is not None
     assert newer_job is not None
@@ -882,6 +885,7 @@ def test_api_startup_fails_invalid_running_job_snapshot(tmp_path) -> None:
     job = repositories.bot_jobs.get(bot_job_id)
     assert status_response.status_code == 200
     assert status_response.json()["running"] is False
+    assert status_response.json()["restored_at"] is None
     assert job is not None
     assert job["status"] == "failed"
     assert "required positional argument" in str(job["last_error"])

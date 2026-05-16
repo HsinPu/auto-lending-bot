@@ -560,6 +560,7 @@ class _BotLoopController:
         self._started_at: str | None = None
         self._last_run_at: str | None = None
         self._last_error: str | None = None
+        self._restored_at: str | None = None
         self._loops_completed = 0
 
     def start(self, bot_job_id: int) -> dict[str, object]:
@@ -582,7 +583,7 @@ class _BotLoopController:
                 self._last_error = str(error)
                 return self._status_unlocked()
 
-            self._start_unlocked(bot_job_id)
+            self._start_unlocked(bot_job_id, restored_at=_utc_now())
             return self._status_unlocked()
 
     def stop(self) -> dict[str, object]:
@@ -606,11 +607,12 @@ class _BotLoopController:
         with self._lock:
             return self._status_unlocked()
 
-    def _start_unlocked(self, bot_job_id: int) -> None:
+    def _start_unlocked(self, bot_job_id: int, restored_at: str | None = None) -> None:
         self._stop_event = threading.Event()
         self._bot_job_id = bot_job_id
         self._started_at = _utc_now()
         self._last_error = None
+        self._restored_at = restored_at
         self._loops_completed = 0
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
@@ -623,6 +625,7 @@ class _BotLoopController:
             "bot_job_id": self._bot_job_id,
             "bot_job": _public_bot_job(bot_job) if bot_job is not None else None,
             "started_at": self._started_at,
+            "restored_at": self._restored_at,
             "last_run_at": self._last_run_at,
             "loops_completed": self._loops_completed,
             "last_error": self._last_error,

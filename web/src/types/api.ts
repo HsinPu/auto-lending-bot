@@ -50,6 +50,7 @@ export type BotLoopStatus = {
   bot_job_id: number | null
   bot_job: BotJob | null
   started_at: string | null
+  restored_at: string | null
   last_run_at: string | null
   loops_completed: number
   last_error: string | null

@@ -2236,6 +2236,16 @@ h1 {
   line-height: 1.6;
 }
 
+.loop-restore-note {
+  margin: 0;
+  border: 1px solid rgba(45, 212, 191, 0.26);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #ccfbf1;
+  background: rgba(13, 148, 136, 0.14);
+  line-height: 1.6;
+}
+
 .loop-status-card .loop-error {
   color: #fecdd3;
 }

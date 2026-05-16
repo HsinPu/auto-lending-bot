@@ -65,6 +65,11 @@ export function ActionPanel({
         <p className="loop-snapshot-note">
           持續執行不會套用之後修改的設定；如果要使用新設定，請先停止目前 job，再重新開始持續執行。
         </p>
+        {botLoop.restored_at ? (
+          <p className="loop-restore-note">
+            這個 job 已在 API 啟動時自動接回，接回時間：{formatTimestamp(botLoop.restored_at, timeZone)}。
+          </p>
+        ) : null}
         {botLoop.last_error ? <span className="loop-error">錯誤：{botLoop.last_error}</span> : null}
         {botLoop.bot_job?.last_error ? <span className="loop-error">Job 錯誤：{botLoop.bot_job.last_error}</span> : null}
       </div>

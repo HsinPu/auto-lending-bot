@@ -1894,6 +1894,13 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.settings-field-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .settings-field-key {
   color: #60a5fa;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -1913,6 +1920,26 @@ h1 {
   color: #052e16;
   background: #86efac;
   white-space: nowrap;
+}
+
+.settings-field-heading small.scope-global {
+  color: #082f49;
+  background: #7dd3fc;
+}
+
+.settings-field-heading small.scope-profile {
+  color: #052e16;
+  background: #86efac;
+}
+
+.settings-field-heading small.scope-profile_secret {
+  color: #312e81;
+  background: #c4b5fd;
+}
+
+.settings-field-heading small.scope-profile_safety {
+  color: #451a03;
+  background: #fdba74;
 }
 
 .settings-field.danger-high .settings-field-heading small {

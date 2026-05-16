@@ -211,6 +211,7 @@ export type ManagedSettingDefinition = {
   hot_reload: boolean
   description: string
   choices: string[]
+  scope: ManagedSettingScope
 }
 
 export type ManagedSettingValue = {
@@ -220,7 +221,10 @@ export type ManagedSettingValue = {
   is_secret: number
   updated_at: string
   is_set?: boolean
+  scope?: ManagedSettingScope
 }
+
+export type ManagedSettingScope = 'global' | 'profile' | 'profile_secret' | 'profile_safety'
 
 export type ManagedSettingsData = {
   schema: ManagedSettingDefinition[]

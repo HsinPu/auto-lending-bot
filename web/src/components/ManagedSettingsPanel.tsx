@@ -37,6 +37,13 @@ const dangerLabels = {
   critical: '關鍵風險',
 }
 
+const scopeLabels: Record<ManagedSettingDefinition['scope'], string> = {
+  global: '全域',
+  profile: 'Profile',
+  profile_secret: 'Profile 密鑰',
+  profile_safety: 'Profile 安全',
+}
+
 const settingLabels: Record<string, string> = {
   ALLOW_BALANCE_TRANSFERS: '允許資金轉移',
   ALLOW_LIVE_TRADING: '允許 Live 交易',
@@ -648,7 +655,10 @@ function SettingField({
     <label className={`settings-field danger-${definition.danger_level}`}>
       <span className="settings-field-heading">
         <strong>{settingLabel(definition.key)}</strong>
-        <small>{dangerLabels[definition.danger_level]}</small>
+        <span className="settings-field-badges">
+          <small className={`scope-${definition.scope}`}>{scopeLabels[definition.scope]}</small>
+          <small>{dangerLabels[definition.danger_level]}</small>
+        </span>
       </span>
       {showSystemKey ? <span className="settings-field-key">系統代碼：{definition.key}</span> : null}
       <span className="settings-field-help">{settingHelpText(definition)}</span>

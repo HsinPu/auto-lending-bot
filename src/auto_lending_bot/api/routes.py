@@ -32,7 +32,7 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
-from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
 from auto_lending_bot.safety import (
     SafetyError,
     validate_run_settings,
@@ -827,6 +827,14 @@ def _validate_transfer_limits(settings: Settings, transfers: list[object]) -> No
 
 
 def _app_settings(settings: Settings) -> AppSettingRepository:
+    return _profile_app_settings(settings, DEFAULT_PROFILE_CONTEXT)
+
+
+def _profile_app_settings(
+    settings: Settings,
+    profile_context: BotProfileContext,
+) -> AppSettingRepository:
+    ensure_default_profile(profile_context)
     return AppSettingRepository(settings.database_url, encryption_key=settings_encryption_key())
 
 

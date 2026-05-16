@@ -133,7 +133,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         request: Request,
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_admin(authorization, request)
+        _require_backend_admin(authorization, request)
         values = payload.get("values", payload)
         if not isinstance(values, dict):
             raise HTTPException(status_code=400, detail="Settings values must be an object.")
@@ -154,7 +154,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         payload: dict[str, object] | None = None,
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_admin(authorization, request)
+        _require_backend_admin(authorization, request)
         payload = payload or {}
         key = payload.get("key")
         if key:
@@ -188,7 +188,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         request: Request,
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_admin(authorization, request)
+        _require_backend_admin(authorization, request)
         values = payload.get("values", payload)
         if not isinstance(values, dict):
             raise HTTPException(status_code=400, detail="Settings import values must be an object.")
@@ -377,7 +377,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     ) -> dict[str, object]:
         _validate_transfer_action_settings(settings)
         if not settings.dry_run:
-            _require_admin(authorization, request)
+            _require_backend_admin(authorization, request)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live transfer requires confirm_live=true.")
 
@@ -423,7 +423,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     ) -> dict[str, object]:
         _validate_safe_action_settings(settings)
         if not settings.dry_run:
-            _require_admin(authorization, request)
+            _require_backend_admin(authorization, request)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
 
@@ -440,7 +440,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         request: Request,
         authorization: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_admin(authorization, request)
+        _require_backend_admin(authorization, request)
         if bot_actions.loop_status()["running"]:
             raise HTTPException(status_code=409, detail="Stop the bot loop before resetting dry-run records.")
         return bot_actions.reset_dry_run_records()
@@ -453,7 +453,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     ) -> dict[str, object]:
         _validate_safe_action_settings(settings)
         if not settings.dry_run:
-            _require_admin(authorization, request)
+            _require_backend_admin(authorization, request)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
 
@@ -467,7 +467,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     ) -> dict[str, object]:
         _validate_safe_action_settings(settings)
         if not settings.dry_run:
-            _require_admin(authorization, request)
+            _require_backend_admin(authorization, request)
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live loop requires confirm_live=true.")
 
@@ -751,7 +751,7 @@ def _utc_now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _require_admin(authorization: str | None, request: Request) -> None:
+def _require_backend_admin(authorization: str | None, request: Request) -> None:
     if _is_local_request(request):
         return
 
@@ -759,7 +759,7 @@ def _require_admin(authorization: str | None, request: Request) -> None:
     if not token:
         raise HTTPException(status_code=403, detail="ADMIN_AUTH_TOKEN is not configured.")
     if authorization != f"Bearer {token}":
-        raise HTTPException(status_code=401, detail="Admin authorization is required.")
+        raise HTTPException(status_code=401, detail="Backend admin authorization is required.")
 
 
 def _is_local_request(request: Request) -> bool:

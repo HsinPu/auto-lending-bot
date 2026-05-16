@@ -506,6 +506,22 @@ class BotJobRepository:
             ).fetchone()
             return dict(row) if row is not None else None
 
+    def running(self, profile_context: BotProfileContext) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, profile_id, status, mode, settings_snapshot_json,
+                       started_at, stopped_at, stop_reason, loops_completed,
+                       last_run_id, last_error
+                FROM bot_jobs
+                WHERE profile_id = ? AND status = 'running'
+                ORDER BY id DESC
+                """,
+                (profile_context.id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def recent(self, profile_context: BotProfileContext, limit: int = 10) -> list[dict[str, object]]:
         ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
@@ -580,18 +596,17 @@ class BotJobRepository:
                 (loops_completed, last_run_id, last_error, bot_job_id),
             )
 
-    def fail_running(self, message: str) -> int:
+    def mark_stopping_jobs_stopped(self, stop_reason: str) -> int:
         with connect(self._database_url) as connection:
             cursor = connection.execute(
                 """
                 UPDATE bot_jobs
-                SET status = 'failed',
+                SET status = 'stopped',
                     stopped_at = CURRENT_TIMESTAMP,
-                    stop_reason = ?,
-                    last_error = COALESCE(last_error, ?)
-                WHERE status IN ('running', 'stopping')
+                    stop_reason = COALESCE(stop_reason, ?)
+                WHERE status = 'stopping'
                 """,
-                (message, message),
+                (stop_reason,),
             )
             return int(cursor.rowcount)
 

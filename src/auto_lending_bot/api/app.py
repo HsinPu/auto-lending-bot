@@ -10,7 +10,9 @@ from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or load_effective_settings()
     initialize_database(resolved_settings.database_url)
-    BotJobRepository(resolved_settings.database_url).fail_running("API process restarted before job stopped.")
+    BotJobRepository(resolved_settings.database_url).mark_stopping_jobs_stopped(
+        "API process restarted while job was stopping."
+    )
 
     app = FastAPI(title="Auto Lending Bot API")
     app.state.settings = resolved_settings

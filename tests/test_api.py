@@ -802,22 +802,30 @@ def test_api_stop_job_rejects_non_active_job(tmp_path) -> None:
     assert response.json()["detail"] == "Bot job is not running in this API process."
 
 
-def test_api_startup_marks_orphan_running_jobs_failed(tmp_path) -> None:
+def test_api_startup_preserves_running_jobs_and_stops_stopping_jobs(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)
     initialize_database(database_url)
     repositories = create_repository_bundle(settings)
-    bot_job_id = repositories.bot_jobs.create(
+    running_job_id = repositories.bot_jobs.create(
         DEFAULT_PROFILE_CONTEXT,
         settings_snapshot_json='{"dry_run": true}',
     )
+    stopping_job_id = repositories.bot_jobs.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json='{"dry_run": true}',
+    )
+    repositories.bot_jobs.mark_stopping(stopping_job_id)
 
     TestClient(create_app(settings))
 
-    job = repositories.bot_jobs.get(bot_job_id)
-    assert job is not None
-    assert job["status"] == "failed"
-    assert job["stop_reason"] == "API process restarted before job stopped."
+    running_job = repositories.bot_jobs.get(running_job_id)
+    stopping_job = repositories.bot_jobs.get(stopping_job_id)
+    assert running_job is not None
+    assert stopping_job is not None
+    assert running_job["status"] == "running"
+    assert stopping_job["status"] == "stopped"
+    assert stopping_job["stop_reason"] == "stop requested"
 
 
 def test_api_can_start_loop_with_effective_settings_proxy(tmp_path, monkeypatch) -> None:

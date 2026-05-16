@@ -112,6 +112,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         bot_run_steps=bot_run_steps,
         maintenance_actions=maintenance_actions,
     )
+    _restore_running_bot_jobs(runtime, bot_jobs)
     bot_actions = BotActionService(
         settings=settings,
         repositories=repositories,
@@ -816,6 +817,20 @@ def _create_runtime_controllers(
             maintenance_actions=maintenance_actions,
         ),
     )
+
+
+def _restore_running_bot_jobs(runtime: _RuntimeControllers, bot_jobs: BotJobRepository) -> None:
+    running_jobs = bot_jobs.running(runtime.profile_context)
+    if not running_jobs:
+        return
+
+    restore_job = running_jobs[0]
+    for extra_job in running_jobs[1:]:
+        bot_jobs.mark_failed(
+            int(extra_job["id"]),
+            "Multiple running jobs cannot be restored by single-loop runtime.",
+        )
+    runtime.bot_loop.restore(int(restore_job["id"]))
 
 
 def _validate_safe_action_settings(settings: Settings) -> None:

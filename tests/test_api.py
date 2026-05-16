@@ -18,6 +18,7 @@ from auto_lending_bot.persistence.repository import (
     ProfileAppSettingRepository,
 )
 from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
+from auto_lending_bot.settings_snapshot import settings_snapshot_json
 
 
 def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
@@ -802,30 +803,88 @@ def test_api_stop_job_rejects_non_active_job(tmp_path) -> None:
     assert response.json()["detail"] == "Bot job is not running in this API process."
 
 
-def test_api_startup_preserves_running_jobs_and_stops_stopping_jobs(tmp_path) -> None:
+def test_api_startup_restores_running_jobs_and_stops_stopping_jobs(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)
     initialize_database(database_url)
     repositories = create_repository_bundle(settings)
     running_job_id = repositories.bot_jobs.create(
         DEFAULT_PROFILE_CONTEXT,
-        settings_snapshot_json='{"dry_run": true}',
+        settings_snapshot_json=settings_snapshot_json(settings),
     )
     stopping_job_id = repositories.bot_jobs.create(
         DEFAULT_PROFILE_CONTEXT,
-        settings_snapshot_json='{"dry_run": true}',
+        settings_snapshot_json=settings_snapshot_json(settings),
     )
     repositories.bot_jobs.mark_stopping(stopping_job_id)
 
-    TestClient(create_app(settings))
+    client = TestClient(create_app(settings))
+    status_response = client.get("/api/bot-loop")
+    stop_response = client.post("/api/actions/stop-loop")
 
     running_job = repositories.bot_jobs.get(running_job_id)
     stopping_job = repositories.bot_jobs.get(stopping_job_id)
+    assert status_response.status_code == 200
+    assert status_response.json()["running"] is True
+    assert status_response.json()["bot_job_id"] == running_job_id
+    assert stop_response.status_code == 200
     assert running_job is not None
     assert stopping_job is not None
-    assert running_job["status"] == "running"
+    assert running_job["status"] == "stopped"
     assert stopping_job["status"] == "stopped"
     assert stopping_job["stop_reason"] == "stop requested"
+
+
+def test_api_startup_restores_only_latest_running_job(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    repositories = create_repository_bundle(settings)
+    older_job_id = repositories.bot_jobs.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json=settings_snapshot_json(settings),
+    )
+    newer_job_id = repositories.bot_jobs.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json=settings_snapshot_json(settings),
+    )
+
+    client = TestClient(create_app(settings))
+    status_response = client.get("/api/bot-loop")
+    stop_response = client.post("/api/actions/stop-loop")
+
+    older_job = repositories.bot_jobs.get(older_job_id)
+    newer_job = repositories.bot_jobs.get(newer_job_id)
+    assert status_response.status_code == 200
+    assert status_response.json()["running"] is True
+    assert status_response.json()["bot_job_id"] == newer_job_id
+    assert stop_response.status_code == 200
+    assert older_job is not None
+    assert newer_job is not None
+    assert older_job["status"] == "failed"
+    assert older_job["last_error"] == "Multiple running jobs cannot be restored by single-loop runtime."
+    assert newer_job["status"] == "stopped"
+
+
+def test_api_startup_fails_invalid_running_job_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    repositories = create_repository_bundle(settings)
+    bot_job_id = repositories.bot_jobs.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json='{"dry_run": true}',
+    )
+
+    client = TestClient(create_app(settings))
+    status_response = client.get("/api/bot-loop")
+
+    job = repositories.bot_jobs.get(bot_job_id)
+    assert status_response.status_code == 200
+    assert status_response.json()["running"] is False
+    assert job is not None
+    assert job["status"] == "failed"
+    assert "required positional argument" in str(job["last_error"])
 
 
 def test_api_can_start_loop_with_effective_settings_proxy(tmp_path, monkeypatch) -> None:

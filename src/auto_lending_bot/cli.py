@@ -14,15 +14,7 @@ from auto_lending_bot.logging import configure_logging
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
 from auto_lending_bot.persistence.database import initialize_database
-from auto_lending_bot.persistence.repository import (
-    ActiveLoanRepository,
-    BotRunRepository,
-    LendingHistoryRepository,
-    LoanOfferRepository,
-    MarketAnalysisRateRepository,
-    MarketRateRepository,
-    OpenLoanOfferRepository,
-)
+from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
 from auto_lending_bot.safety import (
     SafetyError,
     validate_run_settings,
@@ -44,6 +36,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         base_settings.database_url,
         profile_context=DEFAULT_PROFILE_CONTEXT,
     )
+    repositories = create_repository_bundle(settings)
 
     if args.command == "init-db":
         initialize_database(settings.database_url)
@@ -52,19 +45,17 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         initialize_database(settings.database_url)
-        print(_format_status(settings))
+        print(_format_status(settings, repositories))
         return 0
 
     if args.command == "cleanup":
         initialize_database(settings.database_url)
-        market_rate_deleted_count = MarketRateRepository(
-            settings.database_url
-        ).delete_older_than_days(
+        market_rate_deleted_count = repositories.market_rates.delete_older_than_days(
             settings.market_rate_retention_days,
         )
-        market_analysis_deleted_count = MarketAnalysisRateRepository(
-            settings.database_url
-        ).delete_older_than_days(settings.market_analysis_retention_days)
+        market_analysis_deleted_count = repositories.market_analysis_rates.delete_older_than_days(
+            settings.market_analysis_retention_days
+        )
         deleted_count = market_rate_deleted_count + market_analysis_deleted_count
         print(
             f"Deleted {deleted_count} old market data row(s) "
@@ -83,7 +74,7 @@ def run_cli(argv: list[str] | None = None) -> int:
         initialize_database(settings.database_url)
         entries = create_exchange_client(settings).get_lending_history(settings.smoke_test_currency)
         history_source = settings.exchange.lower()
-        changed_count = LendingHistoryRepository(settings.database_url).upsert_many(
+        changed_count = repositories.lending_history.upsert_many(
             entries,
             dry_run=history_source == "mock",
             source=history_source,
@@ -103,7 +94,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         initialize_database(settings.database_url)
         offers = create_exchange_client(settings).get_open_loan_offers()
-        OpenLoanOfferRepository(settings.database_url).replace_all(offers)
+        repositories.open_offers.replace_all(offers)
         print(f"Synced {len(offers)} open loan offer row(s).")
         return 0
 
@@ -161,9 +152,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 2
 
         initialize_database(settings.database_url)
-        recorder = MarketAnalysisRecorder(
-            MarketAnalysisRateRepository(settings.database_url)
-        )
+        recorder = MarketAnalysisRecorder(repositories.market_analysis_rates)
         exchange = create_exchange_client(settings)
         levels = args.levels or settings.market_analysis_levels
         currencies = _market_analysis_currencies(settings, args.currency)
@@ -196,7 +185,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             return 0
 
         canceled_count = _cancel_open_offers(exchange, offers)
-        OpenLoanOfferRepository(settings.database_url).replace_all([])
+        repositories.open_offers.replace_all([])
         print(f"Canceled {canceled_count} open loan offer(s).")
         return 0
 
@@ -228,7 +217,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         configure_logging(settings.log_level)
         initialize_database(settings.database_url)
-        recovered_count = BotRunRepository(settings.database_url).fail_running(
+        recovered_count = repositories.bot_runs.fail_running(
             "Recovered interrupted run before startup."
         )
         if recovered_count:
@@ -340,13 +329,13 @@ def _sleep_seconds(settings: Settings, created_offers: int) -> int:
     return settings.bot_inactive_sleep_seconds
 
 
-def _format_status(settings: Settings) -> str:
-    bot_runs = BotRunRepository(settings.database_url)
-    loan_offers = LoanOfferRepository(settings.database_url)
-    market_rates = MarketRateRepository(settings.database_url)
-    active_loans = ActiveLoanRepository(settings.database_url)
-    lending_history = LendingHistoryRepository(settings.database_url)
-    open_offers = OpenLoanOfferRepository(settings.database_url)
+def _format_status(settings: Settings, repositories: RepositoryBundle) -> str:
+    bot_runs = repositories.bot_runs
+    loan_offers = repositories.loan_offers
+    market_rates = repositories.market_rates
+    active_loans = repositories.active_loans
+    lending_history = repositories.lending_history
+    open_offers = repositories.open_offers
     latest_run = bot_runs.latest()
 
     lines = [

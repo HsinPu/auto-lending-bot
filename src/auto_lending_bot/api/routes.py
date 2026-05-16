@@ -245,6 +245,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             )
         ]
 
+    @router.post("/jobs/{bot_job_id}/stop")
+    def stop_job(bot_job_id: int) -> dict[str, object]:
+        status = bot_actions.loop_status()
+        if not status.get("running") or status.get("bot_job_id") != bot_job_id:
+            raise HTTPException(status_code=409, detail="Bot job is not running in this API process.")
+        return bot_actions.stop_job(bot_job_id)
+
     @router.get("/market-analysis-collection")
     def market_analysis_collection_status() -> dict[str, object]:
         return runtime.market_analysis_collection.status()
@@ -445,6 +452,27 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             _exchange_client(settings, runtime.profile_context)
         )
 
+    @router.post("/actions/cancel-open-offer")
+    def cancel_open_offer(
+        request: Request,
+        payload: dict[str, object] | None = None,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _validate_safe_action_settings(settings)
+        payload = payload or {}
+        external_offer_id = str(payload.get("external_offer_id") or "").strip()
+        if not external_offer_id:
+            raise HTTPException(status_code=400, detail="external_offer_id is required.")
+        if not settings.dry_run:
+            _require_backend_admin(authorization, request)
+        if not settings.dry_run and not bool(payload.get("confirm_live", False)):
+            raise HTTPException(status_code=400, detail="Live cancel requires confirm_live=true.")
+
+        return exchange_actions.cancel_open_offer_response(
+            _exchange_client(settings, runtime.profile_context),
+            external_offer_id,
+        )
+
     @router.post("/actions/cleanup")
     def cleanup() -> dict[str, object]:
         return maintenance_actions.cleanup_market_data()
@@ -556,6 +584,13 @@ class _BotLoopController:
         if thread is not None and thread.is_alive():
             thread.join(timeout=2)
         return self.status()
+
+    def stop_job(self, bot_job_id: int) -> dict[str, object]:
+        with self._lock:
+            if self._bot_job_id != bot_job_id:
+                msg = f"Bot job {bot_job_id} is not the active loop job."
+                raise RuntimeError(msg)
+        return self.stop()
 
     def status(self) -> dict[str, object]:
         with self._lock:

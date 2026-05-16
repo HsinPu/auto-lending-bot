@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { getDashboardData, getRunDecisionHistory, runSafeAction } from '../api/client'
+import { cancelOpenOffer, getDashboardData, getRunDecisionHistory, runSafeAction, stopBotJob } from '../api/client'
 import { ActionPanel } from '../components/ActionPanel'
 import { ActivityLog } from '../components/ActivityLog'
 import { actions } from '../components/actionDefinitions'
@@ -42,6 +42,7 @@ export function DashboardPage() {
   const [latestError, setLatestError] = useState<string | null>(null)
   const [runOnceFlow, setRunOnceFlow] = useState<RunOnceFlowState | null>(null)
   const [pendingLiveAction, setPendingLiveAction] = useState<SafeActionName | null>(null)
+  const [pendingCancelOffer, setPendingCancelOffer] = useState<LoanOffer | null>(null)
   const [pendingResetDryRun, setPendingResetDryRun] = useState(false)
   const [selectedHistoryRun, setSelectedHistoryRun] = useState<BotRun | null>(null)
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(loadDisplaySettings)
@@ -71,6 +72,35 @@ export function DashboardPage() {
       }
     },
   })
+  const cancelOfferMutation = useMutation({
+    mutationFn: ({ offer, confirmLive }: { offer: LoanOffer; confirmLive?: boolean }) => {
+      if (!offer.external_offer_id) {
+        throw new Error('這筆委託沒有交易所編號，無法取消。')
+      }
+      return cancelOpenOffer(offer.external_offer_id, { adminToken, confirmLive })
+    },
+    onSuccess: (result) => {
+      setLatestResult(result)
+      setLatestError(null)
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (mutationError) => {
+      setLatestResult(null)
+      setLatestError((mutationError as Error).message)
+    },
+  })
+  const stopJobMutation = useMutation({
+    mutationFn: (botJobId: number) => stopBotJob(botJobId),
+    onSuccess: (result) => {
+      setLatestResult(result)
+      setLatestError(null)
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (mutationError) => {
+      setLatestResult(null)
+      setLatestError((mutationError as Error).message)
+    },
+  })
   const runAction = (action: SafeActionName, dryRun: boolean) => {
     if (action === 'reset-dry-run-records') {
       setPendingResetDryRun(true)
@@ -90,6 +120,13 @@ export function DashboardPage() {
       setRunOnceFlow({ status: 'running', message: dryRun ? '模擬執行中，不會送出真實委託。' : 'Live 執行中，後端安全檢查會逐項阻擋不安全操作。' })
     }
     actionMutation.mutate({ action, confirmLive })
+  }
+  const cancelOffer = (offer: LoanOffer, dryRun: boolean) => {
+    if (!dryRun) {
+      setPendingCancelOffer(offer)
+      return
+    }
+    cancelOfferMutation.mutate({ offer })
   }
   useEffect(() => {
     const syncPageFromHash = () => setActivePage(loadActivePage())
@@ -256,9 +293,12 @@ export function DashboardPage() {
           />
           <OfferListPanel
             title="交易所未成交委託"
-            description="由同步委託取得的唯讀快照。"
+            description="由同步委託取得的快照；可針對單筆交易所委託送出取消。"
             rows={data.openOffers}
             timeZone={displayTimeZone}
+            actionLabel="取消"
+            actionPending={cancelOfferMutation.isPending}
+            onCancelOffer={(offer) => cancelOffer(offer, data.status.dry_run)}
           />
         </div>
       ) : null}
@@ -297,10 +337,11 @@ export function DashboardPage() {
             botLoop={data.status.bot_loop}
             botJobs={data.jobs}
             timeZone={displayTimeZone}
-            isPending={actionMutation.isPending}
+            isPending={actionMutation.isPending || stopJobMutation.isPending}
             latestResult={latestResult}
             latestError={latestError}
             onRunAction={(action: SafeActionName) => runAction(action, data.status.dry_run)}
+            onStopJob={(botJobId) => stopJobMutation.mutate(botJobId)}
           />
         </div>
       ) : null}
@@ -372,6 +413,17 @@ export function DashboardPage() {
             const action = pendingLiveAction
             setPendingLiveAction(null)
             startAction(action, true, data.status.dry_run)
+          }}
+        />
+      ) : null}
+      {pendingCancelOffer ? (
+        <CancelOfferConfirmModal
+          offer={pendingCancelOffer}
+          onCancel={() => setPendingCancelOffer(null)}
+          onConfirm={() => {
+            const offer = pendingCancelOffer
+            setPendingCancelOffer(null)
+            cancelOfferMutation.mutate({ offer, confirmLive: true })
           }}
         />
       ) : null}
@@ -1836,11 +1888,17 @@ function OfferListPanel({
   description,
   rows,
   timeZone,
+  actionLabel,
+  actionPending = false,
+  onCancelOffer,
 }: {
   title: string
   description: string
   rows: LoanOffer[]
   timeZone: string
+  actionLabel?: string
+  actionPending?: boolean
+  onCancelOffer?: (offer: LoanOffer) => void
 }) {
   const [page, setPage] = useState(1)
   const pageSize = 10
@@ -1874,6 +1932,7 @@ function OfferListPanel({
                   <th>模式</th>
                   <th>交易所編號</th>
                   <th>時間</th>
+                  {onCancelOffer ? <th>操作</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -1888,6 +1947,18 @@ function OfferListPanel({
                     <td>{offer.dry_run ? '模擬' : 'Live'}</td>
                     <td>{offer.external_offer_id ?? '-'}</td>
                     <td>{offer.captured_at ? formatTimestamp(offer.captured_at, timeZone) : '-'}</td>
+                    {onCancelOffer ? (
+                      <td>
+                        <button
+                          type="button"
+                          className="inline-danger-button"
+                          disabled={actionPending || !offer.external_offer_id}
+                          onClick={() => onCancelOffer(offer)}
+                        >
+                          {actionLabel ?? '操作'}
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -1903,6 +1974,36 @@ function OfferListPanel({
         </>
       )}
     </section>
+  )
+}
+
+function CancelOfferConfirmModal({
+  offer,
+  onCancel,
+  onConfirm,
+}: {
+  offer: LoanOffer
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="run-flow-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-offer-title">
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">Live 取消確認</p>
+            <h2 id="cancel-offer-title">取消單筆放貸委託</h2>
+            <p>
+              這會對交易所送出取消委託：{offer.currency} {amount(offer.amount)}，編號 {offer.external_offer_id}。
+            </p>
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onCancel}>先不要</button>
+          <button type="button" className="danger-button" onClick={onConfirm}>確認取消委託</button>
+        </div>
+      </section>
+    </div>
   )
 }
 

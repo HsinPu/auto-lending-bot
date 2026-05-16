@@ -332,6 +332,7 @@ export type SafeActionName =
   | 'sync-open-offers'
   | 'transfer-preview'
   | 'transfer-funds'
+  | 'cancel-open-offer'
   | 'cancel-open-offers'
   | 'record-market-analysis'
   | 'start-market-analysis'
@@ -340,6 +341,7 @@ export type SafeActionName =
   | 'reset-dry-run-records'
   | 'run-once'
   | 'start-loop'
+  | 'stop-job'
   | 'stop-loop'
 
 export type SafeActionResponse = {

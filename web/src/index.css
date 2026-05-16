@@ -2278,7 +2278,14 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: center;
   color: #f8fafc;
+}
+
+.bot-job-card-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .bot-job-card dl {
@@ -2296,6 +2303,20 @@ h1 {
 .bot-job-card dd {
   margin: 4px 0 0;
   color: #dbeafe;
+}
+
+.inline-danger-button {
+  border: 1px solid rgba(251, 113, 133, 0.38);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #fecdd3;
+  background: rgba(127, 29, 29, 0.28);
+  cursor: pointer;
+}
+
+.inline-danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .currency-table-scroll,

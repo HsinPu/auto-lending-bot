@@ -1264,3 +1264,24 @@ class OpenLoanOfferRepository:
                 (limit,),
             ).fetchall()
             return [dict(row) for row in rows]
+
+    def find_by_external_offer_id(self, external_offer_id: str) -> dict[str, object] | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, currency, amount, daily_rate, duration_days,
+                       external_offer_id, captured_at
+                FROM open_loan_offers
+                WHERE external_offer_id = ?
+                """,
+                (external_offer_id,),
+            ).fetchone()
+            return dict(row) if row is not None else None
+
+    def delete_by_external_offer_id(self, external_offer_id: str) -> int:
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                "DELETE FROM open_loan_offers WHERE external_offer_id = ?",
+                (external_offer_id,),
+            )
+            return int(cursor.rowcount)

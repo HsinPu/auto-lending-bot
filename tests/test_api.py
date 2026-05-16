@@ -5,6 +5,7 @@ from auto_lending_bot.api.app import create_app
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
 from auto_lending_bot.persistence.database import connect, initialize_database
+from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
@@ -775,6 +776,32 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
     assert '"dry_run":true' in job["settings_snapshot_json"]
 
 
+def test_api_can_stop_loop_by_job_id(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    start_response = client.post("/api/actions/start-loop")
+    bot_job_id = start_response.json()["bot_job_id"]
+    stop_response = client.post(f"/api/jobs/{bot_job_id}/stop")
+
+    assert stop_response.status_code == 200
+    assert stop_response.json()["action"] == "stop-job"
+    assert stop_response.json()["running"] is False
+    assert stop_response.json()["bot_job_id"] == bot_job_id
+
+
+def test_api_stop_job_rejects_non_active_job(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/jobs/999/stop")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Bot job is not running in this API process."
+
+
 def test_api_can_start_loop_with_effective_settings_proxy(tmp_path, monkeypatch) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     monkeypatch.setenv("DATABASE_URL", database_url)
@@ -808,6 +835,48 @@ def test_api_jobs_returns_safe_snapshot_summary(tmp_path, monkeypatch) -> None:
     assert body[0]["snapshot_summary"]["exchange"] == "mock"
     assert body[0]["snapshot_summary"]["dry_run"] is True
     assert "secret-value" not in str(body)
+
+
+def test_api_cancel_single_open_offer_dry_run_uses_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    repositories = create_repository_bundle(settings)
+    repositories.open_offers.replace_all(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00008,
+                duration_days=2,
+                external_offer_id="offer-1",
+            )
+        ]
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/api/actions/cancel-open-offer",
+        json={"external_offer_id": "offer-1"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["action"] == "cancel-open-offer"
+    assert response.json()["dry_run"] is True
+    assert response.json()["would_cancel_count"] == 1
+    assert response.json()["canceled_count"] == 0
+    assert repositories.open_offers.count() == 1
+
+
+def test_api_cancel_single_open_offer_requires_id(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/cancel-open-offer", json={})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "external_offer_id is required."
 
 
 def test_api_can_start_and_stop_market_analysis_collection(tmp_path) -> None:

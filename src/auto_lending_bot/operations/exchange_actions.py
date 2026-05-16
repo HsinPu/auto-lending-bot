@@ -66,6 +66,40 @@ class ExchangeActionService:
             "canceled_count": canceled_count,
         }
 
+    def cancel_open_offer_response(self, exchange, external_offer_id: str) -> dict[str, object]:
+        offer = self._repositories.open_offers.find_by_external_offer_id(external_offer_id)
+        if offer is None:
+            return {
+                "action": "cancel-open-offer",
+                "ok": False,
+                "dry_run": self._settings.dry_run,
+                "external_offer_id": external_offer_id,
+                "canceled_count": 0,
+                "message": "Open offer was not found in the local snapshot.",
+            }
+
+        if self._settings.dry_run:
+            return {
+                "action": "cancel-open-offer",
+                "ok": True,
+                "dry_run": True,
+                "external_offer_id": external_offer_id,
+                "would_cancel_count": 1,
+                "canceled_count": 0,
+            }
+
+        exchange.cancel_loan_offer(external_offer_id)
+        deleted_count = self._repositories.open_offers.delete_by_external_offer_id(external_offer_id)
+        return {
+            "action": "cancel-open-offer",
+            "ok": True,
+            "dry_run": False,
+            "external_offer_id": external_offer_id,
+            "would_cancel_count": 1,
+            "canceled_count": 1,
+            "deleted_snapshot_count": deleted_count,
+        }
+
     def _cancel_open_offers(self, exchange, offers: list[object]) -> int:
         canceled_count = 0
         for offer in offers:

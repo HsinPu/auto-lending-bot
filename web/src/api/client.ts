@@ -96,6 +96,21 @@ export async function runSafeAction(
   return postJson<SafeActionResponse>(`/api/actions/${action}`, body, options.adminToken)
 }
 
+export async function cancelOpenOffer(
+  externalOfferId: string,
+  options: { adminToken?: string; confirmLive?: boolean } = {},
+): Promise<SafeActionResponse> {
+  return postJson<SafeActionResponse>(
+    '/api/actions/cancel-open-offer',
+    { external_offer_id: externalOfferId, ...(options.confirmLive ? { confirm_live: true } : {}) },
+    options.adminToken,
+  )
+}
+
+export async function stopBotJob(botJobId: number): Promise<SafeActionResponse> {
+  return postJson<SafeActionResponse>(`/api/jobs/${botJobId}/stop`)
+}
+
 export async function getManagedSettings(): Promise<ManagedSettingsData> {
   const [schema, values] = await Promise.all([
     getJson<ManagedSettingDefinition[]>('/api/settings/schema'),

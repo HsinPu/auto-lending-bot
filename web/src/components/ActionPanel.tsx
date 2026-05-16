@@ -12,6 +12,7 @@ type ActionPanelProps = {
   latestResult: SafeActionResponse | null
   latestError: string | null
   onRunAction: (action: SafeActionName) => void
+  onStopJob: (botJobId: number) => void
 }
 
 export function ActionPanel({
@@ -23,6 +24,7 @@ export function ActionPanel({
   latestResult,
   latestError,
   onRunAction,
+  onStopJob,
 }: ActionPanelProps) {
   return (
     <section className="action-panel" id="actions">
@@ -40,6 +42,16 @@ export function ActionPanel({
           <strong>{botLoop.running ? '持續執行中' : '目前未持續執行'}</strong>
           <span>Job ID：{botLoop.bot_job_id ?? '尚未建立'}</span>
           <small>使用開始時的設定快照</small>
+          {botLoop.running && botLoop.bot_job_id ? (
+            <button
+              type="button"
+              className="inline-danger-button"
+              disabled={isPending}
+              onClick={() => onStopJob(botLoop.bot_job_id as number)}
+            >
+              停止這個 Job
+            </button>
+          ) : null}
         </div>
         <div className="loop-status-grid">
           <span>狀態：{botLoop.bot_job?.status ?? (botLoop.running ? 'running' : 'idle')}</span>
@@ -87,14 +99,24 @@ export function ActionPanel({
           </section>
         ))}
       </div>
-      <BotJobHistory jobs={botJobs} timeZone={timeZone} />
+      <BotJobHistory jobs={botJobs} timeZone={timeZone} isPending={isPending} onStopJob={onStopJob} />
       {latestResult ? <pre className="action-result">{JSON.stringify(latestResult, null, 2)}</pre> : null}
       {latestError ? <div className="action-error">{latestError}</div> : null}
     </section>
   )
 }
 
-function BotJobHistory({ jobs, timeZone }: { jobs: BotJob[]; timeZone: string }) {
+function BotJobHistory({
+  jobs,
+  timeZone,
+  isPending,
+  onStopJob,
+}: {
+  jobs: BotJob[]
+  timeZone: string
+  isPending: boolean
+  onStopJob: (botJobId: number) => void
+}) {
   return (
     <section className="bot-job-history">
       <div>
@@ -107,7 +129,19 @@ function BotJobHistory({ jobs, timeZone }: { jobs: BotJob[]; timeZone: string })
           <article className="bot-job-card" key={job.id}>
             <div className="bot-job-card-heading">
               <strong>Job #{job.id}</strong>
-              <span>{job.status}</span>
+              <div className="bot-job-card-actions">
+                <span>{job.status}</span>
+                {job.status === 'running' ? (
+                  <button
+                    type="button"
+                    className="inline-danger-button"
+                    disabled={isPending}
+                    onClick={() => onStopJob(job.id)}
+                  >
+                    停止
+                  </button>
+                ) : null}
+              </div>
             </div>
             <dl>
               <div><dt>Profile</dt><dd>{job.profile_id}</dd></div>
@@ -138,7 +172,7 @@ const actionGroups: Array<{
   {
     title: '開始放貸',
     description: '先用執行一次確認策略；開始持續執行會固定使用當下設定快照。',
-    actions: ['run-once', 'start-loop', 'stop-loop'],
+    actions: ['run-once', 'start-loop'],
     tone: 'primary',
   },
   {

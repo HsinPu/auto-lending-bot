@@ -17,6 +17,9 @@ class LoopController(Protocol):
     def stop(self) -> dict[str, object]:
         ...
 
+    def stop_job(self, bot_job_id: int) -> dict[str, object]:
+        ...
+
 
 class BotActionService:
     def __init__(
@@ -99,6 +102,9 @@ class BotActionService:
 
     def stop_loop(self) -> dict[str, object]:
         return {"action": "stop-loop", "ok": True, **self._loop_controller.stop()}
+
+    def stop_job(self, bot_job_id: int) -> dict[str, object]:
+        return {"action": "stop-job", "ok": True, **self._loop_controller.stop_job(bot_job_id)}
 
     def loop_status(self) -> dict[str, object]:
         return self._loop_controller.status()

@@ -30,6 +30,7 @@ def test_api_status_returns_counts_and_latest_run(tmp_path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["label"] == "Auto Lending Bot"
+    assert body["profile"] == {"id": "default", "name": "Default"}
     assert body["exchange"] == "mock"
     assert body["dry_run"] is True
     assert body["settings_runtime"] == {

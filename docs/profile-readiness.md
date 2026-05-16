@@ -28,7 +28,7 @@ This project currently runs as a single bot profile. There is no user account sy
 
 If profile support is needed later, the likely migration path is:
 
-1. Add a default bot profile concept in code while keeping current behavior unchanged.
+1. Add a default bot profile concept in code while keeping current behavior unchanged. This is currently represented by `DEFAULT_PROFILE_CONTEXT`.
 2. Pass a profile context through settings loading, runner creation, and API actions.
 3. Add a `bot_profiles` table and seed a default profile.
 4. Scope settings, runs, offers, loans, history, and market-analysis rows by profile.

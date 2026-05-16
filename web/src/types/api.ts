@@ -1,5 +1,6 @@
 export type StatusResponse = {
   label: string
+  profile: BotProfile
   database: string
   exchange: string
   dry_run: boolean
@@ -28,6 +29,11 @@ export type StatusResponse = {
     dry_run: number
     message: string
   }
+}
+
+export type BotProfile = {
+  id: string
+  name: string
 }
 
 export type MarketAnalysisCollectionStatus = {
@@ -178,6 +184,7 @@ export type MarketAnalysisStatus = {
 
 export type SettingsResponse = {
   label: string
+  profile: BotProfile
   exchange: string
   dry_run: boolean
   allow_live_trading: boolean

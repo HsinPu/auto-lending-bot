@@ -33,6 +33,7 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 from auto_lending_bot.safety import (
     SafetyError,
     validate_run_settings,
@@ -175,6 +176,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def status() -> dict[str, object]:
         return {
             "label": settings.bot_label,
+            "profile": DEFAULT_PROFILE_CONTEXT.as_dict(),
             "database": str(sqlite_path_from_url(settings.database_url)),
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
@@ -268,6 +270,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         )
         return {
             "label": settings.bot_label,
+            "profile": DEFAULT_PROFILE_CONTEXT.as_dict(),
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
             "allow_live_trading": settings.allow_live_trading,

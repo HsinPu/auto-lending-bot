@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
 
 CREATE TABLE IF NOT EXISTS bot_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     job_id INTEGER,
     started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     finished_at TEXT,
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS bot_runs (
 
 CREATE TABLE IF NOT EXISTS loan_offers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     bot_run_id INTEGER NOT NULL,
     currency TEXT NOT NULL,
     amount REAL NOT NULL,
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS loan_offers (
 
 CREATE TABLE IF NOT EXISTS bot_run_decisions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     bot_run_id INTEGER NOT NULL,
     currency TEXT NOT NULL,
     balance REAL NOT NULL,
@@ -65,6 +68,7 @@ CREATE TABLE IF NOT EXISTS bot_run_decisions (
 
 CREATE TABLE IF NOT EXISTS bot_run_steps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     bot_run_id INTEGER NOT NULL,
     step_key TEXT NOT NULL,
     label TEXT NOT NULL,
@@ -77,6 +81,7 @@ CREATE TABLE IF NOT EXISTS bot_run_steps (
 
 CREATE TABLE IF NOT EXISTS market_rates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     currency TEXT NOT NULL,
     daily_rate REAL NOT NULL,
     available_amount REAL NOT NULL,
@@ -85,6 +90,7 @@ CREATE TABLE IF NOT EXISTS market_rates (
 
 CREATE TABLE IF NOT EXISTS active_loans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     currency TEXT NOT NULL,
     amount REAL NOT NULL,
     daily_rate REAL NOT NULL,
@@ -95,6 +101,7 @@ CREATE TABLE IF NOT EXISTS active_loans (
 
 CREATE TABLE IF NOT EXISTS lending_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     external_entry_id TEXT NOT NULL,
     currency TEXT NOT NULL,
     amount REAL NOT NULL,
@@ -113,6 +120,7 @@ CREATE TABLE IF NOT EXISTS lending_history (
 
 CREATE TABLE IF NOT EXISTS open_loan_offers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     currency TEXT NOT NULL,
     amount REAL NOT NULL,
     daily_rate REAL NOT NULL,
@@ -123,6 +131,7 @@ CREATE TABLE IF NOT EXISTS open_loan_offers (
 
 CREATE TABLE IF NOT EXISTS market_analysis_rates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL DEFAULT 'default',
     currency TEXT NOT NULL,
     level INTEGER NOT NULL,
     daily_rate REAL NOT NULL,
@@ -131,6 +140,7 @@ CREATE TABLE IF NOT EXISTS market_analysis_rates (
 );
 
 CREATE TABLE IF NOT EXISTS notification_state (
+    profile_id TEXT NOT NULL DEFAULT 'default',
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -196,6 +206,29 @@ CREATE TABLE IF NOT EXISTS profile_app_setting_audit_log (
     source TEXT NOT NULL,
     FOREIGN KEY (profile_id) REFERENCES bot_profiles (id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_bot_runs_profile_started
+    ON bot_runs (profile_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bot_runs_profile_job
+    ON bot_runs (profile_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_loan_offers_profile_created
+    ON loan_offers (profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bot_run_decisions_profile_run
+    ON bot_run_decisions (profile_id, bot_run_id);
+CREATE INDEX IF NOT EXISTS idx_bot_run_steps_profile_run
+    ON bot_run_steps (profile_id, bot_run_id);
+CREATE INDEX IF NOT EXISTS idx_market_rates_profile_currency_captured
+    ON market_rates (profile_id, currency, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_active_loans_profile_captured
+    ON active_loans (profile_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lending_history_profile_synced
+    ON lending_history (profile_id, synced_at DESC);
+CREATE INDEX IF NOT EXISTS idx_open_loan_offers_profile_captured
+    ON open_loan_offers (profile_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_market_analysis_profile_currency_captured
+    ON market_analysis_rates (profile_id, currency, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_state_profile_key
+    ON notification_state (profile_id, key);
 """
 
 
@@ -205,16 +238,27 @@ def initialize_database(database_url: str) -> None:
 
     with sqlite3.connect(database_path) as connection:
         connection.executescript(SCHEMA)
+        _seed_default_profile(connection)
+        _ensure_profile_column(connection, "bot_runs")
         _ensure_column(connection, "bot_runs", "started_at", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(connection, "bot_runs", "job_id", "INTEGER")
         _ensure_column(connection, "bot_runs", "status", "TEXT NOT NULL DEFAULT 'unknown'")
         _ensure_column(connection, "bot_runs", "dry_run", "INTEGER NOT NULL DEFAULT 1")
         _ensure_column(connection, "bot_runs", "finished_at", "TEXT")
         _ensure_column(connection, "bot_runs", "message", "TEXT")
+        _ensure_profile_column(connection, "loan_offers")
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
         _ensure_column(connection, "loan_offers", "message", "TEXT")
+        _ensure_profile_column(connection, "bot_run_decisions")
+        _ensure_profile_column(connection, "bot_run_steps")
+        _ensure_profile_column(connection, "market_rates")
+        _ensure_profile_column(connection, "active_loans")
+        _ensure_profile_column(connection, "lending_history")
         _ensure_column(connection, "lending_history", "dry_run", "INTEGER NOT NULL DEFAULT 0")
         _ensure_column(connection, "lending_history", "source", "TEXT NOT NULL DEFAULT 'exchange'")
+        _ensure_profile_column(connection, "open_loan_offers")
+        _ensure_profile_column(connection, "market_analysis_rates")
+        _ensure_profile_column(connection, "notification_state")
         connection.execute(
             """
             UPDATE lending_history
@@ -223,7 +267,6 @@ def initialize_database(database_url: str) -> None:
             WHERE external_entry_id LIKE 'mock-%'
             """
         )
-        _seed_default_profile(connection)
 
 
 def _seed_default_profile(connection: sqlite3.Connection) -> None:
@@ -250,6 +293,10 @@ def _ensure_column(
         return
 
     connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+
+def _ensure_profile_column(connection: sqlite3.Connection, table_name: str) -> None:
+    _ensure_column(connection, table_name, "profile_id", "TEXT NOT NULL DEFAULT 'default'")
 
 
 @contextmanager

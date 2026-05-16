@@ -6,6 +6,7 @@ import threading
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from auto_lending_bot.api.dashboard import DashboardReadService, DashboardRepositories
 from auto_lending_bot.bot.factory import RunnerRepositories, create_bot_runner
 from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import (
@@ -72,6 +73,20 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = LendingHistoryRepository(settings.database_url)
     open_offers = OpenLoanOfferRepository(settings.database_url)
     notification_state = NotificationStateRepository(settings.database_url)
+    dashboard_reads = DashboardReadService(
+        DashboardRepositories(
+            bot_runs=bot_runs,
+            loan_offers=loan_offers,
+            open_offers=open_offers,
+            active_loans=active_loans,
+            lending_history=lending_history,
+            market_rates=market_rates,
+            market_analysis_rates=market_analysis_rates,
+            run_decisions=bot_run_decisions,
+            run_steps=bot_run_steps,
+        ),
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
     runtime = _create_runtime_controllers(
         settings=settings,
         bot_runs=bot_runs,
@@ -179,7 +194,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def status() -> dict[str, object]:
         return {
             "label": settings.bot_label,
-            "profile": runtime.profile_context.as_dict(),
+            "profile": dashboard_reads.profile_context.as_dict(),
             "database": str(sqlite_path_from_url(settings.database_url)),
             "exchange": settings.exchange,
             "dry_run": settings.dry_run,
@@ -187,16 +202,8 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             "settings_runtime": _settings_runtime(settings),
             "bot_loop": runtime.bot_loop.status(),
             "market_analysis_collection": runtime.market_analysis_collection.status(),
-            "counts": {
-                "bot_runs": bot_runs.count(),
-                "loan_offers": loan_offers.count(),
-                "open_loan_offers": open_offers.count(),
-                "active_loans": active_loans.count(),
-                "lending_history": lending_history.count(),
-                 "market_rates": market_rates.count(),
-                "market_analysis_rates": market_analysis_rates.count(),
-            },
-            "latest_run": bot_runs.latest(),
+            "counts": dashboard_reads.counts(),
+            "latest_run": dashboard_reads.latest_run(),
         }
 
     @router.get("/live-readiness")
@@ -213,51 +220,51 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/runs")
     def runs() -> list[dict[str, object]]:
-        return bot_runs.recent()
+        return dashboard_reads.recent_runs()
 
     @router.get("/runs/{bot_run_id}/decisions")
     def run_decisions(bot_run_id: int) -> list[dict[str, object]]:
-        return bot_run_decisions.for_run(bot_run_id)
+        return dashboard_reads.run_decisions(bot_run_id)
 
     @router.get("/runs/{bot_run_id}/steps")
     def run_steps(bot_run_id: int) -> list[dict[str, object]]:
-        return bot_run_steps.for_run(bot_run_id)
+        return dashboard_reads.run_steps(bot_run_id)
 
     @router.get("/offers")
     def offers() -> list[dict[str, object]]:
-        return loan_offers.recent()
+        return dashboard_reads.recent_offers()
 
     @router.get("/open-offers")
     def open_loan_offers() -> list[dict[str, object]]:
-        return open_offers.recent()
+        return dashboard_reads.recent_open_offers()
 
     @router.get("/active-loans")
     def active_loan_rows() -> list[dict[str, object]]:
-        return active_loans.recent()
+        return dashboard_reads.recent_active_loans()
 
     @router.get("/lending-history")
     def lending_history_rows() -> list[dict[str, object]]:
-        return lending_history.recent()
+        return dashboard_reads.recent_lending_history()
 
     @router.get("/earnings")
     def earnings() -> list[dict[str, object]]:
-        return lending_history.earnings_summary_by_currency()
+        return dashboard_reads.earnings_summary_by_currency()
 
     @router.get("/converted-earnings")
     def converted_earnings() -> list[dict[str, object]]:
         return _converted_earnings(
-            earnings_rows=lending_history.earnings_summary_by_currency(),
+            earnings_rows=dashboard_reads.earnings_summary_by_currency(),
             output_currency=settings.output_currency,
             exchange=create_exchange_client(settings),
         )
 
     @router.get("/market-rates")
     def market_rate_rows() -> list[dict[str, object]]:
-        return market_rates.recent()
+        return dashboard_reads.recent_market_rates()
 
     @router.get("/market-analysis-rates")
     def market_analysis_rate_rows() -> list[dict[str, object]]:
-        return market_analysis_rates.recent()
+        return dashboard_reads.recent_market_analysis_rates()
 
     @router.get("/market-analysis-status")
     def market_analysis_status() -> list[dict[str, object]]:
@@ -296,10 +303,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.get("/currency-details")
     def currency_details() -> list[dict[str, object]]:
         return _currency_details(
-            active_loans=active_loans.recent(1000),
-            open_offer_rows=open_offers.recent(1000),
-            earnings_rows=lending_history.earnings_summary_by_currency(),
-            market_rate_rows=market_rates.recent(1000),
+            active_loans=dashboard_reads.recent_active_loans(1000),
+            open_offer_rows=dashboard_reads.recent_open_offers(1000),
+            earnings_rows=dashboard_reads.earnings_summary_by_currency(),
+            market_rate_rows=dashboard_reads.recent_market_rates(1000),
         )
 
     @router.get("/strategy-decisions")

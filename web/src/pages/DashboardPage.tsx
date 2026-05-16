@@ -269,15 +269,15 @@ export function DashboardPage() {
               <p className="eyebrow">受保護操作</p>
               <h2>安全操作中心</h2>
               <p>
-                Live 模式操作需要管理權杖與後端二次確認。模擬模式仍可用來驗證流程。
+                Live 模式操作需要後台授權與後端二次確認。模擬模式仍可用來驗證流程。
               </p>
             </div>
             <label className="admin-token-field">
-              <span>管理權杖</span>
+              <span>後台授權碼</span>
               <input
                 type="password"
                 value={adminToken}
-                placeholder="ADMIN_AUTH_TOKEN"
+                placeholder="遠端後台操作才需要"
                 onChange={(event) => {
                   setAdminToken(event.currentTarget.value)
                   sessionStorage.setItem(adminTokenKey, event.currentTarget.value)
@@ -444,8 +444,8 @@ function SidebarNavigation({
         ))}
       </nav>
       <div className={`sidebar-admin-state ${adminToken ? 'enabled' : ''}`}>
-        <strong>{adminToken ? '管理權限已啟用' : '管理權限未啟用'}</strong>
-        <span>{adminToken ? '外部連線可送出權杖' : '本機可直接寫入，外部連線需要權杖'}</span>
+        <strong>{adminToken ? '後台授權已啟用' : '後台授權未啟用'}</strong>
+        <span>{adminToken ? '遠端後台操作會送出授權碼' : '本機可直接操作，遠端後台需要授權碼'}</span>
       </div>
     </aside>
   )

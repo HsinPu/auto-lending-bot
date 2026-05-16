@@ -437,11 +437,11 @@ export function ManagedSettingsPanel({
           <p>預設只顯示常用設定；儲存後會在下一次 API 動作或 bot 迴圈熱更新。</p>
         </div>
         <label className="admin-token-field">
-          <span>管理權杖（本機可留空）</span>
+          <span>後台授權碼（本機可留空）</span>
           <input
             type="password"
             value={adminToken}
-            placeholder="外部連線才需要 ADMIN_AUTH_TOKEN"
+            placeholder="遠端後台操作才需要授權碼"
             onChange={(event) => onAdminTokenChange(event.currentTarget.value)}
           />
         </label>
@@ -522,7 +522,7 @@ export function ManagedSettingsPanel({
             <strong>安全提醒</strong>
           <span>
               高風險與關鍵風險設定會影響真實放貸、取消委託或資金轉移。後端仍會套用安全檢查，
-              但請先保持「模擬模式 = 是」完成驗證。外部連線寫入設定仍需要管理權杖。
+              但請先保持「模擬模式 = 是」完成驗證。遠端後台寫入設定仍需要授權碼。
             </span>
           </div>
           {visibleGroups.map(([category, definitions]) => (

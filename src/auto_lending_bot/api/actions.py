@@ -1,19 +1,17 @@
-import json
-from dataclasses import asdict
-from datetime import date
 from typing import Protocol
 
 from auto_lending_bot.bot.factory import RunnerRepositories, create_bot_runner
 from auto_lending_bot.config import Settings
 from auto_lending_bot.persistence.factory import RepositoryBundle
 from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext
+from auto_lending_bot.settings_snapshot import settings_snapshot_json
 
 
 class LoopController(Protocol):
     def status(self) -> dict[str, object]:
         ...
 
-    def start(self) -> dict[str, object]:
+    def start(self, bot_job_id: int) -> dict[str, object]:
         ...
 
     def stop(self) -> dict[str, object]:
@@ -90,13 +88,13 @@ class BotActionService:
 
         bot_job_id = self._repositories.bot_jobs.create(
             self._profile_context,
-            settings_snapshot_json=_settings_snapshot_json(self._settings),
+            settings_snapshot_json=settings_snapshot_json(self._settings),
         )
         return {
             "action": "start-loop",
             "ok": True,
             "bot_job_id": bot_job_id,
-            **self._loop_controller.start(),
+            **self._loop_controller.start(bot_job_id),
         }
 
     def stop_loop(self) -> dict[str, object]:
@@ -104,19 +102,3 @@ class BotActionService:
 
     def loop_status(self) -> dict[str, object]:
         return self._loop_controller.status()
-
-
-def _settings_snapshot_json(settings: Settings) -> str:
-    return json.dumps(_json_safe_settings(asdict(settings)), sort_keys=True, separators=(",", ":"))
-
-
-def _json_safe_settings(value: object) -> object:
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, tuple):
-        return [_json_safe_settings(item) for item in value]
-    if isinstance(value, list):
-        return [_json_safe_settings(item) for item in value]
-    if isinstance(value, dict):
-        return {str(key): _json_safe_settings(item) for key, item in value.items()}
-    return value

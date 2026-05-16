@@ -25,6 +25,7 @@ from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
+    BotJobRepository,
     BotRunDecisionRepository,
     BotRunRepository,
     BotRunStepRepository,
@@ -43,6 +44,7 @@ from auto_lending_bot.safety import (
     validate_transfer_settings,
 )
 from auto_lending_bot.settings_registry import GLOBAL_SETTING_SCOPE, setting_schema, setting_scope
+from auto_lending_bot.settings_snapshot import settings_from_snapshot_json
 
 
 class _SettingsProxy:
@@ -68,6 +70,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         settings,
         settings_encryption_key=settings_encryption_key(),
     )
+    bot_jobs = repositories.bot_jobs
     bot_runs = repositories.bot_runs
     loan_offers = repositories.loan_offers
     market_rates = repositories.market_rates
@@ -96,6 +99,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     )
     runtime = _create_runtime_controllers(
         settings=settings,
+        bot_jobs=bot_jobs,
         bot_runs=bot_runs,
         loan_offers=loan_offers,
         active_loans=active_loans,
@@ -485,6 +489,7 @@ class _BotLoopController:
         self,
         settings: Settings,
         profile_context: BotProfileContext,
+        bot_jobs: BotJobRepository,
         bot_runs: BotRunRepository,
         loan_offers: LoanOfferRepository,
         active_loans: ActiveLoanRepository,
@@ -498,6 +503,7 @@ class _BotLoopController:
     ) -> None:
         self._settings = settings
         self._profile_context = profile_context
+        self._bot_jobs = bot_jobs
         self._bot_runs = bot_runs
         self._loan_offers = loan_offers
         self._active_loans = active_loans
@@ -511,17 +517,19 @@ class _BotLoopController:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
+        self._bot_job_id: int | None = None
         self._started_at: str | None = None
         self._last_run_at: str | None = None
         self._last_error: str | None = None
         self._loops_completed = 0
 
-    def start(self) -> dict[str, object]:
+    def start(self, bot_job_id: int) -> dict[str, object]:
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
                 return self._status_unlocked()
 
             self._stop_event = threading.Event()
+            self._bot_job_id = bot_job_id
             self._started_at = _utc_now()
             self._last_error = None
             self._loops_completed = 0
@@ -554,9 +562,10 @@ class _BotLoopController:
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
-                validate_run_settings(self._settings)
+                job_settings = self._settings_for_current_job()
+                validate_run_settings(job_settings)
                 runner = _create_runner(
-                    settings=self._settings,
+                    settings=job_settings,
                     bot_runs=self._bot_runs,
                     loan_offers=self._loan_offers,
                     active_loans=self._active_loans,
@@ -570,7 +579,7 @@ class _BotLoopController:
                     profile_context=self._profile_context,
                 )
                 created_offers = runner.run_once_with_retry()
-                wait_seconds = self._sleep_seconds(created_offers)
+                wait_seconds = self._sleep_seconds(job_settings, created_offers)
                 with self._lock:
                     self._loops_completed += 1
                     self._last_run_at = _utc_now()
@@ -583,10 +592,21 @@ class _BotLoopController:
 
             self._stop_event.wait(wait_seconds)
 
-    def _sleep_seconds(self, created_offers: int) -> int:
+    def _settings_for_current_job(self) -> Settings:
+        bot_job_id = self._bot_job_id
+        if bot_job_id is None:
+            msg = "Bot loop job is not initialized."
+            raise RuntimeError(msg)
+        job = self._bot_jobs.get(bot_job_id)
+        if job is None:
+            msg = f"Bot job {bot_job_id} was not found."
+            raise RuntimeError(msg)
+        return settings_from_snapshot_json(str(job["settings_snapshot_json"]))
+
+    def _sleep_seconds(self, settings: Settings, created_offers: int) -> int:
         if created_offers > 0:
-            return max(self._settings.bot_sleep_seconds, 1)
-        return max(self._settings.bot_inactive_sleep_seconds, 1)
+            return max(settings.bot_sleep_seconds, 1)
+        return max(settings.bot_inactive_sleep_seconds, 1)
 
 
 class _MarketAnalysisCollectionController:
@@ -665,6 +685,7 @@ class _MarketAnalysisCollectionController:
 
 def _create_runtime_controllers(
     settings: Settings,
+    bot_jobs: BotJobRepository,
     bot_runs: BotRunRepository,
     loan_offers: LoanOfferRepository,
     active_loans: ActiveLoanRepository,
@@ -683,6 +704,7 @@ def _create_runtime_controllers(
         bot_loop=_BotLoopController(
             settings=settings,
             profile_context=profile_context,
+            bot_jobs=bot_jobs,
             bot_runs=bot_runs,
             loan_offers=loan_offers,
             active_loans=active_loans,

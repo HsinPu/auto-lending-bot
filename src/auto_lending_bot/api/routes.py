@@ -21,6 +21,7 @@ from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.market.analysis_recorder import MarketAnalysisRecorder
 from auto_lending_bot.operations.transfers import build_transfer_preview, execute_transfers
+from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
@@ -34,7 +35,7 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
-from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext
 from auto_lending_bot.safety import (
     SafetyError,
     validate_run_settings,
@@ -63,16 +64,20 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     settings = _SettingsProxy(settings) if callable(settings) else settings
     router = APIRouter()
 
-    bot_runs = BotRunRepository(settings.database_url)
-    loan_offers = LoanOfferRepository(settings.database_url)
-    market_rates = MarketRateRepository(settings.database_url)
-    market_analysis_rates = MarketAnalysisRateRepository(settings.database_url)
-    active_loans = ActiveLoanRepository(settings.database_url)
-    bot_run_decisions = BotRunDecisionRepository(settings.database_url)
-    bot_run_steps = BotRunStepRepository(settings.database_url)
-    lending_history = LendingHistoryRepository(settings.database_url)
-    open_offers = OpenLoanOfferRepository(settings.database_url)
-    notification_state = NotificationStateRepository(settings.database_url)
+    repositories = create_repository_bundle(
+        settings,
+        settings_encryption_key=settings_encryption_key(),
+    )
+    bot_runs = repositories.bot_runs
+    loan_offers = repositories.loan_offers
+    market_rates = repositories.market_rates
+    market_analysis_rates = repositories.market_analysis_rates
+    active_loans = repositories.active_loans
+    bot_run_decisions = repositories.bot_run_decisions
+    bot_run_steps = repositories.bot_run_steps
+    lending_history = repositories.lending_history
+    open_offers = repositories.open_offers
+    notification_state = repositories.notification_state
     dashboard_reads = DashboardReadService(
         DashboardRepositories(
             bot_runs=bot_runs,
@@ -887,8 +892,11 @@ def _profile_app_settings(
     settings: Settings,
     profile_context: BotProfileContext,
 ) -> AppSettingRepository:
-    ensure_default_profile(profile_context)
-    return AppSettingRepository(settings.database_url, encryption_key=settings_encryption_key())
+    return create_repository_bundle(
+        settings,
+        profile_context=profile_context,
+        settings_encryption_key=settings_encryption_key(),
+    ).app_settings
 
 
 def _settings_runtime(settings: Settings) -> dict[str, object]:

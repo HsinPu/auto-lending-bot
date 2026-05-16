@@ -8,6 +8,7 @@ from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
+from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     BotRunDecisionRepository,
@@ -80,18 +81,18 @@ def create_default_bot_runner(
 
 
 def default_runner_repositories(settings: Settings) -> RunnerRepositories:
-    database_url = settings.database_url
+    repositories = create_repository_bundle(settings)
     return RunnerRepositories(
-        bot_runs=BotRunRepository(database_url),
-        loan_offers=LoanOfferRepository(database_url),
-        active_loans=ActiveLoanRepository(database_url),
-        open_offers=OpenLoanOfferRepository(database_url),
-        lending_history=LendingHistoryRepository(database_url),
-        notification_state=NotificationStateRepository(database_url),
-        market_analysis_rates=MarketAnalysisRateRepository(database_url),
-        market_rates=MarketRateRepository(database_url),
-        decision_snapshots=BotRunDecisionRepository(database_url),
-        run_steps=BotRunStepRepository(database_url),
+        bot_runs=repositories.bot_runs,
+        loan_offers=repositories.loan_offers,
+        active_loans=repositories.active_loans,
+        open_offers=repositories.open_offers,
+        lending_history=repositories.lending_history,
+        notification_state=repositories.notification_state,
+        market_analysis_rates=repositories.market_analysis_rates,
+        market_rates=repositories.market_rates,
+        decision_snapshots=repositories.bot_run_decisions,
+        run_steps=repositories.bot_run_steps,
     )
 
 

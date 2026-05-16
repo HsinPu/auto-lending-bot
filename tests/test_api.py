@@ -775,6 +775,21 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
     assert '"dry_run":true' in job["settings_snapshot_json"]
 
 
+def test_api_can_start_loop_with_effective_settings_proxy(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("EXCHANGE", "mock")
+    monkeypatch.setenv("BOT_DRY_RUN", "true")
+    client = TestClient(create_app())
+
+    start_response = client.post("/api/actions/start-loop")
+    stop_response = client.post("/api/actions/stop-loop")
+
+    assert start_response.status_code == 200
+    assert isinstance(start_response.json()["bot_job_id"], int)
+    assert stop_response.status_code == 200
+
+
 def test_api_jobs_returns_safe_snapshot_summary(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("EXCHANGE_API_SECRET", "secret-value")
     database_url = f"sqlite:///{tmp_path / 'test.db'}"

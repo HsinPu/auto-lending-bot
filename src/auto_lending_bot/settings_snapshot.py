@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict
+from dataclasses import asdict, fields, is_dataclass
 from datetime import date
 
 from auto_lending_bot.config import Settings
@@ -8,7 +8,7 @@ _TUPLE_FIELDS = {"market_analysis_currencies", "transferable_currencies"}
 
 
 def settings_snapshot_json(settings: Settings) -> str:
-    return json.dumps(_json_safe_settings(asdict(settings)), sort_keys=True, separators=(",", ":"))
+    return json.dumps(_json_safe_settings(_settings_dict(settings)), sort_keys=True, separators=(",", ":"))
 
 
 def settings_from_snapshot_json(snapshot_json: str) -> Settings:
@@ -34,3 +34,9 @@ def _json_safe_settings(value: object) -> object:
     if isinstance(value, dict):
         return {str(key): _json_safe_settings(item) for key, item in value.items()}
     return value
+
+
+def _settings_dict(settings: Settings) -> dict[str, object]:
+    if is_dataclass(settings):
+        return asdict(settings)
+    return {field.name: getattr(settings, field.name) for field in fields(Settings)}

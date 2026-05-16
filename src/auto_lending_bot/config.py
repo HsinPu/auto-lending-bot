@@ -195,15 +195,28 @@ def load_effective_settings(
     ensure_default_profile(profile_context)
     base_settings = load_settings()
     resolved_database_url = database_url or base_settings.database_url
-    from auto_lending_bot.persistence.repository import AppSettingRepository
+    from auto_lending_bot.persistence.repository import (
+        AppSettingRepository,
+        ProfileAppSettingRepository,
+    )
 
     try:
         overrides = AppSettingRepository(
             resolved_database_url,
-            encryption_key=encryption_key if encryption_key is not None else settings_encryption_key(),
+            encryption_key=encryption_key
+            if encryption_key is not None
+            else settings_encryption_key(),
         ).plain_values()
+        profile_overrides = ProfileAppSettingRepository(
+            resolved_database_url,
+            encryption_key=encryption_key
+            if encryption_key is not None
+            else settings_encryption_key(),
+        ).plain_values(profile_context)
     except sqlite3.OperationalError:
         overrides = {}
+        profile_overrides = {}
+    overrides.update(profile_overrides)
     with _temporary_environ(overrides):
         return load_settings()
 

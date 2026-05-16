@@ -1,6 +1,6 @@
 from auto_lending_bot.config import load_effective_settings, load_settings, strategy_config_for
 from auto_lending_bot.persistence.database import initialize_database
-from auto_lending_bot.persistence.repository import AppSettingRepository
+from auto_lending_bot.persistence.repository import AppSettingRepository, ProfileAppSettingRepository
 from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 from auto_lending_bot.settings_registry import setting_scope
 
@@ -190,6 +190,27 @@ def test_load_effective_settings_uses_database_overrides(tmp_path, monkeypatch) 
 
     assert settings.bot_label == "DB Bot"
     assert settings.display_timezone == "Asia/Taipei"
+
+
+def test_load_effective_settings_prefers_default_profile_overrides(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("BOT_LABEL", "Env Bot")
+    initialize_database(database_url)
+    AppSettingRepository(database_url).set_many({"BOT_LABEL": "Global Bot"})
+    ProfileAppSettingRepository(database_url).set_many(
+        DEFAULT_PROFILE_CONTEXT,
+        {"BOT_LABEL": "Profile Bot", "MIN_DAILY_RATE": "0.00009"},
+    )
+
+    settings = load_effective_settings(database_url, profile_context=DEFAULT_PROFILE_CONTEXT)
+    strategy = strategy_config_for(settings, "BTC")
+
+    assert settings.bot_label == "Profile Bot"
+    assert strategy.min_daily_rate == 0.00009
 
 
 def test_setting_scope_metadata_classifies_profile_owned_settings() -> None:

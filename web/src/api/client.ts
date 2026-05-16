@@ -1,6 +1,7 @@
 import type {
   ActiveLoan,
   BotRun,
+  BotJob,
   BotRunStep,
   ConvertedEarnings,
   DashboardData,
@@ -34,6 +35,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const [
     status,
     liveReadiness,
+    jobs,
     runs,
     offers,
     openOffers,
@@ -50,6 +52,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   ] = await Promise.all([
     getJson<StatusResponse>('/api/status'),
     getJson<LiveReadiness>('/api/live-readiness'),
+    getJson<BotJob[]>('/api/jobs'),
     getJson<BotRun[]>('/api/runs'),
     getJson<LoanOffer[]>('/api/offers'),
     getJson<LoanOffer[]>('/api/open-offers'),
@@ -68,6 +71,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   return {
     status,
     liveReadiness,
+    jobs,
     runs,
     offers,
     openOffers,

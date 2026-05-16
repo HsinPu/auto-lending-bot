@@ -1,10 +1,12 @@
-import type { BotLoopStatus, SafeActionName, SafeActionResponse } from '../types/api'
+import type { BotJob, BotLoopStatus, SafeActionName, SafeActionResponse } from '../types/api'
+import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
 import { actions } from './actionDefinitions'
 
 type ActionPanelProps = {
   dryRun: boolean
   botLoop: BotLoopStatus
+  botJobs: BotJob[]
   timeZone: string
   isPending: boolean
   latestResult: SafeActionResponse | null
@@ -15,6 +17,7 @@ type ActionPanelProps = {
 export function ActionPanel({
   dryRun,
   botLoop,
+  botJobs,
   timeZone,
   isPending,
   latestResult,
@@ -84,8 +87,44 @@ export function ActionPanel({
           </section>
         ))}
       </div>
+      <BotJobHistory jobs={botJobs} timeZone={timeZone} />
       {latestResult ? <pre className="action-result">{JSON.stringify(latestResult, null, 2)}</pre> : null}
       {latestError ? <div className="action-error">{latestError}</div> : null}
+    </section>
+  )
+}
+
+function BotJobHistory({ jobs, timeZone }: { jobs: BotJob[]; timeZone: string }) {
+  return (
+    <section className="bot-job-history">
+      <div>
+        <h3>持續執行 Job 歷史</h3>
+        <p>每個 job 都固定使用開始時的設定快照；密鑰不會顯示在摘要裡。</p>
+      </div>
+      {jobs.length === 0 ? <p className="job-history-empty">目前沒有 job 紀錄。</p> : null}
+      <div className="bot-job-list">
+        {jobs.map((job) => (
+          <article className="bot-job-card" key={job.id}>
+            <div className="bot-job-card-heading">
+              <strong>Job #{job.id}</strong>
+              <span>{job.status}</span>
+            </div>
+            <dl>
+              <div><dt>Profile</dt><dd>{job.profile_id}</dd></div>
+              <div><dt>開始</dt><dd>{formatTimestamp(job.started_at, timeZone)}</dd></div>
+              <div><dt>停止</dt><dd>{formatTimestamp(job.stopped_at, timeZone)}</dd></div>
+              <div><dt>輪數</dt><dd>{job.loops_completed}</dd></div>
+              <div><dt>最後 run</dt><dd>{job.last_run_id ?? '-'}</dd></div>
+              <div><dt>模式</dt><dd>{job.snapshot_summary?.dry_run ? '模擬' : 'Live'}</dd></div>
+              <div><dt>交易所</dt><dd>{job.snapshot_summary?.exchange ?? '-'}</dd></div>
+              <div><dt>等待秒數</dt><dd>{job.snapshot_summary?.bot_sleep_seconds ?? '-'}</dd></div>
+              <div><dt>最低日利率</dt><dd>{formatRate(job.snapshot_summary?.min_daily_rate)}</dd></div>
+              <div><dt>單筆上限</dt><dd>{formatAmount(job.snapshot_summary?.max_single_offer_amount)}</dd></div>
+            </dl>
+            {job.last_error ? <p className="loop-error">錯誤：{job.last_error}</p> : null}
+          </article>
+        ))}
+      </div>
     </section>
   )
 }

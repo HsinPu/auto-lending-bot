@@ -295,6 +295,7 @@ export function DashboardPage() {
           <ActionPanel
             dryRun={data.status.dry_run}
             botLoop={data.status.bot_loop}
+            botJobs={data.jobs}
             timeZone={displayTimeZone}
             isPending={actionMutation.isPending}
             latestResult={latestResult}

@@ -2240,6 +2240,64 @@ h1 {
   color: #fecdd3;
 }
 
+.bot-job-history {
+  display: grid;
+  gap: 14px;
+  margin: 0 24px 24px;
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.2);
+}
+
+.bot-job-history h3,
+.bot-job-history p {
+  margin: 0;
+}
+
+.bot-job-history p,
+.job-history-empty {
+  color: #bfdbfe;
+}
+
+.bot-job-list {
+  display: grid;
+  gap: 12px;
+}
+
+.bot-job-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.bot-job-card-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #f8fafc;
+}
+
+.bot-job-card dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.bot-job-card dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.bot-job-card dd {
+  margin: 4px 0 0;
+  color: #dbeafe;
+}
+
 .currency-table-scroll,
 .strategy-table-scroll,
 .forecast-table-scroll {

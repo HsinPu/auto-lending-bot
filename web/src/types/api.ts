@@ -66,6 +66,18 @@ export type BotJob = {
   loops_completed: number
   last_run_id: number | null
   last_error: string | null
+  snapshot_summary?: BotJobSnapshotSummary
+}
+
+export type BotJobSnapshotSummary = {
+  exchange: string
+  dry_run: boolean
+  bot_sleep_seconds: number
+  bot_inactive_sleep_seconds: number
+  min_daily_rate: number
+  max_daily_rate: number
+  max_total_lend_amount: number | null
+  max_single_offer_amount: number | null
 }
 
 export type LiveReadinessItem = {
@@ -298,6 +310,7 @@ export type RunDecisionHistory = {
 export type DashboardData = {
   status: StatusResponse
   liveReadiness: LiveReadiness
+  jobs: BotJob[]
   runs: BotRun[]
   offers: LoanOffer[]
   openOffers: LoanOffer[]

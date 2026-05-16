@@ -43,6 +43,13 @@ This project currently runs as a single bot profile. There is no user account sy
 
 All settings are still single default profile settings today. The categories below are a future migration contract, not current database behavior.
 
+The dashboard-managed setting schema exposes this as `scope` metadata from `src/auto_lending_bot/settings_registry.py`:
+
+- `global`: process/deployment level settings.
+- `profile`: per-profile strategy, exchange choice, market selection, and notification behavior.
+- `profile_secret`: per-profile encrypted secrets such as exchange or notification credentials.
+- `profile_safety`: per-profile live trading/transfer guard settings that may also need global ceilings later.
+
 ### Global Runtime Settings
 
 These should usually stay process/global because they describe deployment behavior, retention, display, or API operation rather than a lending profile.

@@ -2,6 +2,7 @@ from auto_lending_bot.config import load_effective_settings, load_settings, stra
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.repository import AppSettingRepository
 from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
+from auto_lending_bot.settings_registry import setting_scope
 
 
 def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
@@ -189,3 +190,10 @@ def test_load_effective_settings_uses_database_overrides(tmp_path, monkeypatch) 
 
     assert settings.bot_label == "DB Bot"
     assert settings.display_timezone == "Asia/Taipei"
+
+
+def test_setting_scope_metadata_classifies_profile_owned_settings() -> None:
+    assert setting_scope("DISPLAY_TIMEZONE") == "global"
+    assert setting_scope("MIN_DAILY_RATE") == "profile"
+    assert setting_scope("EXCHANGE_API_SECRET") == "profile_secret"
+    assert setting_scope("ALLOW_LIVE_TRADING") == "profile_safety"

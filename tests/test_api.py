@@ -187,6 +187,10 @@ def test_api_manages_database_settings(tmp_path, monkeypatch) -> None:
     schema_response = client.get("/api/settings/schema")
     assert schema_response.status_code == 200
     assert any(row["key"] == "BOT_LABEL" for row in schema_response.json())
+    schema_by_key = {row["key"]: row for row in schema_response.json()}
+    assert schema_by_key["DISPLAY_TIMEZONE"]["scope"] == "global"
+    assert schema_by_key["EXCHANGE_API_SECRET"]["scope"] == "profile_secret"
+    assert schema_by_key["BOT_DRY_RUN"]["scope"] == "profile_safety"
 
     update_response = client.put(
         "/api/settings/values",

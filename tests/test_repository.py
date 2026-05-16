@@ -18,6 +18,23 @@ from auto_lending_bot.persistence.repository import (
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, setting_schema
 
 
+def test_initialize_database_seeds_default_profile_tables(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+
+    initialize_database(database_url)
+
+    with connect(database_url) as connection:
+        profile = connection.execute(
+            "SELECT id, name FROM bot_profiles WHERE id = 'default'"
+        ).fetchone()
+        setting_columns = connection.execute(
+            "PRAGMA table_info(profile_app_settings)"
+        ).fetchall()
+
+    assert dict(profile) == {"id": "default", "name": "Default"}
+    assert {column[1] for column in setting_columns} >= {"profile_id", "key", "value"}
+
+
 def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from auto_lending_bot.config import sqlite_path_from_url
+from auto_lending_bot.profiles import DEFAULT_PROFILE_ID, DEFAULT_PROFILE_NAME
 
 
 SCHEMA = """
@@ -149,6 +150,35 @@ CREATE TABLE IF NOT EXISTS app_setting_audit_log (
     changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     source TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS bot_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS profile_app_settings (
+    profile_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    value_type TEXT NOT NULL,
+    is_secret INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES bot_profiles (id)
+);
+
+CREATE TABLE IF NOT EXISTS profile_app_setting_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source TEXT NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES bot_profiles (id)
+);
 """
 
 
@@ -175,6 +205,20 @@ def initialize_database(database_url: str) -> None:
             WHERE external_entry_id LIKE 'mock-%'
             """
         )
+        _seed_default_profile(connection)
+
+
+def _seed_default_profile(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        INSERT INTO bot_profiles (id, name)
+        VALUES (?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (DEFAULT_PROFILE_ID, DEFAULT_PROFILE_NAME),
+    )
 
 
 def _ensure_column(

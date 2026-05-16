@@ -2190,16 +2190,27 @@ h1 {
 }
 
 .loop-status-card {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 12px;
-  align-items: center;
   margin: 0 24px 18px;
   border: 1px solid rgba(147, 197, 253, 0.16);
   border-radius: 16px;
   padding: 14px 16px;
   color: #bfdbfe;
   background: rgba(2, 6, 23, 0.28);
+}
+
+.loop-status-main,
+.loop-status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.loop-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .loop-status-card.running {

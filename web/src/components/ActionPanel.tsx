@@ -33,10 +33,21 @@ export function ActionPanel({
         </div>
       </div>
       <div className={`loop-status-card ${botLoop.running ? 'running' : ''}`}>
-        <strong>{botLoop.running ? '持續執行中' : '目前未持續執行'}</strong>
-        <span>已完成輪數：{botLoop.loops_completed}</span>
+        <div className="loop-status-main">
+          <strong>{botLoop.running ? '持續執行中' : '目前未持續執行'}</strong>
+          <span>Job ID：{botLoop.bot_job_id ?? '尚未建立'}</span>
+        </div>
+        <div className="loop-status-grid">
+          <span>狀態：{botLoop.bot_job?.status ?? (botLoop.running ? 'running' : 'idle')}</span>
+          <span>Profile：{botLoop.bot_job?.profile_id ?? 'default'}</span>
+          <span>開始時間：{formatTimestamp(botLoop.bot_job?.started_at ?? botLoop.started_at, timeZone)}</span>
+          <span>停止時間：{formatTimestamp(botLoop.bot_job?.stopped_at ?? null, timeZone)}</span>
+          <span>已完成輪數：{botLoop.bot_job?.loops_completed ?? botLoop.loops_completed}</span>
+          <span>最後 run：{botLoop.bot_job?.last_run_id ?? '尚無'}</span>
+        </div>
         <span>上次執行：{formatTimestamp(botLoop.last_run_at, timeZone)}</span>
         {botLoop.last_error ? <span className="loop-error">錯誤：{botLoop.last_error}</span> : null}
+        {botLoop.bot_job?.last_error ? <span className="loop-error">Job 錯誤：{botLoop.bot_job.last_error}</span> : null}
       </div>
       <div className="action-group-list">
         {actionGroups.map((group) => (

@@ -47,9 +47,24 @@ export type MarketAnalysisCollectionStatus = {
 
 export type BotLoopStatus = {
   running: boolean
+  bot_job_id: number | null
+  bot_job: BotJob | null
   started_at: string | null
   last_run_at: string | null
   loops_completed: number
+  last_error: string | null
+}
+
+export type BotJob = {
+  id: number
+  profile_id: string
+  status: string
+  mode: string
+  started_at: string
+  stopped_at: string | null
+  stop_reason: string | null
+  loops_completed: number
+  last_run_id: number | null
   last_error: string | null
 }
 

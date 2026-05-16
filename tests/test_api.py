@@ -775,6 +775,26 @@ def test_api_can_start_and_stop_dry_run_loop(tmp_path) -> None:
     assert '"dry_run":true' in job["settings_snapshot_json"]
 
 
+def test_api_jobs_returns_safe_snapshot_summary(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("EXCHANGE_API_SECRET", "secret-value")
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    client = TestClient(create_app(settings))
+
+    client.post("/api/actions/start-loop")
+    client.post("/api/actions/stop-loop")
+
+    response = client.get("/api/jobs")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["profile_id"] == "default"
+    assert "settings_snapshot_json" not in body[0]
+    assert body[0]["snapshot_summary"]["exchange"] == "mock"
+    assert body[0]["snapshot_summary"]["dry_run"] is True
+    assert "secret-value" not in str(body)
+
+
 def test_api_can_start_and_stop_market_analysis_collection(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

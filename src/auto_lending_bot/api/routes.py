@@ -235,6 +235,16 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def bot_loop_status() -> dict[str, object]:
         return runtime.bot_loop.status()
 
+    @router.get("/jobs")
+    def jobs(limit: int = 20) -> list[dict[str, object]]:
+        return [
+            _public_bot_job_with_summary(job)
+            for job in repositories.bot_jobs.recent(
+                runtime.profile_context,
+                limit=max(1, min(limit, 100)),
+            )
+        ]
+
     @router.get("/market-analysis-collection")
     def market_analysis_collection_status() -> dict[str, object]:
         return runtime.market_analysis_collection.status()
@@ -803,6 +813,26 @@ def _utc_now() -> str:
 
 def _public_bot_job(job: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in job.items() if key != "settings_snapshot_json"}
+
+
+def _public_bot_job_with_summary(job: dict[str, object]) -> dict[str, object]:
+    public_job = _public_bot_job(job)
+    public_job["snapshot_summary"] = _settings_snapshot_summary(str(job["settings_snapshot_json"]))
+    return public_job
+
+
+def _settings_snapshot_summary(snapshot_json: str) -> dict[str, object]:
+    settings = settings_from_snapshot_json(snapshot_json)
+    return {
+        "exchange": settings.exchange,
+        "dry_run": settings.dry_run,
+        "bot_sleep_seconds": settings.bot_sleep_seconds,
+        "bot_inactive_sleep_seconds": settings.bot_inactive_sleep_seconds,
+        "min_daily_rate": settings.min_daily_rate,
+        "max_daily_rate": settings.max_daily_rate,
+        "max_total_lend_amount": settings.max_total_lend_amount,
+        "max_single_offer_amount": settings.max_single_offer_amount,
+    }
 
 
 def _require_backend_admin(authorization: str | None, request: Request) -> None:

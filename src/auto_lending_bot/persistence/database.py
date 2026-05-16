@@ -158,6 +158,21 @@ CREATE TABLE IF NOT EXISTS bot_profiles (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS bot_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    settings_snapshot_json TEXT NOT NULL,
+    started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    stopped_at TEXT,
+    stop_reason TEXT,
+    loops_completed INTEGER NOT NULL DEFAULT 0,
+    last_run_id INTEGER,
+    last_error TEXT,
+    FOREIGN KEY (profile_id) REFERENCES bot_profiles (id)
+);
+
 CREATE TABLE IF NOT EXISTS profile_app_settings (
     profile_id TEXT NOT NULL,
     key TEXT NOT NULL,

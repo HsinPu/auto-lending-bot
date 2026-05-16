@@ -440,6 +440,76 @@ class BotRunRepository:
             }
 
 
+class BotJobRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def create(
+        self,
+        profile_context: BotProfileContext,
+        settings_snapshot_json: str,
+        mode: str = "loop",
+    ) -> int:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO bot_jobs (profile_id, status, mode, settings_snapshot_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (profile_context.id, "running", mode, settings_snapshot_json),
+            )
+            return int(cursor.lastrowid)
+
+    def get(self, bot_job_id: int) -> dict[str, object] | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, profile_id, status, mode, settings_snapshot_json,
+                       started_at, stopped_at, stop_reason, loops_completed,
+                       last_run_id, last_error
+                FROM bot_jobs
+                WHERE id = ?
+                """,
+                (bot_job_id,),
+            ).fetchone()
+            return dict(row) if row is not None else None
+
+    def latest_running(self, profile_context: BotProfileContext) -> dict[str, object] | None:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, profile_id, status, mode, settings_snapshot_json,
+                       started_at, stopped_at, stop_reason, loops_completed,
+                       last_run_id, last_error
+                FROM bot_jobs
+                WHERE profile_id = ? AND status IN ('running', 'stopping')
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (profile_context.id,),
+            ).fetchone()
+            return dict(row) if row is not None else None
+
+    def recent(self, profile_context: BotProfileContext, limit: int = 10) -> list[dict[str, object]]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, profile_id, status, mode, settings_snapshot_json,
+                       started_at, stopped_at, stop_reason, loops_completed,
+                       last_run_id, last_error
+                FROM bot_jobs
+                WHERE profile_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (profile_context.id, limit),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+
 class BotRunDecisionRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

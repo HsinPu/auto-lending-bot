@@ -5,6 +5,7 @@ from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
+    BotJobRepository,
     BotRunDecisionRepository,
     BotRunRepository,
     BotRunStepRepository,
@@ -120,6 +121,30 @@ def test_repositories_write_bot_run_offer_and_market_rate(tmp_path) -> None:
     assert active_loans.count() == 1
     assert lending_history.count() == 1
     assert open_offers.count() == 1
+
+
+def test_bot_job_repository_stores_settings_snapshot(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    repository = BotJobRepository(database_url)
+
+    bot_job_id = repository.create(
+        DEFAULT_PROFILE_CONTEXT,
+        settings_snapshot_json='{"dry_run": true}',
+    )
+
+    job = repository.get(bot_job_id)
+    latest_running = repository.latest_running(DEFAULT_PROFILE_CONTEXT)
+    recent = repository.recent(DEFAULT_PROFILE_CONTEXT)
+
+    assert job is not None
+    assert job["profile_id"] == "default"
+    assert job["status"] == "running"
+    assert job["mode"] == "loop"
+    assert job["settings_snapshot_json"] == '{"dry_run": true}'
+    assert latest_running is not None
+    assert latest_running["id"] == bot_job_id
+    assert recent[0]["id"] == bot_job_id
 
 
 def test_active_loan_repository_replaces_snapshot(tmp_path) -> None:

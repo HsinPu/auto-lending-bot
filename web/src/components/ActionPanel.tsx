@@ -36,6 +36,7 @@ export function ActionPanel({
         <div className="loop-status-main">
           <strong>{botLoop.running ? '持續執行中' : '目前未持續執行'}</strong>
           <span>Job ID：{botLoop.bot_job_id ?? '尚未建立'}</span>
+          <small>使用開始時的設定快照</small>
         </div>
         <div className="loop-status-grid">
           <span>狀態：{botLoop.bot_job?.status ?? (botLoop.running ? 'running' : 'idle')}</span>
@@ -46,6 +47,9 @@ export function ActionPanel({
           <span>最後 run：{botLoop.bot_job?.last_run_id ?? '尚無'}</span>
         </div>
         <span>上次執行：{formatTimestamp(botLoop.last_run_at, timeZone)}</span>
+        <p className="loop-snapshot-note">
+          持續執行不會套用之後修改的設定；如果要使用新設定，請先停止目前 job，再重新開始持續執行。
+        </p>
         {botLoop.last_error ? <span className="loop-error">錯誤：{botLoop.last_error}</span> : null}
         {botLoop.bot_job?.last_error ? <span className="loop-error">Job 錯誤：{botLoop.bot_job.last_error}</span> : null}
       </div>
@@ -94,7 +98,7 @@ const actionGroups: Array<{
 }> = [
   {
     title: '開始放貸',
-    description: '先用執行一次確認策略，再決定是否持續執行。',
+    description: '先用執行一次確認策略；開始持續執行會固定使用當下設定快照。',
     actions: ['run-once', 'start-loop', 'stop-loop'],
     tone: 'primary',
   },

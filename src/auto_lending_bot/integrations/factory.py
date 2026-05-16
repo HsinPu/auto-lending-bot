@@ -3,9 +3,14 @@ from auto_lending_bot.integrations.bitfinex import BitfinexClient
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.integrations.http import RetryingHttpClient, UrlLibHttpClient
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
 
 
-def create_exchange_client(settings: Settings) -> ExchangeClient:
+def create_exchange_client(
+    settings: Settings,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> ExchangeClient:
+    ensure_default_profile(profile_context)
     if settings.exchange == "mock":
         return MockExchangeClient()
 

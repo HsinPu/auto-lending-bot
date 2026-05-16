@@ -98,6 +98,8 @@ Keep these in `.env`:
 - `LOG_LEVEL`
 - safe startup fallbacks such as `EXCHANGE=mock`, `BOT_DRY_RUN=true`, and `BOT_MAX_LOOPS=1`
 
+`ADMIN_AUTH_TOKEN` is a temporary backend/admin authorization code, not a user login system. Local backend requests may operate without it; remote dashboard/API requests that write settings or trigger protected live actions must send it as `Authorization: Bearer <token>`.
+
 Manage bot/account behavior from the dashboard after startup:
 
 - Exchange selection and API credentials.
@@ -374,8 +376,7 @@ Live transfers require `BOT_DRY_RUN=false`, `ALLOW_LIVE_TRADING=true`,
 `MAX_TOTAL_TRANSFER_AMOUNT`, `MAX_SINGLE_TRANSFER_AMOUNT`, and an explicit API/CLI live
 confirmation.
 
-Managed settings writes and live actions require `ADMIN_AUTH_TOKEN` via
-`Authorization: Bearer <token>`.
+Managed settings writes and live actions use backend/admin authorization. Local backend requests are allowed without a code; remote clients must provide `ADMIN_AUTH_TOKEN` via `Authorization: Bearer <token>`. Live actions still require their separate safety flags, limits, and explicit live confirmation.
 
 ## Operations
 

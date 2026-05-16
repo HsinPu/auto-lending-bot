@@ -48,7 +48,7 @@ Keep these in env because the app needs them before it can safely read profile s
 
 - `DATABASE_URL`: tells the app which database contains settings and runtime data.
 - `SETTINGS_ENCRYPTION_KEY`: decrypts secret settings; do not store this in the same SQLite database.
-- `ADMIN_AUTH_TOKEN`: protects non-local settings and live action endpoints.
+- `ADMIN_AUTH_TOKEN`: temporary backend/admin authorization code for non-local settings and protected live action endpoints.
 - Deployment/runtime process settings such as `LOG_LEVEL`, bind host/port, and container-specific values.
 
 Prefer dashboard/DB profile settings for values that belong to a bot account or strategy:
@@ -60,9 +60,21 @@ Prefer dashboard/DB profile settings for values that belong to a bot account or 
 
 The intended operating model is `.env` for bootstrap, dashboard-managed settings for bot/account behavior, and `.env` fallback only when the database has no override.
 
+## Backend Admin Mode
+
+The current dashboard is a backend/admin UI for one trusted operator. It is not a login, session, role, or multi-user account system.
+
+Current authorization behavior:
+
+- Local backend requests can write settings and trigger protected actions without `ADMIN_AUTH_TOKEN`.
+- Remote backend requests must send `Authorization: Bearer <ADMIN_AUTH_TOKEN>` for managed setting writes, settings imports/resets, dry-run reset, and live run/cancel/transfer actions.
+- Live actions still require the normal safety flags, amount limits, and explicit live confirmation; the backend/admin token does not bypass safety checks.
+
+Keep this boundary isolated so a later login/session system can replace the temporary token check without rewriting every route.
+
 ## Settings Scope Contract
 
-All settings are still single default profile settings today. The categories below are a future migration contract, not current database behavior.
+Settings are scoped to the single default profile today. The categories below are the contract for keeping those defaults ready for a later multi-profile migration.
 
 The dashboard-managed setting schema exposes this as `scope` metadata from `src/auto_lending_bot/settings_registry.py`:
 

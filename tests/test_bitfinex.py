@@ -299,6 +299,24 @@ def test_bitfinex_client_creates_loan_offer() -> None:
     assert offer_id == "123"
 
 
+def test_bitfinex_client_adds_private_endpoint_context_to_request_errors() -> None:
+    client = BitfinexClient(
+        api_key="key",
+        api_secret="secret",
+        http_client=FailingHttpClient(),
+    )
+
+    with pytest.raises(ExchangeRequestError) as error:
+        client.create_loan_offer(
+            LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)
+        )
+
+    assert "Bitfinex private request failed: POST /v1/offer/new" in str(error.value)
+    assert '{"message":"permission denied"}' in str(error.value)
+    assert "secret" not in str(error.value)
+    assert error.value.status_code == 403
+
+
 def test_bitfinex_client_maps_usdt_to_bitfinex_ust_for_private_payloads() -> None:
     http_client = RecordingHttpClient('{"id": 123}')
     client = BitfinexClient(api_key="key", api_secret="secret", http_client=http_client)
@@ -397,6 +415,23 @@ class RecordingHttpClient(FakeHttpClient):
             }
         )
         return super().request(method, url, headers, body, timeout_seconds)
+
+
+class FailingHttpClient:
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: str | None = None,
+        timeout_seconds: int = 30,
+    ) -> HttpResponse:
+        raise ExchangeRequestError(
+            'Exchange request failed with status 403: {"message":"permission denied"}.',
+            status_code=403,
+            response_body='{"message":"permission denied"}',
+            url=url,
+        )
 
 
 class FakeHttpClientSequence:

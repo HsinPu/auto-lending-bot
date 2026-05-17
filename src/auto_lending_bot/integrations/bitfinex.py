@@ -267,12 +267,20 @@ class BitfinexClient:
 
     def _private_query(self, path: str, payload: dict[str, object]) -> object:
         request_payload = {"request": path, "nonce": str(time.time_ns()), **payload}
-        response = self._http_client.request(
-            method="POST",
-            url=f"https://api.bitfinex.com{path}",
-            headers=self.build_signed_headers(request_payload),
-            timeout_seconds=self._timeout_seconds,
-        )
+        try:
+            response = self._http_client.request(
+                method="POST",
+                url=f"https://api.bitfinex.com{path}",
+                headers=self.build_signed_headers(request_payload),
+                timeout_seconds=self._timeout_seconds,
+            )
+        except ExchangeRequestError as error:
+            raise ExchangeRequestError(
+                f"Bitfinex private request failed: POST {path}: {error}",
+                status_code=error.status_code,
+                response_body=error.response_body,
+                url=error.url,
+            ) from error
         return _raise_for_api_error(json.loads(response.body))
 
     def _ticker_last_price(self, symbol: str) -> float | None:

@@ -315,7 +315,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/market-analysis-status")
     def market_analysis_status() -> list[dict[str, object]]:
-        return _market_analysis_status(settings, market_analysis_rates)
+        return _market_analysis_status(settings, market_analysis_rates, runtime.profile_context)
 
     @router.get("/settings")
     def settings_snapshot() -> dict[str, object]:
@@ -324,6 +324,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             settings,
             market_analysis_rates,
             settings.smoke_test_currency,
+            runtime.profile_context,
         )
         return {
             "label": settings.bot_label,
@@ -358,7 +359,13 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
 
     @router.get("/strategy-decisions")
     def strategy_decisions() -> list[dict[str, object]]:
-        return _strategy_decisions(settings, active_loans, open_offers, market_analysis_rates)
+        return _strategy_decisions(
+            settings,
+            active_loans,
+            open_offers,
+            market_analysis_rates,
+            runtime.profile_context,
+        )
 
     @router.post("/actions/smoke-exchange")
     def smoke_exchange() -> dict[str, object]:
@@ -1113,6 +1120,7 @@ def _suggested_min_daily_rate(
     settings: Settings,
     market_analysis_rates: MarketAnalysisRateRepository,
     currency: str,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> float | None:
     if settings.market_analysis_method == "percentile":
         return market_analysis_rates.percentile_rate(
@@ -1120,6 +1128,7 @@ def _suggested_min_daily_rate(
             settings.market_analysis_percentile,
             settings.market_analysis_min_samples,
             settings.market_analysis_max_age_seconds,
+            profile_context=profile_context,
         )
 
     if settings.market_analysis_method == "macd":
@@ -1134,6 +1143,7 @@ def _suggested_min_daily_rate(
                 settings.market_analysis_multiplier,
                 settings.market_analysis_min_samples,
                 settings.market_analysis_max_age_seconds,
+                profile_context=profile_context,
             )
 
         return market_analysis_rates.macd_rate(
@@ -1143,6 +1153,7 @@ def _suggested_min_daily_rate(
             settings.market_analysis_multiplier,
             settings.market_analysis_min_samples,
             settings.market_analysis_max_age_seconds,
+            profile_context=profile_context,
         )
 
     return None
@@ -1151,9 +1162,11 @@ def _suggested_min_daily_rate(
 def _market_analysis_status(
     settings: Settings,
     market_analysis_rates: MarketAnalysisRateRepository,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> list[dict[str, object]]:
     stats_by_currency = market_analysis_rates.stats_by_currency(
-        settings.market_analysis_max_age_seconds
+        settings.market_analysis_max_age_seconds,
+        profile_context=profile_context,
     )
     currencies = sorted(
         {
@@ -1171,6 +1184,7 @@ def _market_analysis_status(
             settings,
             market_analysis_rates,
             currency,
+            profile_context,
         )
         has_enough_samples = sample_count >= max(settings.market_analysis_min_samples, 1)
         is_stale = bool(stats.get("is_stale")) if stats else False
@@ -1265,12 +1279,13 @@ def _strategy_decisions(
     active_loans: ActiveLoanRepository,
     open_offers: OpenLoanOfferRepository,
     market_analysis_rates: MarketAnalysisRateRepository,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> list[dict[str, object]]:
-    exchange = _exchange_client(settings)
+    exchange = _exchange_client(settings, profile_context)
     errors: dict[str, str] = {}
     balances = _safe_lending_balances(exchange, errors)
-    active = _safe_active_loans(exchange, active_loans, errors)
-    open_offer_rows = open_offers.recent(1000)
+    active = _safe_active_loans(exchange, active_loans, errors, profile_context)
+    open_offer_rows = open_offers.recent(limit=1000, profile_context=profile_context)
     currencies = _strategy_decision_currencies(settings, balances, active, open_offer_rows)
 
     rows = []
@@ -1294,6 +1309,7 @@ def _strategy_decisions(
             settings,
             market_analysis_rates,
             currency,
+            profile_context,
         )
         frr_daily_rate = _safe_frr_rate(exchange, currency, strategy.frr_as_min, errors)
         btc_price = (
@@ -1313,6 +1329,7 @@ def _strategy_decisions(
                 settings,
                 market_analysis_rates,
                 currency,
+                profile_context,
             ),
         )
 
@@ -1355,12 +1372,13 @@ def _safe_active_loans(
     exchange,
     active_loans: ActiveLoanRepository,
     errors: dict[str, str],
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> list[ActiveLoan]:
     try:
         return exchange.get_active_loans()
     except Exception as error:
         errors["*"] = f"Unable to load active loans: {error}"
-        rows = active_loans.recent(1000)
+        rows = active_loans.recent(limit=1000, profile_context=profile_context)
         return [
             ActiveLoan(
                 currency=str(row["currency"]),
@@ -1400,6 +1418,7 @@ def _historical_daily_rates(
     settings: Settings,
     market_analysis_rates: MarketAnalysisRateRepository,
     currency: str,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
 ) -> list[float]:
     if settings.rate_optimization_mode != "fill_probability":
         return []
@@ -1408,6 +1427,7 @@ def _historical_daily_rates(
         currency,
         settings.rate_optimization_sample_size,
         settings.market_analysis_max_age_seconds,
+        profile_context=profile_context,
     )
 
 

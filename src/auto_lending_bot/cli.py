@@ -15,13 +15,13 @@ from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.persistence.database import initialize_database
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 from auto_lending_bot.safety import (
     SafetyError,
     validate_run_settings,
     validate_transfer_limits,
     validate_transfer_settings,
 )
-from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 
 
 def main() -> None:
@@ -37,8 +37,16 @@ def run_cli(argv: list[str] | None = None) -> int:
         profile_context=DEFAULT_PROFILE_CONTEXT,
     )
     repositories = create_repository_bundle(settings)
-    maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
-    exchange_actions = ExchangeActionService(settings=settings, repositories=repositories)
+    maintenance_actions = MaintenanceActionService(
+        settings=settings,
+        repositories=repositories,
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
+    exchange_actions = ExchangeActionService(
+        settings=settings,
+        repositories=repositories,
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
 
     if args.command == "init-db":
         initialize_database(settings.database_url)
@@ -307,7 +315,8 @@ def _format_status(settings: Settings, repositories: RepositoryBundle) -> str:
     active_loans = repositories.active_loans
     lending_history = repositories.lending_history
     open_offers = repositories.open_offers
-    latest_run = bot_runs.latest()
+    profile_context = DEFAULT_PROFILE_CONTEXT
+    latest_run = bot_runs.latest(profile_context)
 
     lines = [
         f"Label: {settings.bot_label}",
@@ -315,12 +324,12 @@ def _format_status(settings: Settings, repositories: RepositoryBundle) -> str:
         f"Exchange: {settings.exchange}",
         f"Dry run: {settings.dry_run}",
         f"Live trading allowed: {settings.allow_live_trading}",
-        f"Bot runs: {bot_runs.count()}",
-        f"Loan offers: {loan_offers.count()}",
-        f"Open loan offers: {open_offers.count()}",
-        f"Active loans: {active_loans.count()}",
-        f"Lending history: {lending_history.count()}",
-        f"Market rates: {market_rates.count()}",
+        f"Bot runs: {bot_runs.count(profile_context)}",
+        f"Loan offers: {loan_offers.count(profile_context)}",
+        f"Open loan offers: {open_offers.count(profile_context)}",
+        f"Active loans: {active_loans.count(profile_context)}",
+        f"Lending history: {lending_history.count(profile_context)}",
+        f"Market rates: {market_rates.count(profile_context)}",
     ]
 
     if latest_run is None:

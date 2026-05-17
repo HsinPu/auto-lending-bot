@@ -81,8 +81,16 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     lending_history = repositories.lending_history
     open_offers = repositories.open_offers
     notification_state = repositories.notification_state
-    maintenance_actions = MaintenanceActionService(settings=settings, repositories=repositories)
-    exchange_actions = ExchangeActionService(settings=settings, repositories=repositories)
+    maintenance_actions = MaintenanceActionService(
+        settings=settings,
+        repositories=repositories,
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
+    exchange_actions = ExchangeActionService(
+        settings=settings,
+        repositories=repositories,
+        profile_context=DEFAULT_PROFILE_CONTEXT,
+    )
     dashboard_reads = DashboardReadService(
         DashboardRepositories(
             bot_runs=bot_runs,

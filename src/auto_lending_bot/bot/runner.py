@@ -6,7 +6,7 @@ from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
-from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
@@ -78,8 +78,8 @@ class BotRunner:
         for attempt in range(1, self._settings.retry_attempts + 1):
             try:
                 return self.run_once()
-            except ExchangeAuthenticationError:
-                logger.exception("Authentication failed; not retrying bot run.")
+            except (ExchangeAuthenticationError, ExchangePermissionError):
+                logger.exception("Exchange permission/authentication failed; not retrying bot run.")
                 raise
             except Exception:
                 if attempt >= self._settings.retry_attempts:

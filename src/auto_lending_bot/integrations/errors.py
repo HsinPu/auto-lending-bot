@@ -22,3 +22,7 @@ class ExchangeRequestError(ExchangeError):
         self.status_code = status_code
         self.response_body = response_body
         self.url = url
+
+
+class ExchangePermissionError(ExchangeRequestError):
+    pass

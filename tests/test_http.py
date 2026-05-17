@@ -1,6 +1,10 @@
 import pytest
 
-from auto_lending_bot.integrations.errors import ExchangeRateLimitError, ExchangeRequestError
+from auto_lending_bot.integrations.errors import (
+    ExchangePermissionError,
+    ExchangeRateLimitError,
+    ExchangeRequestError,
+)
 from auto_lending_bot.integrations.http import HttpResponse, RetryingHttpClient, UrlLibHttpClient
 
 
@@ -59,6 +63,16 @@ def test_retrying_http_client_truncates_error_response_body() -> None:
         retrying_client.request("GET", "https://example.test")
 
     assert len(error.value.response_body) == 1000
+
+
+def test_retrying_http_client_maps_403_to_permission_error() -> None:
+    client = FakeHttpClient([HttpResponse(status_code=403, body='{"message":"permission denied"}')])
+    retrying_client = RetryingHttpClient(client)
+
+    with pytest.raises(ExchangePermissionError) as error:
+        retrying_client.request("GET", "https://example.test")
+
+    assert error.value.status_code == 403
 
 def test_url_lib_http_client_sets_default_user_agent(monkeypatch) -> None:
     seen_headers = {}

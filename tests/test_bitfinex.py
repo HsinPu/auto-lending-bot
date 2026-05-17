@@ -6,6 +6,7 @@ import pytest
 from auto_lending_bot.domain.models import LoanOffer
 from auto_lending_bot.integrations.bitfinex import BitfinexClient, parse_json_response
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.errors import ExchangePermissionError
 from auto_lending_bot.integrations.errors import ExchangeRequestError
 from auto_lending_bot.integrations.http import HttpResponse
 
@@ -306,7 +307,7 @@ def test_bitfinex_client_adds_private_endpoint_context_to_request_errors() -> No
         http_client=FailingHttpClient(),
     )
 
-    with pytest.raises(ExchangeRequestError) as error:
+    with pytest.raises(ExchangePermissionError) as error:
         client.create_loan_offer(
             LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)
         )
@@ -426,7 +427,7 @@ class FailingHttpClient:
         body: str | None = None,
         timeout_seconds: int = 30,
     ) -> HttpResponse:
-        raise ExchangeRequestError(
+        raise ExchangePermissionError(
             'Exchange request failed with status 403: {"message":"permission denied"}.',
             status_code=403,
             response_body='{"message":"permission denied"}',

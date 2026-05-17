@@ -275,7 +275,7 @@ class BitfinexClient:
                 timeout_seconds=self._timeout_seconds,
             )
         except ExchangeRequestError as error:
-            raise ExchangeRequestError(
+            raise error.__class__(
                 f"Bitfinex private request failed: POST {path}: {error}",
                 status_code=error.status_code,
                 response_body=error.response_body,

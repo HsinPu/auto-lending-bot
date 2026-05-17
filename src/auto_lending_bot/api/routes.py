@@ -20,6 +20,7 @@ from auto_lending_bot.config import (
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
@@ -675,6 +676,16 @@ class _BotLoopController:
                         self._last_error = None
                         loops_completed = self._loops_completed
                     self._record_job_loop(loops_completed, None)
+                except (ExchangeAuthenticationError, ExchangePermissionError) as error:
+                    with self._lock:
+                        self._last_error = str(error)
+                        self._last_run_at = _utc_now()
+                        loops_completed = self._loops_completed
+                    self._record_job_loop(loops_completed, str(error))
+                    if self._bot_job_id is not None:
+                        self._bot_jobs.mark_failed(self._bot_job_id, str(error))
+                    self._stop_event.set()
+                    break
                 except Exception as error:
                     wait_seconds = max(self._settings.retry_backoff_seconds, 1)
                     with self._lock:

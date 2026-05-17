@@ -5,7 +5,7 @@ import pytest
 from auto_lending_bot.bot.runner import BotRunner, _balance_summary
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LendingHistoryEntry, LoanOffer, LoanOrder
-from auto_lending_bot.integrations.errors import ExchangeAuthenticationError
+from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.mock_exchange import MockExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
 from auto_lending_bot.notifications.notifier import Notifier
@@ -154,6 +154,31 @@ def test_runner_does_not_retry_authentication_errors(tmp_path) -> None:
         raise AssertionError("Expected ExchangeAuthenticationError")
 
     assert exchange.calls == 1
+
+
+def test_runner_does_not_retry_permission_errors(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    exchange = PermissionFailingOfferExchange()
+
+    runner = BotRunner(
+        settings=_settings(database_url, dry_run=False),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+    )
+
+    with pytest.raises(ExchangePermissionError):
+        runner.run_once_with_retry()
+
+    assert exchange.create_calls == 1
 
 
 def test_runner_uses_inactive_sleep_when_no_offers_are_created(tmp_path, monkeypatch) -> None:
@@ -849,6 +874,21 @@ class AuthFailingExchange:
 
     def cancel_loan_offer(self, offer_id: str):
         return None
+
+
+class PermissionFailingOfferExchange(MockExchangeClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.create_calls = 0
+
+    def create_loan_offer(self, offer):
+        self.create_calls += 1
+        raise ExchangePermissionError(
+            'Bitfinex private request failed: POST /v1/offer/new: '
+            'Exchange request failed with status 403: {"message":"permission denied"}.',
+            status_code=403,
+            response_body='{"message":"permission denied"}',
+        )
 
 
 class SpyNotifier:

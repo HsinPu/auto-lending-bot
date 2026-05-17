@@ -3,7 +3,11 @@ from typing import Protocol
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from auto_lending_bot.integrations.errors import ExchangeRateLimitError, ExchangeRequestError
+from auto_lending_bot.integrations.errors import (
+    ExchangePermissionError,
+    ExchangeRateLimitError,
+    ExchangeRequestError,
+)
 
 
 @dataclass(frozen=True)
@@ -63,7 +67,8 @@ def _raise_for_status(response: HttpResponse) -> HttpResponse:
 
     response_body = _error_body(response.body)
     detail = f": {response_body}" if response_body else ""
-    raise ExchangeRequestError(
+    error_type = ExchangePermissionError if response.status_code in {401, 403} else ExchangeRequestError
+    raise error_type(
         f"Exchange request failed with status {response.status_code}{detail}.",
         status_code=response.status_code,
         response_body=response_body,

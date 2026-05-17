@@ -21,6 +21,7 @@ from auto_lending_bot.persistence.repository import (
     NotificationStateRepository,
     OpenLoanOfferRepository,
 )
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext, ensure_default_profile
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ class BotRunner:
         decision_snapshots: BotRunDecisionRepository | None = None,
         run_steps: BotRunStepRepository | None = None,
         bot_job_id: int | None = None,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> None:
+        ensure_default_profile(profile_context)
         self._settings = settings
         self._exchange = exchange
         self._bot_runs = bot_runs
@@ -57,6 +60,7 @@ class BotRunner:
         self._decision_snapshots = decision_snapshots
         self._run_steps = run_steps
         self._bot_job_id = bot_job_id
+        self._profile_context = profile_context
 
     def run(self) -> None:
         loops_completed = 0
@@ -88,7 +92,11 @@ class BotRunner:
         return 0
 
     def run_once(self) -> int:
-        bot_run_id = self._bot_runs.start(dry_run=self._settings.dry_run, job_id=self._bot_job_id)
+        bot_run_id = self._bot_runs.start(
+            dry_run=self._settings.dry_run,
+            job_id=self._bot_job_id,
+            profile_context=self._profile_context,
+        )
         created_offers = 0
         live_lend_amount = 0.0
         current_step_id: int | None = None
@@ -107,7 +115,11 @@ class BotRunner:
                 run_step_label("read-previous-active-loans"),
             )
             previous_active_loan_ids = {
-                str(row["external_loan_id"]) for row in self._active_loans.recent(1000)
+                str(row["external_loan_id"])
+                for row in self._active_loans.recent(
+                    limit=1000,
+                    profile_context=self._profile_context,
+                )
             }
             self._finish_step(
                 current_step_id,
@@ -132,7 +144,7 @@ class BotRunner:
                 "replace-active-loans",
                 run_step_label("replace-active-loans"),
             )
-            self._active_loans.replace_all(active_loans)
+            self._active_loans.replace_all(active_loans, profile_context=self._profile_context)
             self._finish_step(current_step_id, message=f"本地放貸中資料已更新為 {len(active_loans)} 筆。")
             current_step_id = None
 
@@ -199,7 +211,8 @@ class BotRunner:
                 )
                 self._market_recorder.record_orders(orders)
                 analysis_changed_count = self._market_analysis_rates.add_many(
-                    orders[: self._settings.market_analysis_levels]
+                    orders[: self._settings.market_analysis_levels],
+                    profile_context=self._profile_context,
                 )
                 self._finish_step(
                     current_step_id,
@@ -345,6 +358,7 @@ class BotRunner:
                             offer=offer,
                             status=status,
                             dry_run=self._settings.dry_run,
+                            profile_context=self._profile_context,
                         )
                         self._record_xday_notification_step(bot_run_id, offer)
                         created_offers += 1
@@ -381,6 +395,7 @@ class BotRunner:
                         offer=offer,
                         status="intent",
                         dry_run=self._settings.dry_run,
+                        profile_context=self._profile_context,
                     )
                     self._finish_step(
                         current_step_id,
@@ -493,7 +508,12 @@ class BotRunner:
         if self._run_steps is None:
             return None
 
-        return self._run_steps.start(bot_run_id, step_key, label)
+        return self._run_steps.start(
+            bot_run_id,
+            step_key,
+            label,
+            profile_context=self._profile_context,
+        )
 
     def _finish_step(
         self,
@@ -516,7 +536,13 @@ class BotRunner:
         if self._run_steps is None:
             return
 
-        self._run_steps.record_completed(bot_run_id, step_key, label, message=message)
+        self._run_steps.record_completed(
+            bot_run_id,
+            step_key,
+            label,
+            message=message,
+            profile_context=self._profile_context,
+        )
 
     def _record_skipped_step(self, bot_run_id: int, step_key: str, message: str = "") -> None:
         step_id = self._start_step(bot_run_id, step_key, run_step_label(step_key))
@@ -627,7 +653,7 @@ class BotRunner:
         self._finish_step(step_id, message=f"讀取 {len(offers)} 筆未成交委託。")
 
         step_id = self._start_step(bot_run_id, "replace-open-offers", run_step_label("replace-open-offers"))
-        self._open_offers.replace_all(offers)
+        self._open_offers.replace_all(offers, profile_context=self._profile_context)
         self._finish_step(step_id, message=f"本地未成交委託已更新為 {len(offers)} 筆。")
 
         self._record_completed_step(
@@ -689,7 +715,7 @@ class BotRunner:
                 self._finish_step(step_id, message=f"已取消 {offer.currency} 舊委託 {offer.external_offer_id}。")
             else:
                 self._finish_step(step_id, message=f"略過 {offer.currency} 舊委託：沒有交易所委託 ID。")
-        self._open_offers.replace_all(kept_offers)
+        self._open_offers.replace_all(kept_offers, profile_context=self._profile_context)
 
     def _keep_stuck_offer(
         self,
@@ -727,6 +753,7 @@ class BotRunner:
                 self._settings.market_analysis_percentile,
                 self._settings.market_analysis_min_samples,
                 self._settings.market_analysis_max_age_seconds,
+                profile_context=self._profile_context,
             )
 
         if self._settings.market_analysis_method == "macd":
@@ -741,6 +768,7 @@ class BotRunner:
                     self._settings.market_analysis_multiplier,
                     self._settings.market_analysis_min_samples,
                     self._settings.market_analysis_max_age_seconds,
+                    profile_context=self._profile_context,
                 )
 
             return self._market_analysis_rates.macd_rate(
@@ -750,6 +778,7 @@ class BotRunner:
                 self._settings.market_analysis_multiplier,
                 self._settings.market_analysis_min_samples,
                 self._settings.market_analysis_max_age_seconds,
+                profile_context=self._profile_context,
             )
 
         return None
@@ -762,6 +791,7 @@ class BotRunner:
             currency,
             self._settings.rate_optimization_sample_size,
             self._settings.market_analysis_max_age_seconds,
+            profile_context=self._profile_context,
         )
 
     @staticmethod
@@ -775,7 +805,10 @@ class BotRunner:
     def _open_offer_amount(self, currency: str) -> float:
         return sum(
             float(row["amount"])
-            for row in self._open_offers.recent(1000)
+            for row in self._open_offers.recent(
+                limit=1000,
+                profile_context=self._profile_context,
+            )
             if str(row["currency"]).upper() == currency.upper()
         )
 
@@ -816,7 +849,8 @@ class BotRunner:
                 "offer_count": len(decision.offers),
                 "offers": [offer.__dict__ for offer in decision.offers],
                 "reason": decision.reason,
-            }
+            },
+            profile_context=self._profile_context,
         )
 
     def _log_strategy_debug(self, balance, orders, strategy, decision, frr_daily_rate) -> None:
@@ -845,7 +879,10 @@ class BotRunner:
 
         now = time.time()
         state_key = "telegram_summary_last_sent_at"
-        last_sent_at = self._notification_state.get_float(state_key)
+        last_sent_at = self._notification_state.get_float(
+            state_key,
+            profile_context=self._profile_context,
+        )
         interval_seconds = self._settings.notify_summary_minutes * 60
         if last_sent_at is not None and now - last_sent_at < interval_seconds:
             return (
@@ -858,8 +895,11 @@ class BotRunner:
                 ),
             )
 
-        open_offers = self._open_offers.recent(1000)
-        earnings = self._lending_history.earnings_summary_by_currency()
+        open_offers = self._open_offers.recent(
+            limit=1000,
+            profile_context=self._profile_context,
+        )
+        earnings = self._lending_history.earnings_summary_by_currency(self._profile_context)
         self._notifier.periodic_summary(
             _summary_message(
                 active_loans=active_loans,
@@ -867,7 +907,11 @@ class BotRunner:
                 earnings=earnings,
             )
         )
-        self._notification_state.set_float(state_key, now)
+        self._notification_state.set_float(
+            state_key,
+            now,
+            profile_context=self._profile_context,
+        )
         return True, "已發送週期摘要通知。"
 
     def _notify_xday_offer(self, offer: LoanOffer) -> bool:

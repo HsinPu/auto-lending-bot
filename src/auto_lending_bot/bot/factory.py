@@ -61,11 +61,12 @@ def create_bot_runner(
         lending_history=repositories.lending_history,
         notification_state=repositories.notification_state,
         market_analysis_rates=repositories.market_analysis_rates,
-        market_recorder=MarketRecorder(repositories.market_rates),
+        market_recorder=MarketRecorder(repositories.market_rates, profile_context=profile_context),
         notifier=Notifier(settings=settings),
         decision_snapshots=repositories.decision_snapshots,
         run_steps=repositories.run_steps,
         bot_job_id=bot_job_id,
+        profile_context=profile_context,
     )
 
 

@@ -668,6 +668,34 @@ def test_runner_enforces_live_run_total_limit(tmp_path) -> None:
         runner.run_once()
 
 
+def test_runner_treats_zero_live_lending_limits_as_unlimited(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            dry_run=False,
+            max_single_offer_amount=0,
+            max_total_lend_amount=0,
+        ),
+        exchange=MockExchangeClient(),
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert LoanOfferRepository(database_url).count() > 0
+
+
 def test_runner_records_live_offer_submission_steps(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)
@@ -715,6 +743,7 @@ def _settings(
     market_analysis_min_samples: int = 0,
     market_analysis_max_age_seconds: int = 0,
     dry_run: bool = True,
+    max_single_offer_amount: float | None = None,
     max_total_lend_amount: float | None = None,
     max_active_amount: float | None = None,
     notify_summary_minutes: int = 0,
@@ -783,7 +812,7 @@ def _settings(
         max_amount_to_lend=None,
         max_active_amount=max_active_amount,
         max_single_transfer_amount=None,
-        max_single_offer_amount=None,
+        max_single_offer_amount=max_single_offer_amount,
         max_total_transfer_amount=None,
         max_total_lend_amount=max_total_lend_amount,
         min_daily_rate=0.00005,

@@ -20,6 +20,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("SPREAD_LEND", raising=False)
     monkeypatch.delenv("MAX_OFFER_AMOUNT", raising=False)
     monkeypatch.delenv("MIN_OFFER_REMAINDER", raising=False)
+    monkeypatch.delenv("MAX_TOTAL_LEND_AMOUNT", raising=False)
+    monkeypatch.delenv("MAX_SINGLE_OFFER_AMOUNT", raising=False)
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -40,6 +42,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.spread_lend == 0
     assert strategy.max_offer_amount == 500
     assert strategy.min_offer_remainder == 100
+    assert settings.max_total_lend_amount == 0
+    assert settings.max_single_offer_amount == 0
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:

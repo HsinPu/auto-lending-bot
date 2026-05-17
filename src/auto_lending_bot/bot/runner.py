@@ -576,12 +576,18 @@ class BotRunner:
         return self._settings.bot_inactive_sleep_seconds
 
     def _assert_live_offer_allowed(self, offer: LoanOffer, live_lend_amount: float) -> None:
-        if self._settings.max_single_offer_amount is not None:
+        if (
+            self._settings.max_single_offer_amount is not None
+            and self._settings.max_single_offer_amount > 0
+        ):
             if offer.amount > self._settings.max_single_offer_amount:
                 msg = "Offer amount exceeds MAX_SINGLE_OFFER_AMOUNT."
                 raise ValueError(msg)
 
-        if self._settings.max_total_lend_amount is not None:
+        if (
+            self._settings.max_total_lend_amount is not None
+            and self._settings.max_total_lend_amount > 0
+        ):
             if live_lend_amount + offer.amount > self._settings.max_total_lend_amount:
                 msg = "Run total exceeds MAX_TOTAL_LEND_AMOUNT."
                 raise ValueError(msg)

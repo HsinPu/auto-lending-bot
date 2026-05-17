@@ -158,15 +158,15 @@ See `docs/bitfinex-dry-run-workflow.md` for the full dry-run calibration workflo
 
 ## Guarded Live Lending
 
-Live Bitfinex lending is intended for small beta tests only. Prefer setting these guarded values from the dashboard so they are stored with the default profile. Env fallback still works. Live mode requires all of:
+Live Bitfinex lending is intended for small beta tests only. Prefer setting guarded values from the dashboard so they are stored with the default profile. Env fallback still works. `MAX_TOTAL_LEND_AMOUNT` and `MAX_SINGLE_OFFER_AMOUNT` default to `0`, which means no amount cap; set positive values to enforce live lending limits. Live mode requires all of:
 
 ```env
 EXCHANGE=bitfinex
 BOT_DRY_RUN=false
 ALLOW_LIVE_TRADING=true
 BITFINEX_ENABLE_LIVE_OFFERS=true
-MAX_TOTAL_LEND_AMOUNT=1
-MAX_SINGLE_OFFER_AMOUNT=0.1
+MAX_TOTAL_LEND_AMOUNT=0
+MAX_SINGLE_OFFER_AMOUNT=0
 ```
 
 The bot records an `intent` row before creating an offer, updates it to `created` with the exchange offer id on success, and marks it `failed` with an error message on failure.

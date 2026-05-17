@@ -166,9 +166,9 @@ def load_settings() -> Settings:
         else _get_optional_float("MAX_AMOUNT_TO_LEND"),
         max_active_amount=_get_optional_float("MAX_ACTIVE_AMOUNT"),
         max_single_transfer_amount=_get_optional_float("MAX_SINGLE_TRANSFER_AMOUNT"),
-        max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT"),
+        max_single_offer_amount=_get_optional_float("MAX_SINGLE_OFFER_AMOUNT", default=0.0),
         max_total_transfer_amount=_get_optional_float("MAX_TOTAL_TRANSFER_AMOUNT"),
-        max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT"),
+        max_total_lend_amount=_get_optional_float("MAX_TOTAL_LEND_AMOUNT", default=0.0),
         min_daily_rate=_get_float("MIN_DAILY_RATE", default=0.00005),
         max_daily_rate=_get_float("MAX_DAILY_RATE", default=0.05),
         min_loan_size=_get_float("MIN_LOAN_SIZE", default=0.01),
@@ -274,9 +274,11 @@ def _get_float(name: str, default: float) -> float:
     return float(raw_value)
 
 
-def _get_optional_float(name: str) -> float | None:
+def _get_optional_float(name: str, default: float | None = None) -> float | None:
     raw_value = os.getenv(name)
-    if raw_value is None or raw_value.strip() == "":
+    if raw_value is None:
+        return default
+    if raw_value.strip() == "":
         return None
 
     return float(raw_value)

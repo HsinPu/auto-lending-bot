@@ -5,6 +5,8 @@ Use this checklist immediately before any guarded live lending test. Do not enab
 ## 1. Account And API Key
 
 - API key has no withdrawal permission.
+- API key can create and cancel Bitfinex funding/lending offers.
+- API key IP whitelist, if enabled, allows the machine or container network that runs the bot.
 - API key is dedicated to this bot or this small beta test.
 - Bitfinex account funding wallet contains only the amount you are willing to test.
 - You can log in to Bitfinex and manually inspect or cancel funding offers if needed.
@@ -45,14 +47,14 @@ Confirm in `status` and the SQLite records:
 
 ## 4. Safety Limits Are Set
 
-Set explicit live limits before changing `BOT_DRY_RUN`:
+Set explicit live limits before changing `BOT_DRY_RUN`, or leave them at `0` to disable amount caps:
 
 ```env
-MAX_TOTAL_LEND_AMOUNT=1
-MAX_SINGLE_OFFER_AMOUNT=0.1
+MAX_TOTAL_LEND_AMOUNT=0
+MAX_SINGLE_OFFER_AMOUNT=0
 ```
 
-Use smaller values for the first test. These limits are required by safety guards.
+Use positive smaller values for the first live test if you want hard caps. Blank values are rejected by safety guards; `0` means configured but unlimited.
 
 ## 5. Live Flags Are Explicit
 
@@ -83,6 +85,8 @@ Immediately check:
 - local records show live mode
 - latest run is successful or the failed warning explains what happened
 - local offer row has `created` plus an exchange offer id, or `failed` plus an error message
+
+If the failed message contains `401` or `403`, fix API key permissions or IP whitelist before retrying. The bot does not retry authentication/permission failures because they are usually not transient.
 
 ## 7. Stop Conditions
 

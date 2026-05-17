@@ -171,6 +171,8 @@ MAX_SINGLE_OFFER_AMOUNT=0
 
 The bot records an `intent` row before creating an offer, updates it to `created` with the exchange offer id on success, and marks it `failed` with an error message on failure.
 
+If Bitfinex returns `401` or `403`, the bot treats it as an authentication/permission failure and stops retrying the run. The dashboard error includes the Bitfinex endpoint and response body when available. Common causes are read-only API keys, missing funding offer write permission, IP whitelist mismatch, or account restrictions. API keys should still not include withdrawal permission.
+
 See `docs/pre-live-safety-checklist.md` before any live Bitfinex test.
 
 ## Read-Only API

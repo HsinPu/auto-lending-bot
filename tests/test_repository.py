@@ -64,6 +64,33 @@ def test_initialize_database_adds_profile_scope_to_runtime_tables(tmp_path) -> N
     assert all("profile_id" in columns for columns in table_columns.values())
 
 
+def test_initialize_database_uses_profile_scoped_runtime_constraints(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+
+    initialize_database(database_url)
+
+    with connect(database_url) as connection:
+        history_unique_indexes = [
+            tuple(
+                row[2]
+                for row in connection.execute(f"PRAGMA index_info({index[1]})").fetchall()
+            )
+            for index in connection.execute("PRAGMA index_list(lending_history)").fetchall()
+            if int(index[2])
+        ]
+        notification_pk = tuple(
+            row[1]
+            for row in sorted(
+                connection.execute("PRAGMA table_info(notification_state)").fetchall(),
+                key=lambda row: row[5],
+            )
+            if int(row[5])
+        )
+
+    assert ("profile_id", "external_entry_id", "currency") in history_unique_indexes
+    assert notification_pk == ("profile_id", "key")
+
+
 def test_profile_app_setting_repository_manages_default_profile_settings(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

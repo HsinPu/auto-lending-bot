@@ -849,8 +849,7 @@ class NotificationStateRepository:
                 """
                 INSERT INTO notification_state (profile_id, key, value, updated_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(key) DO UPDATE SET
-                    profile_id = excluded.profile_id,
+                ON CONFLICT(profile_id, key) DO UPDATE SET
                     value = excluded.value,
                     updated_at = CURRENT_TIMESTAMP
                 """,

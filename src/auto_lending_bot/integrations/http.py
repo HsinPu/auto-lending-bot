@@ -10,6 +10,7 @@ from auto_lending_bot.integrations.errors import ExchangeRateLimitError, Exchang
 class HttpResponse:
     status_code: int
     body: str
+    url: str = ""
 
 
 class HttpClient(Protocol):
@@ -60,7 +61,18 @@ def _raise_for_status(response: HttpResponse) -> HttpResponse:
     if response.status_code == 429:
         raise ExchangeRateLimitError("Exchange rate limit exceeded.")
 
-    raise ExchangeRequestError(f"Exchange request failed with status {response.status_code}.")
+    response_body = _error_body(response.body)
+    detail = f": {response_body}" if response_body else ""
+    raise ExchangeRequestError(
+        f"Exchange request failed with status {response.status_code}{detail}.",
+        status_code=response.status_code,
+        response_body=response_body,
+        url=response.url,
+    )
+
+
+def _error_body(body: str) -> str:
+    return body.strip().replace("\r", " ").replace("\n", " ")[:1000]
 
 
 class UrlLibHttpClient:
@@ -81,6 +93,11 @@ class UrlLibHttpClient:
                 return HttpResponse(
                     status_code=response.status,
                     body=response.read().decode("utf-8"),
+                    url=url,
                 )
         except HTTPError as error:
-            return HttpResponse(status_code=error.code, body=error.read().decode("utf-8"))
+            return HttpResponse(
+                status_code=error.code,
+                body=error.read().decode("utf-8"),
+                url=url,
+            )

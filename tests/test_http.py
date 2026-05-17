@@ -40,12 +40,25 @@ def test_retrying_http_client_raises_after_rate_limit_attempts() -> None:
 
 
 def test_retrying_http_client_raises_request_error_for_non_success() -> None:
-    client = FakeHttpClient([HttpResponse(status_code=500, body="error")])
+    client = FakeHttpClient([HttpResponse(status_code=500, body='{"error":"server"}')])
     retrying_client = RetryingHttpClient(client)
 
-    with pytest.raises(ExchangeRequestError):
+    with pytest.raises(ExchangeRequestError) as error:
         retrying_client.request("GET", "https://example.test")
 
+    assert error.value.status_code == 500
+    assert error.value.response_body == '{"error":"server"}'
+    assert str(error.value) == 'Exchange request failed with status 500: {"error":"server"}.'
+
+
+def test_retrying_http_client_truncates_error_response_body() -> None:
+    client = FakeHttpClient([HttpResponse(status_code=403, body="x" * 1100)])
+    retrying_client = RetryingHttpClient(client)
+
+    with pytest.raises(ExchangeRequestError) as error:
+        retrying_client.request("GET", "https://example.test")
+
+    assert len(error.value.response_body) == 1000
 
 def test_url_lib_http_client_sets_default_user_agent(monkeypatch) -> None:
     seen_headers = {}

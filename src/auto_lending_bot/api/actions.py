@@ -35,7 +35,7 @@ class BotActionService:
         self._profile_context = profile_context
 
     def reset_dry_run_records(self) -> dict[str, object]:
-        deleted_counts = self._repositories.bot_runs.delete_dry_run_records()
+        deleted_counts = self._repositories.bot_runs.delete_dry_run_records(self._profile_context)
         return {
             "action": "reset-dry-run-records",
             "ok": True,
@@ -44,7 +44,7 @@ class BotActionService:
         }
 
     def run_once(self) -> dict[str, object]:
-        offers_before = self._repositories.loan_offers.count()
+        offers_before = self._repositories.loan_offers.count(self._profile_context)
         runner = create_bot_runner(
             self._settings,
             RunnerRepositories(
@@ -62,8 +62,8 @@ class BotActionService:
             profile_context=self._profile_context,
         )
         runner.run_once()
-        offers_after = self._repositories.loan_offers.count()
-        latest_run = self._repositories.bot_runs.latest() or {}
+        offers_after = self._repositories.loan_offers.count(self._profile_context)
+        latest_run = self._repositories.bot_runs.latest(self._profile_context) or {}
         bot_run_id = latest_run.get("id")
         return {
             "action": "run-once",
@@ -75,10 +75,16 @@ class BotActionService:
             "message": latest_run.get("message", ""),
             "started_at": latest_run.get("started_at"),
             "finished_at": latest_run.get("finished_at"),
-            "decisions": self._repositories.bot_run_decisions.for_run(int(bot_run_id))
+            "decisions": self._repositories.bot_run_decisions.for_run(
+                int(bot_run_id),
+                self._profile_context,
+            )
             if bot_run_id
             else [],
-            "steps": self._repositories.bot_run_steps.for_run(int(bot_run_id))
+            "steps": self._repositories.bot_run_steps.for_run(
+                int(bot_run_id),
+                self._profile_context,
+            )
             if bot_run_id
             else [],
             "latest_run": latest_run,

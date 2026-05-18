@@ -20,7 +20,11 @@ from auto_lending_bot.config import (
 from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
-from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
+from auto_lending_bot.integrations.errors import (
+    ExchangeAuthenticationError,
+    ExchangePermissionError,
+    ExchangeRequestError,
+)
 from auto_lending_bot.operations.exchange_actions import ExchangeActionService
 from auto_lending_bot.operations.maintenance import MaintenanceActionService
 from auto_lending_bot.persistence.factory import RepositoryBundle, create_repository_bundle
@@ -516,7 +520,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         if not settings.dry_run and not (payload or {}).get("confirm_live", False):
             raise HTTPException(status_code=400, detail="Live run requires confirm_live=true.")
 
-        return bot_actions.run_once()
+        try:
+            return bot_actions.run_once()
+        except (ExchangeAuthenticationError, ExchangeRequestError) as error:
+            raise _exchange_error_http_exception(error) from error
 
     @router.post("/actions/start-loop")
     def start_loop(
@@ -867,6 +874,16 @@ def _validate_safe_action_settings(settings: Settings) -> None:
         validate_run_settings(settings)
     except SafetyError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _exchange_error_http_exception(error: ExchangeAuthenticationError | ExchangeRequestError) -> HTTPException:
+    if isinstance(error, ExchangeAuthenticationError):
+        return HTTPException(status_code=401, detail=str(error))
+    if isinstance(error, ExchangePermissionError):
+        return HTTPException(status_code=error.status_code or 403, detail=str(error))
+    if error.status_code is not None and 400 <= error.status_code < 500:
+        return HTTPException(status_code=error.status_code, detail=str(error))
+    return HTTPException(status_code=502, detail=str(error))
 
 
 def _exchange_client(

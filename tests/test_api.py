@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from auto_lending_bot.api.app import create_app
 from auto_lending_bot.config import Settings
 from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
+from auto_lending_bot.integrations.errors import ExchangePermissionError
 from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.factory import create_repository_bundle
 from auto_lending_bot.persistence.repository import (
@@ -642,6 +643,33 @@ def test_api_run_once_creates_dry_run_offers(tmp_path) -> None:
     steps_response = client.get(f"/api/runs/{body['bot_run_id']}/steps")
     assert steps_response.status_code == 200
     assert steps_response.json() == body["steps"]
+
+
+def test_api_run_once_returns_exchange_permission_error(tmp_path, monkeypatch) -> None:
+    class PermissionFailingRunner:
+        def run_once(self) -> None:
+            raise ExchangePermissionError(
+                'Bitfinex private request failed: POST /v1/offer/new: '
+                'Exchange request failed with status 403: {"message":"permission denied"}.',
+                status_code=403,
+                response_body='{"message":"permission denied"}',
+            )
+
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    monkeypatch.setattr(
+        "auto_lending_bot.api.actions.create_bot_runner",
+        lambda *args, **kwargs: PermissionFailingRunner(),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/run-once")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        'Bitfinex private request failed: POST /v1/offer/new: '
+        'Exchange request failed with status 403: {"message":"permission denied"}.'
+    )
 
 
 def test_api_reset_dry_run_records_deletes_local_dry_run_history(tmp_path, monkeypatch) -> None:

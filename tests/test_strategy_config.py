@@ -20,6 +20,7 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     monkeypatch.delenv("SPREAD_LEND", raising=False)
     monkeypatch.delenv("MAX_OFFER_AMOUNT", raising=False)
     monkeypatch.delenv("MIN_OFFER_REMAINDER", raising=False)
+    monkeypatch.delenv("MIN_OFFER_VALUE_USD", raising=False)
     monkeypatch.delenv("MAX_TOTAL_LEND_AMOUNT", raising=False)
     monkeypatch.delenv("MAX_SINGLE_OFFER_AMOUNT", raising=False)
 
@@ -42,6 +43,7 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.spread_lend == 0
     assert strategy.max_offer_amount == 500
     assert strategy.min_offer_remainder == 100
+    assert strategy.min_offer_value_usd == 150
     assert settings.max_total_lend_amount == 0
     assert settings.max_single_offer_amount == 0
 
@@ -91,6 +93,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("SPREAD_LEND", "2")
     monkeypatch.setenv("MAX_OFFER_AMOUNT", "250")
     monkeypatch.setenv("MIN_OFFER_REMAINDER", "75")
+    monkeypatch.setenv("MIN_OFFER_VALUE_USD", "175")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -139,6 +142,7 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.spread_lend == 2
     assert strategy.max_offer_amount == 250
     assert strategy.min_offer_remainder == 75
+    assert strategy.min_offer_value_usd == 175
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
@@ -148,6 +152,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("BTC_SPREAD_LEND", "4")
     monkeypatch.setenv("BTC_MAX_OFFER_AMOUNT", "0.5")
     monkeypatch.setenv("BTC_MIN_OFFER_REMAINDER", "0.1")
+    monkeypatch.setenv("BTC_MIN_OFFER_VALUE_USD", "200")
     monkeypatch.setenv("BTC_MAX_AMOUNT_TO_LEND", "0.25")
     monkeypatch.setenv("BTC_MAX_ACTIVE_AMOUNT", "0.75")
     monkeypatch.setenv("BTC_MAX_TO_LEND_RATE", "0.00011")
@@ -168,6 +173,7 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.spread_lend == 4
     assert strategy.max_offer_amount == 0.5
     assert strategy.min_offer_remainder == 0.1
+    assert strategy.min_offer_value_usd == 200
     assert strategy.max_amount_to_lend == 0.25
     assert strategy.max_active_amount == 0.75
     assert strategy.max_to_lend_rate == 0.00011

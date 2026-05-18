@@ -31,6 +31,7 @@ class StrategyConfig:
     end_date: date | None
     hide_coins: bool
     allow_above_market_offers: bool
+    min_offer_value_usd: float = 150.0
 
 
 def build_lending_decision(

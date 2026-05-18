@@ -126,6 +126,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("SPREAD_LEND", "Strategy", "int", "0"),
     SettingDefinition("MAX_OFFER_AMOUNT", "Strategy", "optional_float", "500"),
     SettingDefinition("MIN_OFFER_REMAINDER", "Strategy", "float", "100"),
+    SettingDefinition("MIN_OFFER_VALUE_USD", "Strategy", "float", "150"),
     SettingDefinition(
         "GAP_MODE",
         "Strategy",

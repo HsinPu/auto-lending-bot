@@ -52,6 +52,47 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
     assert exchange.get_open_loan_offers() == []
 
 
+def test_runner_skips_offers_below_default_usd_value(tmp_path) -> None:
+    class LowValueExchange(MockExchangeClient):
+        def get_lending_balances(self) -> list[CurrencyBalance]:
+            return [CurrencyBalance(currency="USDT", amount=100.0)]
+
+        def get_active_loans(self) -> list[ActiveLoan]:
+            return []
+
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_runs = BotRunRepository(database_url)
+    loan_offers = LoanOfferRepository(database_url)
+    run_steps = BotRunStepRepository(database_url)
+    runner = BotRunner(
+        settings=_settings(database_url),
+        exchange=LowValueExchange(),
+        bot_runs=bot_runs,
+        loan_offers=loan_offers,
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=Notifier(),
+        run_steps=run_steps,
+    )
+
+    runner.run_once()
+
+    assert loan_offers.count() == 0
+    latest_run = bot_runs.latest()
+    assert latest_run["message"] == "Completed with 0 offer(s)."
+    steps = run_steps.for_run(int(latest_run["id"]))
+    assert any(
+        step["step_key"] == "prepare-offers"
+        and "MIN_OFFER_VALUE_USD=150" in step["message"]
+        for step in steps
+    )
+
+
 def test_balance_summary_uses_full_decimal_numbers() -> None:
     summary = _balance_summary(
         [

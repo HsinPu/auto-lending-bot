@@ -90,6 +90,7 @@ class Settings:
     allow_above_market_offers: bool = True
     max_offer_amount: float | None = None
     min_offer_remainder: float = 0.0
+    min_offer_value_usd: float = 150.0
 
 
 def load_settings() -> Settings:
@@ -180,6 +181,7 @@ def load_settings() -> Settings:
         if os.getenv("MAX_OFFER_AMOUNT") is not None
         else 500.0,
         min_offer_remainder=_get_float("MIN_OFFER_REMAINDER", default=100.0),
+        min_offer_value_usd=_get_float("MIN_OFFER_VALUE_USD", default=150.0),
         allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=True),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -350,6 +352,10 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
         allow_above_market_offers=_get_bool(
             f"{prefix}_ALLOW_ABOVE_MARKET_OFFERS",
             settings.allow_above_market_offers,
+        ),
+        min_offer_value_usd=_get_float(
+            f"{prefix}_MIN_OFFER_VALUE_USD",
+            settings.min_offer_value_usd,
         ),
     )
 

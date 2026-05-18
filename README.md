@@ -286,6 +286,7 @@ Profile strategy settings:
 - `SPREAD_LEND`
 - `MAX_OFFER_AMOUNT`
 - `MIN_OFFER_REMAINDER`
+- `MIN_OFFER_VALUE_USD`
 - `GAP_MODE`
 - `GAP_BOTTOM`
 - `GAP_TOP`
@@ -321,6 +322,7 @@ BTC_MIN_LOAN_SIZE=0.02
 BTC_SPREAD_LEND=0
 BTC_MAX_OFFER_AMOUNT=500
 BTC_MIN_OFFER_REMAINDER=100
+BTC_MIN_OFFER_VALUE_USD=150
 BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_TO_LEND=0.1
 BTC_MAX_TO_LEND_RATE=0.00008
@@ -347,6 +349,8 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=50
 `ALLOW_ABOVE_MARKET_OFFERS=true` is enabled by default. When the best market rate is below the effective minimum rate, the bot may still create offers at the effective minimum rate instead of skipping the currency. Set it to `false` to keep the older behavior where below-minimum markets are hidden when `HIDE_COINS=true`.
 
 `MAX_OFFER_AMOUNT=500` is enabled by default and makes the strategy split lendable balance by maximum offer size instead of a fixed number of offers. `MIN_OFFER_REMAINDER=100` keeps the final remainder unoffered when it is less than or equal to that amount. Set `MAX_OFFER_AMOUNT=` to disable amount-based splitting and fall back to `SPREAD_LEND`.
+
+`MIN_OFFER_VALUE_USD=150` is enabled by default to match Bitfinex's minimum funding offer value. Offers below the USD-equivalent threshold are skipped before submission.
 
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 

@@ -105,7 +105,7 @@ These should usually stay process/global because they describe deployment behavi
 These should become profile-scoped if multiple bot profiles are added because they affect lending decisions.
 
 - Base strategy: `MIN_DAILY_RATE`, `MAX_DAILY_RATE`, `MAX_AMOUNT_TO_LEND`, `MAX_PERCENT_TO_LEND`, `MIN_OFFER_AMOUNT`, `SPREAD_LEND`
-- Offer splitting: `MAX_OFFER_AMOUNT`, `MIN_OFFER_REMAINDER`
+- Offer splitting: `MAX_OFFER_AMOUNT`, `MIN_OFFER_REMAINDER`, `MIN_OFFER_VALUE_USD`
 - Duration logic: `DEFAULT_PERIOD_DAYS`, `XDAY_THRESHOLD`, `XDAYS`, `XDAY_SPREAD`
 - Market logic: `GAP_MODE`, `GAP_BOTTOM`, `GAP_TOP`, `MACD_FAST`, `MACD_SLOW`, `MACD_SIGNAL`
 - FRR logic: `FRR_AS_MIN`, `FRR_DELTA`

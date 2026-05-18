@@ -48,7 +48,9 @@ class MockExchangeClient:
         btc_prices = {
             "BTC": 1.0,
             "ETH": 0.05,
+            "USD": 0.00002,
             "USDT": 0.00002,
+            "UST": 0.00002,
         }
         return btc_prices.get(currency.upper())
 

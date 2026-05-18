@@ -1,10 +1,11 @@
 import logging
 import time
+from dataclasses import replace
 from decimal import Decimal
 
 from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.exchange import ExchangeClient
@@ -294,6 +295,11 @@ class BotRunner:
                     active_amount=active_amount,
                     historical_daily_rates=historical_daily_rates,
                 )
+                decision, min_value_message = self._filter_min_offer_value(
+                    decision,
+                    strategy.min_offer_value_usd,
+                    btc_price,
+                )
                 self._finish_step(
                     current_step_id,
                     message=_decision_calculation_summary(
@@ -339,9 +345,12 @@ class BotRunner:
                     "prepare-offers",
                     run_step_label("prepare-offers"),
                 )
+                prepare_message = f"{balance.currency}：準備 {len(decision.offers)} 筆委託。"
+                if min_value_message:
+                    prepare_message = f"{prepare_message} {min_value_message}"
                 self._finish_step(
                     current_step_id,
-                    message=f"{balance.currency}：準備 {len(decision.offers)} 筆委託。",
+                    message=prepare_message,
                 )
                 current_step_id = None
 
@@ -752,6 +761,45 @@ class BotRunner:
 
         return self._exchange.get_btc_price(currency)
 
+    def _filter_min_offer_value(
+        self,
+        decision: LendingDecision,
+        min_offer_value_usd: float,
+        btc_price: float | None,
+    ) -> tuple[LendingDecision, str]:
+        if min_offer_value_usd <= 0 or not decision.offers:
+            return decision, ""
+
+        needs_btc_conversion = decision.currency.upper() not in {"USD", "USDT", "UST"}
+        usd_btc_price = self._currency_btc_price("USD") if needs_btc_conversion else None
+        currency_btc_price = (
+            btc_price or self._currency_btc_price(decision.currency)
+            if needs_btc_conversion
+            else None
+        )
+        kept_offers: list[LoanOffer] = []
+        skipped_count = 0
+        for offer in decision.offers:
+            usd_value = _offer_usd_value(offer, currency_btc_price, usd_btc_price)
+            if usd_value is not None and usd_value >= min_offer_value_usd:
+                kept_offers.append(offer)
+                continue
+            skipped_count += 1
+
+        if skipped_count == 0:
+            return decision, ""
+
+        reason = decision.reason
+        if not kept_offers:
+            reason = "Available balance is below the minimum offer USD value."
+        message = f"略過 {skipped_count} 筆低於 MIN_OFFER_VALUE_USD={min_offer_value_usd:g} 的委託。"
+        return replace(decision, offers=kept_offers, reason=reason), message
+
+    def _currency_btc_price(self, currency: str) -> float | None:
+        if currency.upper() in {"USD", "USDT", "UST"}:
+            return self._exchange.get_btc_price("USD")
+        return self._exchange.get_btc_price(currency)
+
     def _suggested_min_daily_rate(self, currency: str) -> float | None:
         if self._settings.market_analysis_method == "percentile":
             return self._market_analysis_rates.percentile_rate(
@@ -999,6 +1047,18 @@ def _balance_summary(balances: list[CurrencyBalance]) -> str:
     if not balances:
         return "沒有可用餘額。"
     return "、".join(f"{balance.currency} {_format_decimal_amount(balance.amount)}" for balance in balances) + "。"
+
+
+def _offer_usd_value(
+    offer: LoanOffer,
+    currency_btc_price: float | None,
+    usd_btc_price: float | None,
+) -> float | None:
+    if offer.currency.upper() in {"USD", "USDT", "UST"}:
+        return offer.amount
+    if currency_btc_price is None or usd_btc_price is None or usd_btc_price <= 0:
+        return None
+    return offer.amount * currency_btc_price / usd_btc_price
 
 
 def _format_decimal_amount(amount: float) -> str:

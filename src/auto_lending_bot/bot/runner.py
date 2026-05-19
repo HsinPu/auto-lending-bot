@@ -368,6 +368,8 @@ class BotRunner:
                             offer=offer,
                             status=status,
                             dry_run=self._settings.dry_run,
+                            strategy_snapshot=_offer_strategy_snapshot(strategy),
+                            rate_candidate_snapshot=[candidate.__dict__ for candidate in decision.rate_candidates],
                             profile_context=self._profile_context,
                         )
                         self._record_xday_notification_step(bot_run_id, offer)
@@ -405,6 +407,8 @@ class BotRunner:
                         offer=offer,
                         status="intent",
                         dry_run=self._settings.dry_run,
+                        strategy_snapshot=_offer_strategy_snapshot(strategy),
+                        rate_candidate_snapshot=[candidate.__dict__ for candidate in decision.rate_candidates],
                         profile_context=self._profile_context,
                     )
                     self._finish_step(
@@ -738,6 +742,10 @@ class BotRunner:
                     run_step_label("cancel-open-offer"),
                 )
                 self._exchange.cancel_loan_offer(offer.external_offer_id)
+                self._loan_offers.mark_canceled_by_external_offer_id(
+                    offer.external_offer_id,
+                    profile_context=self._profile_context,
+                )
                 self._finish_step(step_id, message=f"已取消 {offer.currency} 舊委託 {offer.external_offer_id}。")
             else:
                 self._finish_step(step_id, message=f"略過 {offer.currency} 舊委託：沒有交易所委託 ID。")
@@ -1033,6 +1041,10 @@ class BotRunner:
         new_count = 0
         for active_loan in active_loans:
             if active_loan.external_loan_id not in previous_active_loan_ids:
+                self._loan_offers.mark_filled_by_active_loan(
+                    active_loan,
+                    profile_context=self._profile_context,
+                )
                 self._notifier.loan_filled(active_loan)
                 new_count += 1
         return new_count
@@ -1289,6 +1301,17 @@ def _rate_candidate_summary(candidates) -> str:
         )
         for candidate in candidates[:5]
     )
+
+
+def _offer_strategy_snapshot(strategy) -> dict[str, object]:
+    return {
+        "lending_risk_level": strategy.lending_risk_level,
+        "rate_optimization_mode": strategy.rate_optimization_mode,
+        "rate_optimization_min_probability": strategy.rate_optimization_min_probability,
+        "rate_optimization_sample_size": strategy.rate_optimization_sample_size,
+        "dynamic_duration_enabled": strategy.dynamic_duration_enabled,
+        "min_offer_value_usd": strategy.min_offer_value_usd,
+    }
 
 
 def _offer_duration_summary(offers: list[LoanOffer]) -> str:

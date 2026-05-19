@@ -100,6 +100,10 @@ class ExchangeActionService:
             }
 
         exchange.cancel_loan_offer(external_offer_id)
+        self._repositories.loan_offers.mark_canceled_by_external_offer_id(
+            external_offer_id,
+            profile_context=self._profile_context,
+        )
         deleted_count = self._repositories.open_offers.delete_by_external_offer_id(
             external_offer_id,
             profile_context=self._profile_context,
@@ -120,6 +124,11 @@ class ExchangeActionService:
             external_offer_id = getattr(offer, "external_offer_id", None)
             if not external_offer_id:
                 continue
-            exchange.cancel_loan_offer(str(external_offer_id))
+            external_offer_id = str(external_offer_id)
+            exchange.cancel_loan_offer(external_offer_id)
+            self._repositories.loan_offers.mark_canceled_by_external_offer_id(
+                external_offer_id,
+                profile_context=self._profile_context,
+            )
             canceled_count += 1
         return canceled_count

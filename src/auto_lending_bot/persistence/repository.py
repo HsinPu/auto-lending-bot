@@ -871,6 +871,8 @@ class LoanOfferRepository:
         offer: LoanOffer,
         status: str,
         dry_run: bool,
+        strategy_snapshot: dict[str, object] | None = None,
+        rate_candidate_snapshot: list[dict[str, object]] | None = None,
         profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
     ) -> int:
         ensure_default_profile(profile_context)
@@ -887,8 +889,12 @@ class LoanOfferRepository:
                     status,
                     dry_run,
                     external_offer_id,
-                    message
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    message,
+                    initial_daily_rate,
+                    final_status,
+                    strategy_snapshot_json,
+                    rate_candidate_snapshot_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -901,6 +907,10 @@ class LoanOfferRepository:
                     int(dry_run),
                     None,
                     "",
+                    offer.daily_rate,
+                    status,
+                    json.dumps(strategy_snapshot or {}, separators=(",", ":")),
+                    json.dumps(rate_candidate_snapshot or [], separators=(",", ":")),
                 ),
             )
             return int(cursor.lastrowid)
@@ -918,11 +928,89 @@ class LoanOfferRepository:
                 UPDATE loan_offers
                 SET status = ?,
                     external_offer_id = ?,
-                    message = ?
+                    message = ?,
+                    submitted_at = CASE
+                        WHEN ? = 'created' AND submitted_at IS NULL THEN CURRENT_TIMESTAMP
+                        ELSE submitted_at
+                    END,
+                    final_status = ?
                 WHERE id = ?
                 """,
-                (status, external_offer_id, message, loan_offer_id),
+                (status, external_offer_id, message, status, status, loan_offer_id),
             )
+
+    def mark_canceled_by_external_offer_id(
+        self,
+        external_offer_id: str,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> int:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            cursor = connection.execute(
+                """
+                UPDATE loan_offers
+                SET status = 'canceled',
+                    final_status = 'canceled',
+                    canceled_at = CURRENT_TIMESTAMP,
+                    reprice_count = reprice_count + 1
+                WHERE profile_id = ?
+                  AND external_offer_id = ?
+                  AND dry_run = 0
+                  AND canceled_at IS NULL
+                """,
+                (profile_context.id, external_offer_id),
+            )
+            return int(cursor.rowcount)
+
+    def mark_filled_by_active_loan(
+        self,
+        active_loan: ActiveLoan,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> bool:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id
+                FROM loan_offers
+                WHERE profile_id = ?
+                  AND dry_run = 0
+                  AND status = 'created'
+                  AND filled_at IS NULL
+                  AND canceled_at IS NULL
+                  AND upper(currency) = upper(?)
+                  AND abs(amount - ?) < 0.00000001
+                  AND abs(daily_rate - ?) < 0.0000000001
+                  AND duration_days = ?
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (
+                    profile_context.id,
+                    active_loan.currency,
+                    active_loan.amount,
+                    active_loan.daily_rate,
+                    active_loan.duration_days,
+                ),
+            ).fetchone()
+            if row is None:
+                return False
+
+            connection.execute(
+                """
+                UPDATE loan_offers
+                SET status = 'filled',
+                    final_status = 'filled',
+                    filled_at = CURRENT_TIMESTAMP,
+                    time_to_fill_seconds = CASE
+                        WHEN submitted_at IS NULL THEN NULL
+                        ELSE (julianday(CURRENT_TIMESTAMP) - julianday(submitted_at)) * 86400
+                    END
+                WHERE id = ?
+                """,
+                (row["id"],),
+            )
+            return True
 
     def count(self, profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT) -> int:
         ensure_default_profile(profile_context)
@@ -956,7 +1044,10 @@ class LoanOfferRepository:
             rows = connection.execute(
                 """
                 SELECT id, profile_id, bot_run_id, currency, amount, daily_rate, duration_days,
-                       status, dry_run, external_offer_id, message, created_at
+                       status, dry_run, external_offer_id, message, submitted_at, filled_at,
+                       canceled_at, time_to_fill_seconds, initial_daily_rate, final_status,
+                       reprice_count, strategy_snapshot_json, rate_candidate_snapshot_json,
+                       created_at
                 FROM loan_offers
                 WHERE profile_id = ?
                 ORDER BY id DESC

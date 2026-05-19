@@ -206,6 +206,67 @@ def test_bot_run_repository_links_runs_to_jobs(tmp_path) -> None:
     assert bot_runs.latest()["job_id"] == bot_job_id
 
 
+def test_loan_offer_repository_tracks_live_offer_lifecycle(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    repository = LoanOfferRepository(database_url)
+    offer = LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2)
+
+    offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=offer,
+        status="intent",
+        dry_run=False,
+        strategy_snapshot={"lending_risk_level": "balanced"},
+        rate_candidate_snapshot=[{"daily_rate": 0.00008, "selected": True}],
+    )
+    repository.update_status(offer_id, status="created", external_offer_id="offer-1")
+    marked = repository.mark_filled_by_active_loan(
+        ActiveLoan(
+            currency="BTC",
+            amount=0.1,
+            daily_rate=0.00008,
+            duration_days=2,
+            external_loan_id="credit-1",
+        )
+    )
+    rows = repository.recent()
+
+    assert marked is True
+    assert rows[0]["status"] == "filled"
+    assert rows[0]["final_status"] == "filled"
+    assert rows[0]["submitted_at"] is not None
+    assert rows[0]["filled_at"] is not None
+    assert rows[0]["time_to_fill_seconds"] is not None
+    assert rows[0]["initial_daily_rate"] == 0.00008
+    assert rows[0]["strategy_snapshot_json"] == '{"lending_risk_level":"balanced"}'
+    assert rows[0]["rate_candidate_snapshot_json"] == '[{"daily_rate":8e-05,"selected":true}]'
+
+
+def test_loan_offer_repository_marks_canceled_offer(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    repository = LoanOfferRepository(database_url)
+    offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2),
+        status="intent",
+        dry_run=False,
+    )
+    repository.update_status(offer_id, status="created", external_offer_id="offer-1")
+
+    changed_count = repository.mark_canceled_by_external_offer_id("offer-1")
+    rows = repository.recent()
+
+    assert changed_count == 1
+    assert rows[0]["status"] == "canceled"
+    assert rows[0]["final_status"] == "canceled"
+    assert rows[0]["canceled_at"] is not None
+    assert rows[0]["reprice_count"] == 1
+
+
 def test_bot_job_repository_stores_settings_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

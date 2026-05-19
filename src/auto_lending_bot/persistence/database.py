@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS loan_offers (
     dry_run INTEGER NOT NULL,
     external_offer_id TEXT,
     message TEXT,
+    submitted_at TEXT,
+    filled_at TEXT,
+    canceled_at TEXT,
+    time_to_fill_seconds REAL,
+    initial_daily_rate REAL,
+    final_status TEXT,
+    reprice_count INTEGER NOT NULL DEFAULT 0,
+    strategy_snapshot_json TEXT NOT NULL DEFAULT '{}',
+    rate_candidate_snapshot_json TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
 );
@@ -230,6 +239,15 @@ def initialize_database(database_url: str) -> None:
         _ensure_profile_column(connection, "loan_offers")
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
         _ensure_column(connection, "loan_offers", "message", "TEXT")
+        _ensure_column(connection, "loan_offers", "submitted_at", "TEXT")
+        _ensure_column(connection, "loan_offers", "filled_at", "TEXT")
+        _ensure_column(connection, "loan_offers", "canceled_at", "TEXT")
+        _ensure_column(connection, "loan_offers", "time_to_fill_seconds", "REAL")
+        _ensure_column(connection, "loan_offers", "initial_daily_rate", "REAL")
+        _ensure_column(connection, "loan_offers", "final_status", "TEXT")
+        _ensure_column(connection, "loan_offers", "reprice_count", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(connection, "loan_offers", "strategy_snapshot_json", "TEXT NOT NULL DEFAULT '{}'")
+        _ensure_column(connection, "loan_offers", "rate_candidate_snapshot_json", "TEXT NOT NULL DEFAULT '[]'")
         _ensure_profile_column(connection, "bot_run_decisions")
         _ensure_column(connection, "bot_run_decisions", "rate_candidates_json", "TEXT NOT NULL DEFAULT '[]'")
         _ensure_profile_column(connection, "bot_run_steps")

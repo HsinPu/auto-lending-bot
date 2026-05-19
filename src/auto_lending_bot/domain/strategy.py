@@ -33,6 +33,14 @@ class StrategyConfig:
     allow_above_market_offers: bool
     min_offer_value_usd: float = 150.0
     lending_risk_level: str = "balanced"
+    dynamic_duration_enabled: bool = True
+    duration_low_days: int = 2
+    duration_medium_daily_rate: float = 0.0002191780821917808
+    duration_medium_days: int = 7
+    duration_high_daily_rate: float = 0.000410958904109589
+    duration_high_days: int = 30
+    duration_extreme_daily_rate: float = 0.0006849315068493151
+    duration_extreme_days: int = 120
 
 
 def build_lending_decision(
@@ -366,6 +374,9 @@ def _strategy_with_suggested_minimum(
 
 def _duration_days(rate: float, strategy: StrategyConfig) -> int:
     max_end_date_days = _days_until_end(strategy)
+    if strategy.dynamic_duration_enabled:
+        return _dynamic_duration_days(rate, strategy, max_end_date_days)
+
     if strategy.xday_threshold <= 0:
         return min(2, max_end_date_days) if max_end_date_days > 0 else 2
 
@@ -384,6 +395,22 @@ def _duration_days(rate: float, strategy: StrategyConfig) -> int:
 
     slope = (max_days - 2) / (strategy.xday_threshold - threshold_min)
     return min(max(round(slope * (rate - threshold_min) + 2), 2), max_days)
+
+
+def _dynamic_duration_days(rate: float, strategy: StrategyConfig, max_end_date_days: int) -> int:
+    if rate >= strategy.duration_extreme_daily_rate:
+        days = strategy.duration_extreme_days
+    elif rate >= strategy.duration_high_daily_rate:
+        days = strategy.duration_high_days
+    elif rate >= strategy.duration_medium_daily_rate:
+        days = strategy.duration_medium_days
+    else:
+        days = strategy.duration_low_days
+
+    capped_days = min(max(days, 2), 120)
+    if max_end_date_days > 0:
+        capped_days = min(capped_days, max_end_date_days)
+    return capped_days
 
 
 def _days_until_end(strategy: StrategyConfig) -> int:

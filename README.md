@@ -294,6 +294,14 @@ Profile strategy settings:
 - `XDAY_THRESHOLD`
 - `XDAYS`
 - `XDAY_SPREAD`
+- `DYNAMIC_DURATION_ENABLED`
+- `DURATION_LOW_DAYS`
+- `DURATION_MEDIUM_DAILY_RATE`
+- `DURATION_MEDIUM_DAYS`
+- `DURATION_HIGH_DAILY_RATE`
+- `DURATION_HIGH_DAYS`
+- `DURATION_EXTREME_DAILY_RATE`
+- `DURATION_EXTREME_DAYS`
 - `END_DATE`
 - `FRR_AS_MIN`
 - `FRR_DELTA`
@@ -338,6 +346,14 @@ BTC_GAP_TOP=100
 BTC_XDAY_THRESHOLD=0.0005479452054794521
 BTC_XDAYS=120
 BTC_XDAY_SPREAD=0
+BTC_DYNAMIC_DURATION_ENABLED=true
+BTC_DURATION_LOW_DAYS=2
+BTC_DURATION_MEDIUM_DAILY_RATE=0.0002191780821917808
+BTC_DURATION_MEDIUM_DAYS=7
+BTC_DURATION_HIGH_DAILY_RATE=0.000410958904109589
+BTC_DURATION_HIGH_DAYS=30
+BTC_DURATION_EXTREME_DAILY_RATE=0.0006849315068493151
+BTC_DURATION_EXTREME_DAYS=120
 BTC_END_DATE=2027-01-15
 BTC_FRR_AS_MIN=false
 BTC_FRR_DELTA=0.00001
@@ -360,7 +376,7 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=50
 
 `END_DATE=YYYY-MM-DD` caps offer duration so new loans finish before the date. When two or fewer days remain, the strategy stops creating new lending offers.
 
-By default, `XDAY_THRESHOLD=0.0005479452054794521`, `XDAYS=120`, and `XDAY_SPREAD=0`, so offers stay at 2 days unless the selected offer rate reaches roughly 20% annualized. At or above that threshold, the bot uses 120 days.
+By default, `DYNAMIC_DURATION_ENABLED=true`, so low rates use 2 days, roughly 8% annualized uses 7 days, roughly 15% annualized uses 30 days, and roughly 25% annualized uses 120 days. Set `DYNAMIC_DURATION_ENABLED=false` to use the legacy `XDAY_THRESHOLD`, `XDAYS`, and `XDAY_SPREAD` duration behavior instead.
 
 `GAP_MODE=raw_btc` treats `GAP_BOTTOM` and `GAP_TOP` as BTC-denominated lendbook depth, matching Mika's `RawBTC` behavior when a BTC conversion price is available.
 

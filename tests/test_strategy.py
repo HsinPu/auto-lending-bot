@@ -387,6 +387,19 @@ def test_strategy_uses_long_duration_above_xday_threshold() -> None:
     assert {offer.duration_days for offer in decision.offers} == {30}
 
 
+def test_strategy_uses_dynamic_duration_tiers() -> None:
+    decisions = [
+        build_lending_decision(
+            balance=CurrencyBalance(currency="BTC", amount=1.0),
+            order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=rate)],
+            strategy=_strategy(dynamic_duration_enabled=True),
+        )
+        for rate in (0.0001, 0.00022, 0.00042, 0.00069)
+    ]
+
+    assert [decision.offers[0].duration_days for decision in decisions] == [2, 7, 30, 120]
+
+
 def test_strategy_linearly_increases_duration_with_xday_spread() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),
@@ -444,6 +457,7 @@ def _strategy(
     hide_coins: bool = True,
     allow_above_market_offers: bool = True,
     lending_risk_level: str = "balanced",
+    dynamic_duration_enabled: bool = False,
 ) -> StrategyConfig:
     return StrategyConfig(
         min_daily_rate=min_daily_rate,
@@ -471,4 +485,5 @@ def _strategy(
         hide_coins=hide_coins,
         allow_above_market_offers=allow_above_market_offers,
         lending_risk_level=lending_risk_level,
+        dynamic_duration_enabled=dynamic_duration_enabled,
     )

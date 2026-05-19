@@ -13,6 +13,10 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     monkeypatch.delenv("XDAY_THRESHOLD", raising=False)
     monkeypatch.delenv("XDAYS", raising=False)
     monkeypatch.delenv("XDAY_SPREAD", raising=False)
+    monkeypatch.delenv("DYNAMIC_DURATION_ENABLED", raising=False)
+    monkeypatch.delenv("DURATION_MEDIUM_DAILY_RATE", raising=False)
+    monkeypatch.delenv("DURATION_HIGH_DAILY_RATE", raising=False)
+    monkeypatch.delenv("DURATION_EXTREME_DAILY_RATE", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_MODE", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_MIN_PROBABILITY", raising=False)
     monkeypatch.delenv("RATE_OPTIMIZATION_SAMPLE_SIZE", raising=False)
@@ -36,6 +40,14 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     assert strategy.xday_threshold == 0.0005479452054794521
     assert strategy.xdays == 120
     assert strategy.xday_spread == 0
+    assert strategy.dynamic_duration_enabled is True
+    assert strategy.duration_low_days == 2
+    assert strategy.duration_medium_daily_rate == 0.0002191780821917808
+    assert strategy.duration_medium_days == 7
+    assert strategy.duration_high_daily_rate == 0.000410958904109589
+    assert strategy.duration_high_days == 30
+    assert strategy.duration_extreme_daily_rate == 0.0006849315068493151
+    assert strategy.duration_extreme_days == 120
     assert strategy.rate_optimization_mode == "fill_probability"
     assert strategy.rate_optimization_min_probability == 0.10
     assert strategy.rate_optimization_sample_size == 50
@@ -86,6 +98,10 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("GAP_TOP", "50")
     monkeypatch.setenv("XDAY_THRESHOLD", "0.001")
     monkeypatch.setenv("XDAYS", "30")
+    monkeypatch.setenv("DYNAMIC_DURATION_ENABLED", "false")
+    monkeypatch.setenv("DURATION_MEDIUM_DAILY_RATE", "0.0002")
+    monkeypatch.setenv("DURATION_HIGH_DAILY_RATE", "0.0004")
+    monkeypatch.setenv("DURATION_EXTREME_DAILY_RATE", "0.0008")
     monkeypatch.setenv("FRR_AS_MIN", "true")
     monkeypatch.setenv("FRR_DELTA", "0.00001")
     monkeypatch.setenv("RATE_OPTIMIZATION_MODE", "off")
@@ -136,6 +152,10 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.gap_top == 50
     assert strategy.xday_threshold == 0.001
     assert strategy.xdays == 30
+    assert strategy.dynamic_duration_enabled is False
+    assert strategy.duration_medium_daily_rate == 0.0002
+    assert strategy.duration_high_daily_rate == 0.0004
+    assert strategy.duration_extreme_daily_rate == 0.0008
     assert strategy.frr_as_min is True
     assert strategy.frr_delta == 0.00001
     assert strategy.rate_optimization_mode == "off"
@@ -167,6 +187,8 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     monkeypatch.setenv("BTC_GAP_MODE", "relative")
     monkeypatch.setenv("BTC_GAP_BOTTOM", "20")
     monkeypatch.setenv("BTC_XDAYS", "45")
+    monkeypatch.setenv("BTC_DYNAMIC_DURATION_ENABLED", "false")
+    monkeypatch.setenv("BTC_DURATION_HIGH_DAYS", "21")
     monkeypatch.setenv("BTC_FRR_AS_MIN", "true")
     monkeypatch.setenv("BTC_FRR_DELTA", "0.00002")
 
@@ -189,6 +211,8 @@ def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:
     assert strategy.gap_mode == "relative"
     assert strategy.gap_bottom == 20
     assert strategy.xdays == 45
+    assert strategy.dynamic_duration_enabled is False
+    assert strategy.duration_high_days == 21
     assert strategy.frr_as_min is True
     assert strategy.frr_delta == 0.00002
 

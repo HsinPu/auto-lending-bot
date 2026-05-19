@@ -92,6 +92,14 @@ class Settings:
     min_offer_remainder: float = 0.0
     min_offer_value_usd: float = 150.0
     lending_risk_level: str = "balanced"
+    dynamic_duration_enabled: bool = True
+    duration_low_days: int = 2
+    duration_medium_daily_rate: float = 0.0002191780821917808
+    duration_medium_days: int = 7
+    duration_high_daily_rate: float = 0.000410958904109589
+    duration_high_days: int = 30
+    duration_extreme_daily_rate: float = 0.0006849315068493151
+    duration_extreme_days: int = 120
 
 
 def load_settings() -> Settings:
@@ -184,6 +192,23 @@ def load_settings() -> Settings:
         min_offer_remainder=_get_float("MIN_OFFER_REMAINDER", default=100.0),
         min_offer_value_usd=_get_float("MIN_OFFER_VALUE_USD", default=150.0),
         lending_risk_level=os.getenv("LENDING_RISK_LEVEL", "balanced").lower(),
+        dynamic_duration_enabled=_get_bool("DYNAMIC_DURATION_ENABLED", default=True),
+        duration_low_days=_get_int("DURATION_LOW_DAYS", default=2),
+        duration_medium_daily_rate=_get_float(
+            "DURATION_MEDIUM_DAILY_RATE",
+            default=0.0002191780821917808,
+        ),
+        duration_medium_days=_get_int("DURATION_MEDIUM_DAYS", default=7),
+        duration_high_daily_rate=_get_float(
+            "DURATION_HIGH_DAILY_RATE",
+            default=0.000410958904109589,
+        ),
+        duration_high_days=_get_int("DURATION_HIGH_DAYS", default=30),
+        duration_extreme_daily_rate=_get_float(
+            "DURATION_EXTREME_DAILY_RATE",
+            default=0.0006849315068493151,
+        ),
+        duration_extreme_days=_get_int("DURATION_EXTREME_DAYS", default=120),
         allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=False),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -363,6 +388,32 @@ def strategy_config_for(settings: Settings, currency: str) -> StrategyConfig:
             f"{prefix}_LENDING_RISK_LEVEL",
             settings.lending_risk_level,
         ).lower(),
+        dynamic_duration_enabled=_get_bool(
+            f"{prefix}_DYNAMIC_DURATION_ENABLED",
+            settings.dynamic_duration_enabled,
+        ),
+        duration_low_days=_get_int(f"{prefix}_DURATION_LOW_DAYS", settings.duration_low_days),
+        duration_medium_daily_rate=_get_float(
+            f"{prefix}_DURATION_MEDIUM_DAILY_RATE",
+            settings.duration_medium_daily_rate,
+        ),
+        duration_medium_days=_get_int(
+            f"{prefix}_DURATION_MEDIUM_DAYS",
+            settings.duration_medium_days,
+        ),
+        duration_high_daily_rate=_get_float(
+            f"{prefix}_DURATION_HIGH_DAILY_RATE",
+            settings.duration_high_daily_rate,
+        ),
+        duration_high_days=_get_int(f"{prefix}_DURATION_HIGH_DAYS", settings.duration_high_days),
+        duration_extreme_daily_rate=_get_float(
+            f"{prefix}_DURATION_EXTREME_DAILY_RATE",
+            settings.duration_extreme_daily_rate,
+        ),
+        duration_extreme_days=_get_int(
+            f"{prefix}_DURATION_EXTREME_DAYS",
+            settings.duration_extreme_days,
+        ),
     )
 
 

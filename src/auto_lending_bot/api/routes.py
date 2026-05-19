@@ -175,6 +175,44 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             raise HTTPException(status_code=404, detail="Profile was not found.")
         return profile
 
+    @router.get("/internal/profiles/{profile_id}/settings")
+    def internal_profile_settings(
+        profile_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_backend_admin(authorization, request)
+        profile_context = _profile_context_from_repository(bot_profiles, profile_id)
+        values = repositories.profile_app_settings.get_many(profile_context)
+        for key, row in values.items():
+            row["scope"] = setting_scope(key)
+        return {"profile": profile_context.as_dict(), "values": values}
+
+    @router.put("/internal/profiles/{profile_id}/settings")
+    def update_internal_profile_settings(
+        profile_id: str,
+        payload: dict[str, object],
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_backend_admin(authorization, request)
+        profile_context = _profile_context_from_repository(bot_profiles, profile_id)
+        values = payload.get("values", payload)
+        if not isinstance(values, dict):
+            raise HTTPException(status_code=400, detail="Settings values must be an object.")
+        global_keys = [str(key) for key in values if setting_scope(str(key)) == GLOBAL_SETTING_SCOPE]
+        if global_keys:
+            raise HTTPException(status_code=400, detail=f"Global settings are not profile-scoped: {', '.join(sorted(global_keys))}")
+        try:
+            repositories.profile_app_settings.set_many(
+                profile_context,
+                {str(key): str(value) for key, value in values.items()},
+                source="internal-api",
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        return {"ok": True, "changed_count": len(values), "profile": profile_context.as_dict()}
+
     @router.get("/settings/effective")
     def settings_effective() -> dict[str, object]:
         return settings_snapshot()
@@ -1053,6 +1091,13 @@ def _is_valid_profile_id(profile_id: str) -> bool:
     if not profile_id or len(profile_id) > 64:
         return False
     return all(character.isalnum() or character in {"_", "-"} for character in profile_id)
+
+
+def _profile_context_from_repository(repository, profile_id: str) -> BotProfileContext:
+    profile = repository.get(profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Profile was not found.")
+    return BotProfileContext(id=str(profile["id"]), name=str(profile["name"]))
 
 
 def _validate_transfer_action_settings(settings: Settings) -> None:

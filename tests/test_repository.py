@@ -24,7 +24,7 @@ from auto_lending_bot.persistence.repository import (
     OpenLoanOfferRepository,
     ProfileAppSettingRepository,
 )
-from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
+from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT, BotProfileContext
 from auto_lending_bot.settings_registry import SETTING_DEFINITIONS_BY_KEY, setting_schema
 
 
@@ -56,6 +56,28 @@ def test_bot_profile_repository_creates_and_lists_profiles(tmp_path) -> None:
     assert created["name"] == "Site User 1"
     assert profiles.get("site-user-1") == created
     assert {profile["id"] for profile in profiles.list()} == {"default", "site-user-1"}
+
+
+def test_profile_app_settings_support_non_default_profile(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    BotProfileRepository(database_url).create("site-user-1", "Site User 1")
+    profile_context = BotProfileContext(id="site-user-1", name="Site User 1")
+    settings = ProfileAppSettingRepository(database_url, encryption_key="test-key")
+
+    settings.set_many(
+        profile_context,
+        {"EXCHANGE_API_KEY": "api-key", "BOT_DRY_RUN": "true"},
+        source="test",
+    )
+
+    public_values = settings.get_many(profile_context)
+    plain_values = settings.plain_values(profile_context)
+    assert public_values["EXCHANGE_API_KEY"]["value"] != "api-key"
+    assert str(public_values["EXCHANGE_API_KEY"]["value"]).endswith("-key")
+    assert public_values["EXCHANGE_API_KEY"]["is_set"] is True
+    assert plain_values["EXCHANGE_API_KEY"] == "api-key"
+    assert plain_values["BOT_DRY_RUN"] == "true"
 
 
 def test_initialize_database_adds_profile_scope_to_runtime_tables(tmp_path) -> None:

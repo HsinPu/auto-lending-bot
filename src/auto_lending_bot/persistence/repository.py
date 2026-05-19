@@ -141,7 +141,6 @@ class ProfileAppSettingRepository:
         self,
         profile_context: BotProfileContext,
     ) -> dict[str, dict[str, object]]:
-        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
@@ -155,7 +154,6 @@ class ProfileAppSettingRepository:
             return {row["key"]: self._public_row(dict(row)) for row in rows}
 
     def plain_values(self, profile_context: BotProfileContext) -> dict[str, str]:
-        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """
@@ -180,7 +178,6 @@ class ProfileAppSettingRepository:
         values: dict[str, str],
         source: str = "api",
     ) -> None:
-        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             for key, value in values.items():
                 definition = SETTING_DEFINITIONS_BY_KEY.get(key)
@@ -238,7 +235,6 @@ class ProfileAppSettingRepository:
                 )
 
     def reset(self, profile_context: BotProfileContext, key: str, source: str = "api") -> None:
-        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             old_row = connection.execute(
                 """
@@ -277,7 +273,6 @@ class ProfileAppSettingRepository:
         profile_context: BotProfileContext,
         limit: int = 50,
     ) -> list[dict[str, object]]:
-        ensure_default_profile(profile_context)
         with connect(self._database_url) as connection:
             rows = connection.execute(
                 """

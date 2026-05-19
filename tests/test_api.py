@@ -122,6 +122,59 @@ def test_api_internal_profiles_create_and_read_profile(tmp_path, monkeypatch) ->
     assert get_response.json()["name"] == "Site User 1"
 
 
+def test_api_internal_profile_settings_manage_profile_values(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    monkeypatch.setenv("SETTINGS_ENCRYPTION_KEY", "test-key")
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+    client.post(
+        "/api/internal/profiles",
+        json={"id": "site-user-1", "name": "Site User 1"},
+        headers=_admin_headers(),
+    )
+
+    update_response = client.put(
+        "/api/internal/profiles/site-user-1/settings",
+        json={"values": {"EXCHANGE_API_KEY": "api-key", "BOT_DRY_RUN": "true"}},
+        headers=_admin_headers(),
+    )
+    get_response = client.get(
+        "/api/internal/profiles/site-user-1/settings",
+        headers=_admin_headers(),
+    )
+
+    assert update_response.status_code == 200
+    values = get_response.json()["values"]
+    assert values["EXCHANGE_API_KEY"]["value"] != "api-key"
+    assert values["EXCHANGE_API_KEY"]["value"].endswith("-key")
+    assert values["EXCHANGE_API_KEY"]["is_set"] is True
+    assert values["BOT_DRY_RUN"]["value"] == "true"
+
+
+def test_api_internal_profile_settings_reject_global_settings(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+    client.post(
+        "/api/internal/profiles",
+        json={"id": "site-user-1", "name": "Site User 1"},
+        headers=_admin_headers(),
+    )
+
+    response = client.put(
+        "/api/internal/profiles/site-user-1/settings",
+        json={"values": {"BOT_MAX_LOOPS": "3"}},
+        headers=_admin_headers(),
+    )
+
+    assert response.status_code == 400
+    assert "Global settings" in response.json()["detail"]
+
+
 def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

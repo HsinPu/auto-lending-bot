@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from auto_lending_bot.domain.models import CurrencyBalance, FillOutcome, LoanOrder
 from auto_lending_bot.domain.strategy import (
     StrategyConfig,
+    _regime_adjusted_duration_days,
     build_lending_decision,
     detect_market_regime,
 )
@@ -545,6 +546,36 @@ def test_strategy_uses_dynamic_duration_tiers() -> None:
     ]
 
     assert [decision.offers[0].duration_days for decision in decisions] == [2, 7, 30, 120]
+
+
+def test_strategy_duration_policy_caps_rising_market_terms() -> None:
+    strategy = _strategy(dynamic_duration_enabled=True)
+    rising = detect_market_regime(
+        current_daily_rate=0.00042,
+        historical_daily_rates=[0.000125, 0.000125, 0.000125, 0.0001, 0.0001, 0.0001],
+    )
+    volatile_rising = detect_market_regime(
+        current_daily_rate=0.00069,
+        historical_daily_rates=[0.0005, 0.0004, 0.00025, 0.0001, 0.00008, 0.00005],
+    )
+
+    assert _regime_adjusted_duration_days(30, 0.00042, strategy, rising) == 14
+    assert _regime_adjusted_duration_days(120, 0.00069, strategy, volatile_rising) == 7
+
+
+def test_strategy_duration_policy_extends_falling_market_terms() -> None:
+    strategy = _strategy(dynamic_duration_enabled=True)
+    falling = detect_market_regime(
+        current_daily_rate=0.00022,
+        historical_daily_rates=[0.0001, 0.0001, 0.0001, 0.000125, 0.000125, 0.000125],
+    )
+    volatile_falling = detect_market_regime(
+        current_daily_rate=0.00042,
+        historical_daily_rates=[0.00005, 0.00008, 0.0001, 0.00025, 0.0004, 0.0005],
+    )
+
+    assert _regime_adjusted_duration_days(7, 0.00022, strategy, falling) == 14
+    assert _regime_adjusted_duration_days(30, 0.00042, strategy, volatile_falling) == 60
 
 
 def test_strategy_linearly_increases_duration_with_xday_spread() -> None:

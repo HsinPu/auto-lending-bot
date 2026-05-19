@@ -54,6 +54,10 @@ class StrategyConfig:
 MARKET_REGIME_MIN_SAMPLES = 4
 MARKET_REGIME_TREND_THRESHOLD = 0.10
 MARKET_REGIME_VOLATILITY_THRESHOLD = 0.50
+RISING_DURATION_CAP_DAYS = 14
+VOLATILE_RISING_DURATION_CAP_DAYS = 7
+FALLING_MEDIUM_DURATION_FLOOR_DAYS = 14
+VOLATILE_FALLING_HIGH_DURATION_FLOOR_DAYS = 60
 
 
 def build_lending_decision(
@@ -740,6 +744,24 @@ def _dynamic_duration_days(rate: float, strategy: StrategyConfig, max_end_date_d
     if max_end_date_days > 0:
         capped_days = min(capped_days, max_end_date_days)
     return capped_days
+
+
+def _regime_adjusted_duration_days(
+    base_days: int,
+    rate: float,
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None,
+) -> int:
+    label = _market_regime_label_value(market_regime)
+    if label == "volatile_rising":
+        return min(base_days, VOLATILE_RISING_DURATION_CAP_DAYS)
+    if label == "rising":
+        return min(base_days, RISING_DURATION_CAP_DAYS)
+    if label == "falling" and rate >= strategy.duration_medium_daily_rate:
+        return max(base_days, FALLING_MEDIUM_DURATION_FLOOR_DAYS)
+    if label == "volatile_falling" and rate >= strategy.duration_high_daily_rate:
+        return max(base_days, VOLATILE_FALLING_HIGH_DURATION_FLOOR_DAYS)
+    return base_days
 
 
 def _days_until_end(strategy: StrategyConfig) -> int:

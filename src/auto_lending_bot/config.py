@@ -282,6 +282,13 @@ def admin_auth_token() -> str:
     return os.getenv("ADMIN_AUTH_TOKEN", "")
 
 
+def internal_api_token() -> str:
+    if load_dotenv is not None:
+        load_dotenv()
+
+    return os.getenv("INTERNAL_API_TOKEN", "")
+
+
 @contextmanager
 def _temporary_environ(overrides: dict[str, str]) -> Iterator[None]:
     old_values = {key: os.environ.get(key) for key in overrides}

@@ -13,6 +13,7 @@ from auto_lending_bot.bot.runner import BotRunner
 from auto_lending_bot.config import (
     Settings,
     admin_auth_token,
+    internal_api_token,
     settings_encryption_key,
     sqlite_path_from_url,
     strategy_config_for,
@@ -142,8 +143,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def internal_profiles(
         request: Request,
         authorization: str | None = Header(default=None),
+        x_internal_service_token: str | None = Header(default=None),
     ) -> list[dict[str, object]]:
-        _require_backend_admin(authorization, request)
+        _require_internal_api(authorization, x_internal_service_token, request)
         return bot_profiles.list()
 
     @router.post("/internal/profiles")
@@ -151,8 +153,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         payload: dict[str, object],
         request: Request,
         authorization: str | None = Header(default=None),
+        x_internal_service_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_backend_admin(authorization, request)
+        _require_internal_api(authorization, x_internal_service_token, request)
         profile_id = str(payload.get("id", "")).strip()
         name = str(payload.get("name", "")).strip()
         if not _is_valid_profile_id(profile_id):
@@ -168,8 +171,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         profile_id: str,
         request: Request,
         authorization: str | None = Header(default=None),
+        x_internal_service_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_backend_admin(authorization, request)
+        _require_internal_api(authorization, x_internal_service_token, request)
         profile = bot_profiles.get(profile_id)
         if profile is None:
             raise HTTPException(status_code=404, detail="Profile was not found.")
@@ -180,8 +184,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         profile_id: str,
         request: Request,
         authorization: str | None = Header(default=None),
+        x_internal_service_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_backend_admin(authorization, request)
+        _require_internal_api(authorization, x_internal_service_token, request)
         profile_context = _profile_context_from_repository(bot_profiles, profile_id)
         values = repositories.profile_app_settings.get_many(profile_context)
         for key, row in values.items():
@@ -194,8 +199,9 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         payload: dict[str, object],
         request: Request,
         authorization: str | None = Header(default=None),
+        x_internal_service_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        _require_backend_admin(authorization, request)
+        _require_internal_api(authorization, x_internal_service_token, request)
         profile_context = _profile_context_from_repository(bot_profiles, profile_id)
         values = payload.get("values", payload)
         if not isinstance(values, dict):
@@ -1071,6 +1077,21 @@ def _require_backend_admin(authorization: str | None, request: Request) -> None:
         raise HTTPException(status_code=403, detail="ADMIN_AUTH_TOKEN is not configured.")
     if authorization != f"Bearer {token}":
         raise HTTPException(status_code=401, detail="Backend admin authorization is required.")
+
+
+def _require_internal_api(
+    authorization: str | None,
+    x_internal_service_token: str | None,
+    request: Request,
+) -> None:
+    if _is_local_request(request):
+        return
+
+    service_token = internal_api_token()
+    if service_token and x_internal_service_token == service_token:
+        return
+
+    _require_backend_admin(authorization, request)
 
 
 def _is_local_request(request: Request) -> bool:

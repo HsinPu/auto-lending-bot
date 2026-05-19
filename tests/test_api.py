@@ -175,6 +175,40 @@ def test_api_internal_profile_settings_reject_global_settings(tmp_path, monkeypa
     assert "Global settings" in response.json()["detail"]
 
 
+def test_api_internal_profiles_accept_service_token(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "service-token")
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.get(
+        "/api/internal/profiles",
+        headers={"X-Internal-Service-Token": "service-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == "default"
+
+
+def test_api_internal_profiles_reject_invalid_service_token(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.delenv("ADMIN_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "service-token")
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.get(
+        "/api/internal/profiles",
+        headers={"X-Internal-Service-Token": "wrong-token"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "ADMIN_AUTH_TOKEN is not configured."
+
+
 def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

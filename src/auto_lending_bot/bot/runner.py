@@ -714,6 +714,7 @@ class BotRunner:
             return
 
         kept_offers = []
+        repriced_count = 0
         for offer in offers:
             step_id = self._start_step(
                 bot_run_id,
@@ -734,6 +735,30 @@ class BotRunner:
                     ),
                 )
                 continue
+            if self._reprice_cancel_limit_reached(repriced_count):
+                kept_offers.append(offer)
+                self._finish_step(
+                    step_id,
+                    message=(
+                        f"保留 {offer.currency} 舊委託，本輪已達 "
+                        "STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN="
+                        f"{self._settings.stale_offer_reprice_max_cancels_per_run}。"
+                    ),
+                )
+                continue
+            debounce_remaining_minutes = self._reprice_debounce_remaining_minutes(
+                offer.currency
+            )
+            if debounce_remaining_minutes > 0:
+                kept_offers.append(offer)
+                self._finish_step(
+                    step_id,
+                    message=(
+                        f"保留 {offer.currency} 舊委託，距離上次重掛取消仍需等待 "
+                        f"{debounce_remaining_minutes:.1f} 分鐘。"
+                    ),
+                )
+                continue
             if offer.external_offer_id:
                 self._finish_step(step_id, message=f"{offer.currency} 舊委託可取消。")
                 step_id = self._start_step(
@@ -746,7 +771,12 @@ class BotRunner:
                     offer.external_offer_id,
                     profile_context=self._profile_context,
                 )
-                self._finish_step(step_id, message=f"已取消 {offer.currency} 舊委託 {offer.external_offer_id}。")
+                repriced_count += 1
+                self._record_reprice_cancel(offer.currency)
+                self._finish_step(
+                    step_id,
+                    message=f"已取消 {offer.currency} 舊委託 {offer.external_offer_id}。",
+                )
             else:
                 self._finish_step(step_id, message=f"略過 {offer.currency} 舊委託：沒有交易所委託 ID。")
         self._open_offers.replace_all(kept_offers, profile_context=self._profile_context)
@@ -784,6 +814,37 @@ class BotRunner:
         if risk_level == "yield":
             return max(self._settings.stale_offer_reprice_minutes_yield, 1)
         return max(self._settings.stale_offer_reprice_minutes_balanced, 1)
+
+    def _reprice_cancel_limit_reached(self, repriced_count: int) -> bool:
+        limit = self._settings.stale_offer_reprice_max_cancels_per_run
+        return limit > 0 and repriced_count >= limit
+
+    def _reprice_debounce_remaining_minutes(self, currency: str) -> float:
+        debounce_minutes = self._settings.stale_offer_reprice_debounce_minutes
+        if debounce_minutes <= 0:
+            return 0.0
+        last_cancel_epoch = self._notification_state.get_float(
+            self._reprice_debounce_key(currency),
+            self._profile_context,
+        )
+        if last_cancel_epoch is None:
+            return 0.0
+        elapsed_seconds = datetime.now(UTC).timestamp() - last_cancel_epoch
+        remaining_seconds = (debounce_minutes * 60) - elapsed_seconds
+        return max(remaining_seconds / 60, 0.0)
+
+    def _record_reprice_cancel(self, currency: str) -> None:
+        if self._settings.stale_offer_reprice_debounce_minutes <= 0:
+            return
+        self._notification_state.set_float(
+            self._reprice_debounce_key(currency),
+            datetime.now(UTC).timestamp(),
+            self._profile_context,
+        )
+
+    @staticmethod
+    def _reprice_debounce_key(currency: str) -> str:
+        return f"stale_offer_reprice_last_cancel:{currency.upper()}"
 
     def _frr_daily_rate(self, currency: str, frr_as_min: bool) -> float | None:
         if not frr_as_min:

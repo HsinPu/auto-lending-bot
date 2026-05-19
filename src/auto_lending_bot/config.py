@@ -104,6 +104,8 @@ class Settings:
     stale_offer_reprice_minutes_fast: int = 15
     stale_offer_reprice_minutes_balanced: int = 60
     stale_offer_reprice_minutes_yield: int = 240
+    stale_offer_reprice_debounce_minutes: int = 10
+    stale_offer_reprice_max_cancels_per_run: int = 3
 
 
 def load_settings() -> Settings:
@@ -128,6 +130,14 @@ def load_settings() -> Settings:
         stale_offer_reprice_minutes_fast=_get_int("STALE_OFFER_REPRICE_MINUTES_FAST", default=15),
         stale_offer_reprice_minutes_balanced=_get_int("STALE_OFFER_REPRICE_MINUTES_BALANCED", default=60),
         stale_offer_reprice_minutes_yield=_get_int("STALE_OFFER_REPRICE_MINUTES_YIELD", default=240),
+        stale_offer_reprice_debounce_minutes=_get_int(
+            "STALE_OFFER_REPRICE_DEBOUNCE_MINUTES",
+            default=10,
+        ),
+        stale_offer_reprice_max_cancels_per_run=_get_int(
+            "STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN",
+            default=3,
+        ),
         keep_stuck_orders=_get_bool("KEEP_STUCK_ORDERS", default=True),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),
         exchange=os.getenv("EXCHANGE", "mock"),

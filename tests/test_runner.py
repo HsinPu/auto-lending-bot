@@ -801,7 +801,9 @@ def test_runner_records_live_offer_submission_steps(tmp_path) -> None:
 
 
 def test_runner_cancels_stale_open_offers_for_repricing(tmp_path) -> None:
-    old_created_at = (datetime.now(UTC) - timedelta(minutes=90)).strftime("%Y-%m-%d %H:%M:%S")
+    old_created_at = (datetime.now(UTC) - timedelta(minutes=90)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     exchange = OpenOfferExchange(
         [
             LoanOffer(
@@ -839,6 +841,116 @@ def test_runner_cancels_stale_open_offers_for_repricing(tmp_path) -> None:
     runner.run_once()
 
     assert exchange.cancelled_offer_ids == ["stale-offer"]
+
+
+def test_runner_debounces_stale_offer_repricing_per_currency(tmp_path) -> None:
+    old_created_at = (datetime.now(UTC) - timedelta(minutes=90)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="stale-offer-1",
+                created_at=old_created_at,
+            ),
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.00031,
+                duration_days=2,
+                external_offer_id="stale-offer-2",
+                created_at=old_created_at,
+            ),
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+            stale_offer_reprice_debounce_minutes=10,
+            stale_offer_reprice_max_cancels_per_run=0,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == ["stale-offer-1"]
+    open_offers = OpenLoanOfferRepository(database_url).recent()
+    assert [row["external_offer_id"] for row in open_offers] == ["stale-offer-2"]
+
+
+def test_runner_limits_stale_reprice_cancels_per_run(tmp_path) -> None:
+    old_created_at = (datetime.now(UTC) - timedelta(minutes=90)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="stale-btc",
+                created_at=old_created_at,
+            ),
+            LoanOffer(
+                currency="ETH",
+                amount=0.5,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="stale-eth",
+                created_at=old_created_at,
+            ),
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+            stale_offer_reprice_debounce_minutes=0,
+            stale_offer_reprice_max_cancels_per_run=1,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == ["stale-btc"]
+    open_offers = OpenLoanOfferRepository(database_url).recent()
+    assert [row["external_offer_id"] for row in open_offers] == ["stale-eth"]
 
 
 def test_runner_keeps_fresh_open_offers_until_reprice_threshold(tmp_path) -> None:
@@ -911,6 +1023,8 @@ def _settings(
     bot_inactive_sleep_seconds: int = 300,
     allow_above_market_offers: bool = False,
     dynamic_duration_enabled: bool = True,
+    stale_offer_reprice_debounce_minutes: int = 10,
+    stale_offer_reprice_max_cancels_per_run: int = 3,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -983,6 +1097,8 @@ def _settings(
         log_level="INFO",
         allow_above_market_offers=allow_above_market_offers,
         dynamic_duration_enabled=dynamic_duration_enabled,
+        stale_offer_reprice_debounce_minutes=stale_offer_reprice_debounce_minutes,
+        stale_offer_reprice_max_cancels_per_run=stale_offer_reprice_max_cancels_per_run,
     )
 
 

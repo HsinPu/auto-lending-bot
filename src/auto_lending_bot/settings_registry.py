@@ -52,6 +52,8 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("STALE_OFFER_REPRICE_MINUTES_FAST", "Operations", "int", "15"),
     SettingDefinition("STALE_OFFER_REPRICE_MINUTES_BALANCED", "Operations", "int", "60"),
     SettingDefinition("STALE_OFFER_REPRICE_MINUTES_YIELD", "Operations", "int", "240"),
+    SettingDefinition("STALE_OFFER_REPRICE_DEBOUNCE_MINUTES", "Operations", "int", "10"),
+    SettingDefinition("STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN", "Operations", "int", "3"),
     SettingDefinition("KEEP_STUCK_ORDERS", "Operations", "bool", "true"),
     SettingDefinition("BOT_MAX_LOOPS", "General", "int", "1", scope=GLOBAL_SETTING_SCOPE),
     SettingDefinition("RETRY_ATTEMPTS", "General", "int", "3", scope=GLOBAL_SETTING_SCOPE),

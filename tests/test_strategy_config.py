@@ -28,6 +28,8 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     monkeypatch.delenv("LENDING_RISK_LEVEL", raising=False)
     monkeypatch.delenv("MAX_TOTAL_LEND_AMOUNT", raising=False)
     monkeypatch.delenv("MAX_SINGLE_OFFER_AMOUNT", raising=False)
+    monkeypatch.delenv("STALE_OFFER_REPRICE_DEBOUNCE_MINUTES", raising=False)
+    monkeypatch.delenv("STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN", raising=False)
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -60,6 +62,8 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     assert strategy.lending_risk_level == "balanced"
     assert settings.max_total_lend_amount == 0
     assert settings.max_single_offer_amount == 0
+    assert settings.stale_offer_reprice_debounce_minutes == 10
+    assert settings.stale_offer_reprice_max_cancels_per_run == 3
 
 
 def test_strategy_config_uses_global_settings(monkeypatch) -> None:
@@ -113,6 +117,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     monkeypatch.setenv("MIN_OFFER_REMAINDER", "75")
     monkeypatch.setenv("MIN_OFFER_VALUE_USD", "175")
     monkeypatch.setenv("LENDING_RISK_LEVEL", "fast")
+    monkeypatch.setenv("STALE_OFFER_REPRICE_DEBOUNCE_MINUTES", "12")
+    monkeypatch.setenv("STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN", "2")
 
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
@@ -167,6 +173,8 @@ def test_strategy_config_uses_global_settings(monkeypatch) -> None:
     assert strategy.min_offer_remainder == 75
     assert strategy.min_offer_value_usd == 175
     assert strategy.lending_risk_level == "fast"
+    assert settings.stale_offer_reprice_debounce_minutes == 12
+    assert settings.stale_offer_reprice_max_cancels_per_run == 2
 
 
 def test_strategy_config_uses_currency_overrides(monkeypatch) -> None:

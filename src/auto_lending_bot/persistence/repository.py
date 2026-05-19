@@ -686,13 +686,14 @@ class BotRunDecisionRepository:
                     offers_json,
                     rate_candidates_json,
                     market_regime_json,
+                    market_signal_json,
                     allocation_mode,
                     allocation_reason,
                     stale_reprice_minutes,
                     duration_mode,
                     duration_reason,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -713,6 +714,7 @@ class BotRunDecisionRepository:
                     json.dumps(decision["offers"], separators=(",", ":")),
                     json.dumps(decision.get("rate_candidates", []), separators=(",", ":")),
                     json.dumps(decision.get("market_regime", {}), separators=(",", ":")),
+                    json.dumps(decision.get("market_signal", {}), separators=(",", ":")),
                     decision.get("allocation_mode", ""),
                     decision.get("allocation_reason", ""),
                     decision.get("stale_reprice_minutes"),
@@ -752,6 +754,7 @@ class BotRunDecisionRepository:
                     offers_json,
                     rate_candidates_json,
                     market_regime_json,
+                    market_signal_json,
                     allocation_mode,
                     allocation_reason,
                     stale_reprice_minutes,
@@ -774,6 +777,9 @@ class BotRunDecisionRepository:
                 )
                 decision["market_regime"] = json.loads(
                     str(decision.pop("market_regime_json", "{}"))
+                )
+                decision["market_signal"] = json.loads(
+                    str(decision.pop("market_signal_json", "{}"))
                 )
                 decisions.append(decision)
             return decisions

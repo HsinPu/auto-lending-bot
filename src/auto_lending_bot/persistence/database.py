@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS bot_run_decisions (
     offers_json TEXT NOT NULL,
     rate_candidates_json TEXT NOT NULL DEFAULT '[]',
     market_regime_json TEXT NOT NULL DEFAULT '{}',
+    market_signal_json TEXT NOT NULL DEFAULT '{}',
     allocation_mode TEXT NOT NULL DEFAULT '',
     allocation_reason TEXT NOT NULL DEFAULT '',
     stale_reprice_minutes INTEGER,
@@ -265,6 +266,12 @@ def initialize_database(database_url: str) -> None:
             connection,
             "bot_run_decisions",
             "market_regime_json",
+            "TEXT NOT NULL DEFAULT '{}'",
+        )
+        _ensure_column(
+            connection,
+            "bot_run_decisions",
+            "market_signal_json",
             "TEXT NOT NULL DEFAULT '{}'",
         )
         _ensure_column(

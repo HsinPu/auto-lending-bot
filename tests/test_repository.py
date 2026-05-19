@@ -510,6 +510,11 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
                 "volatility": "calm",
                 "sample_count": 6,
             },
+            "market_signal": {
+                "prediction_label": "rise",
+                "confidence": 0.42,
+                "trend_score": 0.5,
+            },
             "allocation_mode": "market_regime_rising",
             "allocation_reason": "Rising market uses more expected-rate offers.",
             "stale_reprice_minutes": 30,
@@ -538,6 +543,11 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
         "trend": "rising",
         "volatility": "calm",
         "sample_count": 6,
+    }
+    assert rows[0]["market_signal"] == {
+        "prediction_label": "rise",
+        "confidence": 0.42,
+        "trend_score": 0.5,
     }
     assert rows[0]["allocation_mode"] == "market_regime_rising"
     assert rows[0]["allocation_reason"] == "Rising market uses more expected-rate offers."

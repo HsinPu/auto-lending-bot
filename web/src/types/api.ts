@@ -307,6 +307,19 @@ export type MarketRegime = {
   reason?: string
 }
 
+export type MarketSignal = {
+  prediction_label?: string
+  trend_score?: number
+  volatility_score?: number
+  depth_score?: number
+  rate_momentum?: number
+  short_momentum?: number
+  medium_momentum?: number
+  confidence?: number
+  sample_count?: number
+  reason?: string
+}
+
 export type StrategyDecision = {
   currency: string
   balance: number
@@ -324,6 +337,7 @@ export type StrategyDecision = {
   offers: StrategyDecisionOffer[]
   rate_candidates: StrategyRateCandidate[]
   market_regime: MarketRegime | null
+  market_signal?: MarketSignal | null
   allocation_mode?: string
   allocation_reason?: string
   stale_reprice_minutes?: number | null

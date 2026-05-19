@@ -1063,6 +1063,7 @@ class BotRunner:
                 "offers": [offer.__dict__ for offer in decision.offers],
                 "rate_candidates": [candidate.__dict__ for candidate in decision.rate_candidates],
                 "market_regime": _market_regime_snapshot(decision),
+                "market_signal": _market_signal_snapshot(decision),
                 "allocation_mode": decision.allocation_mode,
                 "allocation_reason": decision.allocation_reason,
                 "stale_reprice_minutes": self._stale_offer_reprice_minutes(balance.currency),
@@ -1437,6 +1438,12 @@ def _market_regime_snapshot(decision) -> dict[str, object]:
     if not decision.market_regime:
         return {}
     return decision.market_regime.__dict__
+
+
+def _market_signal_snapshot(decision) -> dict[str, object]:
+    if not decision.market_signal:
+        return {}
+    return decision.market_signal.__dict__
 
 
 def _market_regime_summary(regime) -> str:

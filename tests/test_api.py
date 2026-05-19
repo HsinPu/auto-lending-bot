@@ -154,6 +154,8 @@ def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
     assert btc["offers"][0]["currency"] == "BTC"
     assert btc["market_regime"]["label"] == "volatile_rising"
     assert btc["market_regime"]["sample_count"] == 6
+    assert btc["market_signal"]["prediction_label"] in {"rise", "strong_rise"}
+    assert "confidence" in btc["market_signal"]
     assert btc["duration_mode"] == "market_regime_volatile_rising"
     assert "duration_reason" in btc
 

@@ -26,6 +26,7 @@ import type {
   LiveReadinessSection,
   LoanOffer,
   MarketRegime,
+  MarketSignal,
   MarketAnalysisRate,
   MarketAnalysisStatus,
   MarketRate,
@@ -2380,6 +2381,14 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                                 value={minutesLabel(decision.stale_reprice_minutes)}
                               />
                               <HistoryMetric label="天期策略" value={durationModeLabel(decision.duration_mode)} />
+                              <HistoryMetric label="預測訊號" value={marketSignalLabel(decision.market_signal)} />
+                              <HistoryMetric label="預測信心" value={percentLabel(decision.market_signal?.confidence)} />
+                              <HistoryMetric label="趨勢分數" value={scoreLabel(decision.market_signal?.trend_score)} />
+                              <HistoryMetric label="深度分數" value={scoreLabel(decision.market_signal?.depth_score)} />
+                            </div>
+                            <div className="strategy-offer-panel">
+                              <strong>市場預測</strong>
+                              <p>{marketSignalReasonLabel(decision.market_signal)}</p>
                             </div>
                             <div className="strategy-offer-panel">
                               <strong>市場狀態調整</strong>
@@ -2732,6 +2741,45 @@ function durationReasonLabel(reason?: string, mode?: string): string {
     return '動態天期未啟用，沿用舊版 xday 門檻規則。'
   }
   return reason || '目前沒有額外的天期調整。'
+}
+
+const marketSignalLabels: Record<string, string> = {
+  strong_rise: '強烈上升',
+  rise: '偏上升',
+  flat: '持平',
+  fall: '偏下跌',
+  strong_fall: '強烈下跌',
+  uncertain: '不確定',
+}
+
+function marketSignalLabel(signal?: MarketSignal | null): string {
+  if (!signal?.prediction_label) {
+    return '-'
+  }
+  return marketSignalLabels[signal.prediction_label] ?? signal.prediction_label
+}
+
+function marketSignalReasonLabel(signal?: MarketSignal | null): string {
+  if (!signal?.prediction_label) {
+    return '目前沒有足夠資料建立市場預測。'
+  }
+  const label = marketSignalLabel(signal)
+  const confidence = percentLabel(signal.confidence)
+  return `${label}，信心 ${confidence}。${signal.reason ?? ''}`
+}
+
+function percentLabel(value?: number | null): string {
+  if (value == null || !Number.isFinite(value)) {
+    return '-'
+  }
+  return `${formatAmount(value * 100, 1)}%`
+}
+
+function scoreLabel(value?: number | null): string {
+  if (value == null || !Number.isFinite(value)) {
+    return '-'
+  }
+  return formatAmount(value, 3)
 }
 
 function performanceDelta(value: unknown): string {

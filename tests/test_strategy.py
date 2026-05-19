@@ -324,6 +324,27 @@ def test_strategy_optimizes_rate_by_fill_probability() -> None:
     assert [candidate.daily_rate for candidate in decision.rate_candidates] == [0.0001, 0.0002, 0.0003]
     assert [candidate.fill_probability for candidate in decision.rate_candidates] == [1.0, 0.6, 0.6]
     assert [candidate.selected for candidate in decision.rate_candidates] == [False, False, True]
+    assert [candidate.selection_role for candidate in decision.rate_candidates] == ["", "", "expected"]
+
+
+def test_strategy_allocates_rates_across_fast_expected_and_yield_tiers() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=3.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=3,
+            rate_optimization_mode="fill_probability",
+            lending_risk_level="balanced",
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001, 0.0003, 0.0003]
+    assert [candidate.selection_role for candidate in decision.rate_candidates] == ["fast", "", "expected+yield"]
 
 
 def test_strategy_fast_risk_level_prefers_higher_fill_probability() -> None:

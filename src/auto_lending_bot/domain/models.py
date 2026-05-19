@@ -54,6 +54,7 @@ class RateCandidate:
     expected_score: float
     meets_min_probability: bool
     selected: bool = False
+    selection_role: str = ""
     source: str = ""
 
 

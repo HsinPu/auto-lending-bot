@@ -305,15 +305,86 @@ def _optimized_offer_rates(
     if not scored_rates:
         return [], rate_candidates
 
-    selected_rates = [rate for _, rate in sorted(scored_rates, reverse=True)[:split_count]]
-    selected_rates.sort()
-    while len(selected_rates) < split_count:
-        selected_rates.append(selected_rates[-1])
+    eligible_candidates = [candidate for candidate in rate_candidates if candidate.meets_min_probability]
+    selected_rates, selected_roles = _allocated_candidate_rates(eligible_candidates, strategy, split_count)
     selected_rate_set = set(selected_rates)
     return selected_rates, [
-        replace(candidate, selected=candidate.daily_rate in selected_rate_set)
+        replace(
+            candidate,
+            selected=candidate.daily_rate in selected_rate_set,
+            selection_role="+".join(sorted(selected_roles.get(candidate.daily_rate, set()))),
+        )
         for candidate in rate_candidates
     ]
+
+
+def _allocated_candidate_rates(
+    candidates: list[RateCandidate],
+    strategy: StrategyConfig,
+    split_count: int,
+) -> tuple[list[float], dict[float, set[str]]]:
+    if not candidates:
+        return [], {}
+
+    selected: list[tuple[float, str]] = []
+    if split_count == 1:
+        role = _single_allocation_role(strategy)
+        candidate = _candidate_for_role(candidates, role)
+        selected.append((candidate.daily_rate, role))
+    else:
+        for role, count in _allocation_role_counts(strategy, split_count):
+            candidate = _candidate_for_role(candidates, role)
+            selected.extend((candidate.daily_rate, role) for _ in range(count))
+
+    selected_rates = sorted(rate for rate, _ in selected)
+    selected_roles: dict[float, set[str]] = {}
+    for rate, role in selected:
+        selected_roles.setdefault(rate, set()).add(role)
+    return selected_rates, selected_roles
+
+
+def _single_allocation_role(strategy: StrategyConfig) -> str:
+    return {
+        "fast": "fast",
+        "balanced": "expected",
+        "yield": "yield",
+    }.get(strategy.lending_risk_level.lower(), "expected")
+
+
+def _allocation_role_counts(strategy: StrategyConfig, split_count: int) -> list[tuple[str, int]]:
+    plan = _allocation_plan(strategy)
+    if split_count < len(plan):
+        return [(role, 1) for role, _ in plan[:split_count]]
+
+    counts = {role: 1 for role, _ in plan}
+    remaining = split_count - len(plan)
+    remainders = []
+    allocated = 0
+    for role, weight in plan:
+        raw_count = remaining * weight
+        extra_count = int(raw_count)
+        counts[role] += extra_count
+        allocated += extra_count
+        remainders.append((raw_count - extra_count, role))
+    for _, role in sorted(remainders, reverse=True)[: remaining - allocated]:
+        counts[role] += 1
+    return [(role, counts[role]) for role, _ in plan if counts[role] > 0]
+
+
+def _allocation_plan(strategy: StrategyConfig) -> list[tuple[str, float]]:
+    return {
+        "fast": [("fast", 0.90), ("expected", 0.10)],
+        "balanced": [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)],
+        "yield": [("fast", 0.50), ("expected", 0.30), ("yield", 0.20)],
+    }.get(strategy.lending_risk_level.lower(), [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)])
+
+
+def _candidate_for_role(candidates: list[RateCandidate], role: str) -> RateCandidate:
+    if role == "fast":
+        return max(candidates, key=lambda candidate: (candidate.fill_probability, -candidate.daily_rate))
+    if role == "yield":
+        return max(candidates, key=lambda candidate: (candidate.daily_rate, candidate.expected_score))
+    return max(candidates, key=lambda candidate: (candidate.expected_score, candidate.daily_rate))
 
 
 def _risk_minimum_probability(strategy: StrategyConfig) -> float:

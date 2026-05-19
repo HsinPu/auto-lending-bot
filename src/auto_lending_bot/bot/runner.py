@@ -1256,7 +1256,7 @@ def _rate_candidate_summary(candidates) -> str:
             f"{_format_rate_percent(candidate.daily_rate * 365)} "
             f"成交率 {_format_rate_percent(candidate.fill_probability)} "
             f"分數 {_format_decimal_amount(candidate.expected_score)}"
-            f"{'（入選）' if candidate.selected else ''}"
+            f"{f'（{candidate.selection_role}）' if candidate.selection_role else ''}"
         )
         for candidate in candidates[:5]
     )

@@ -57,6 +57,7 @@ MARKET_REGIME_TREND_THRESHOLD = 0.10
 MARKET_REGIME_VOLATILITY_THRESHOLD = 0.50
 MARKET_SIGNAL_STRONG_TREND_THRESHOLD = 0.35
 MARKET_SIGNAL_TREND_THRESHOLD = 0.12
+MARKET_SIGNAL_STRATEGY_CONFIDENCE = 0.25
 RISING_DURATION_CAP_DAYS = 14
 VOLATILE_RISING_DURATION_CAP_DAYS = 7
 FALLING_MEDIUM_DURATION_FLOOR_DAYS = 14
@@ -82,12 +83,19 @@ def build_lending_decision(
         current_daily_rate=best_order.daily_rate if best_order else 0.0,
         historical_daily_rates=market_regime_daily_rates or historical_daily_rates or [],
     )
+    market_signal = detect_market_signal(
+        current_daily_rate=best_order.daily_rate if best_order else 0.0,
+        historical_daily_rates=market_regime_daily_rates or historical_daily_rates or [],
+        order_book=order_book,
+    )
+    strategy_regime = _strategy_market_regime(market_regime, market_signal)
     if best_order is None:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
             reason="No loan orders are available.",
             market_regime=market_regime,
+            market_signal=market_signal,
         )
 
     lendable_amount = _lendable_amount(balance.amount, best_order.daily_rate, strategy)
@@ -98,6 +106,7 @@ def build_lending_decision(
             offers=[],
             reason=_below_minimum_reason(active_amount, strategy),
             market_regime=market_regime,
+            market_signal=market_signal,
         )
 
     if (
@@ -110,6 +119,7 @@ def build_lending_decision(
             offers=[],
             reason="Best daily rate is below the configured minimum.",
             market_regime=market_regime,
+            market_signal=market_signal,
         )
 
     if strategy.end_date is not None and _days_until_end(strategy) <= 2:
@@ -118,6 +128,7 @@ def build_lending_decision(
             offers=[],
             reason="End date is too close to create new lending offers.",
             market_regime=market_regime,
+            market_signal=market_signal,
         )
 
     offer_amounts = _offer_amounts(lendable_amount, strategy)
@@ -127,6 +138,7 @@ def build_lending_decision(
             offers=[],
             reason="Available balance is below the minimum loan size.",
             market_regime=market_regime,
+            market_signal=market_signal,
         )
 
     rate_candidates: list[RateCandidate] = []
@@ -146,11 +158,11 @@ def build_lending_decision(
             btc_price,
             historical_daily_rates or [],
             fill_outcomes or [],
-            market_regime,
+            strategy_regime,
         )
         allocation_mode, allocation_reason = _allocation_explanation(
             strategy,
-            market_regime,
+            strategy_regime,
             len(offer_amounts),
         )
     offers = [
@@ -158,11 +170,11 @@ def build_lending_decision(
             currency=balance.currency,
             amount=amount,
             daily_rate=rate,
-            duration_days=_duration_days(rate, strategy, market_regime),
+            duration_days=_duration_days(rate, strategy, strategy_regime),
         )
         for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
-    duration_mode, duration_reason = _duration_explanation(strategy, market_regime, offers)
+    duration_mode, duration_reason = _duration_explanation(strategy, strategy_regime, offers)
 
     reason = "Created lending offers from available balance."
     if best_order.daily_rate < strategy.min_daily_rate:
@@ -174,6 +186,7 @@ def build_lending_decision(
         reason=reason,
         rate_candidates=rate_candidates,
         market_regime=market_regime,
+        market_signal=market_signal,
         allocation_mode=allocation_mode,
         allocation_reason=allocation_reason,
         duration_mode=duration_mode,
@@ -299,6 +312,33 @@ def _market_signal_prediction_label(trend_score: float, confidence: float) -> st
     if trend_score <= -MARKET_SIGNAL_TREND_THRESHOLD:
         return "fall"
     return "flat"
+
+
+def _strategy_market_regime(
+    market_regime: MarketRegime,
+    market_signal: MarketSignal,
+) -> MarketRegime:
+    if market_signal.confidence < MARKET_SIGNAL_STRATEGY_CONFIDENCE:
+        return market_regime
+
+    label = {
+        "strong_rise": "volatile_rising",
+        "rise": "rising",
+        "fall": "falling",
+        "strong_fall": "volatile_falling",
+    }.get(market_signal.prediction_label)
+    if label is None:
+        return market_regime
+
+    trend = "rising" if label.endswith("rising") else "falling"
+    volatility = "volatile" if label.startswith("volatile") else "calm"
+    return replace(
+        market_regime,
+        label=label,
+        trend=trend,
+        volatility=volatility,
+        reason=f"Market signal {market_signal.prediction_label} overrode strategy regime.",
+    )
 
 
 def _order_book_depth_score(order_book: list[LoanOrder], current_daily_rate: float) -> float:

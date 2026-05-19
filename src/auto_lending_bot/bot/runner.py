@@ -14,7 +14,7 @@ from auto_lending_bot.domain.models import (
     LoanOffer,
     LoanOrder,
 )
-from auto_lending_bot.domain.strategy import build_lending_decision, detect_market_regime
+from auto_lending_bot.domain.strategy import build_lending_decision, detect_market_regime, detect_market_signal
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -838,6 +838,17 @@ class BotRunner:
         rates = self._market_regime_daily_rates(currency)
         if not rates:
             return None
+
+        signal = detect_market_signal(rates[0], rates)
+        if signal.confidence >= 0.25:
+            signal_minutes = {
+                "strong_rise": 10,
+                "rise": 30,
+                "fall": 90,
+                "strong_fall": 120,
+            }.get(signal.prediction_label)
+            if signal_minutes is not None:
+                return signal_minutes
 
         regime = detect_market_regime(rates[0], rates)
         return {

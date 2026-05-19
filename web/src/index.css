@@ -2073,6 +2073,22 @@ h1 {
   color: #fed7aa;
 }
 
+.run-preview-warning {
+  margin: 0 0 16px;
+}
+
+.run-preview-warning ul,
+.preview-readiness-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.preview-readiness-list {
+  color: #fde68a;
+}
+
 .settings-actions {
   display: flex;
   flex-wrap: wrap;

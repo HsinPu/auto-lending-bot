@@ -192,6 +192,40 @@ def test_api_strategy_performance_returns_live_offer_summary(tmp_path) -> None:
     assert body["by_risk_level"][0]["label"] == "balanced"
 
 
+def test_api_run_preview_returns_decisions_without_creating_records(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/run-preview")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["action"] == "run-preview"
+    assert body["ok"] is True
+    assert body["summary"]["total_offer_count"] > 0
+    assert "rate_candidates" in body["decisions"][0]
+    assert BotRunRepository(database_url).count() == 0
+    assert LoanOfferRepository(database_url).count() == 0
+
+
+def test_api_run_preview_reports_live_safety_blockers(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url, dry_run=False)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+
+    response = client.post("/api/actions/run-preview")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert body["mode"] == "live"
+    assert body["safety_error"] is not None
+    assert body["live_readiness"]["ready"] is False
+
+
 def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

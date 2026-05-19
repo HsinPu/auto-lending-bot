@@ -444,6 +444,31 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             levels=levels,
         )
 
+    @router.post("/actions/run-preview")
+    def run_preview() -> dict[str, object]:
+        decisions = _strategy_decisions(
+            settings,
+            active_loans,
+            open_offers,
+            market_analysis_rates,
+            runtime.profile_context,
+        )
+        safety_error = _run_safety_error(settings)
+        summary = _run_preview_summary(decisions)
+        return {
+            "action": "run-preview",
+            "ok": safety_error is None,
+            "mode": "dry_run" if settings.dry_run else "live",
+            "exchange": settings.exchange,
+            "profile": runtime.profile_context.as_dict(),
+            "requires_live_confirmation": not settings.dry_run,
+            "safety_error": safety_error,
+            "live_readiness": _live_readiness(settings)["live_offers"],
+            "summary": summary,
+            "decisions": decisions,
+            "warnings": _run_preview_warnings(settings, safety_error, summary),
+        }
+
     @router.post("/actions/start-market-analysis")
     def start_market_analysis() -> dict[str, object]:
         _validate_safe_action_settings(settings)
@@ -1148,6 +1173,56 @@ def _readiness_section(items: list[dict[str, object]]) -> dict[str, object]:
     }
 
 
+def _run_safety_error(settings: Settings) -> str | None:
+    try:
+        validate_run_settings(settings)
+    except SafetyError as error:
+        return str(error)
+    return None
+
+
+def _run_preview_summary(decisions: list[dict[str, object]]) -> dict[str, object]:
+    offer_rows = [offer for decision in decisions for offer in _decision_offer_rows(decision)]
+    currencies_with_offers = sorted(
+        str(decision["currency"])
+        for decision in decisions
+        if int(decision.get("offer_count") or 0) > 0
+    )
+    return {
+        "decision_count": len(decisions),
+        "total_offer_count": sum(
+            int(decision.get("offer_count") or 0) for decision in decisions
+        ),
+        "total_offer_amount": sum(float(offer.get("amount") or 0) for offer in offer_rows),
+        "currencies_with_offers": currencies_with_offers,
+        "blocked_currency_count": len(decisions) - len(currencies_with_offers),
+    }
+
+
+def _run_preview_warnings(
+    settings: Settings,
+    safety_error: str | None,
+    summary: dict[str, object],
+) -> list[str]:
+    warnings = []
+    if safety_error is not None:
+        warnings.append(f"目前設定不會通過後端安全檢查：{safety_error}")
+    if not settings.dry_run:
+        warnings.append(
+            "Live 執行仍需要後台授權與 confirm_live=true；預覽不會建立委託。"
+        )
+    if int(summary["total_offer_count"]) == 0:
+        warnings.append("本次預覽沒有任何預計委託。")
+    return warnings
+
+
+def _decision_offer_rows(decision: dict[str, object]) -> list[dict[str, object]]:
+    offers = decision.get("offers")
+    if not isinstance(offers, list):
+        return []
+    return [offer for offer in offers if isinstance(offer, dict)]
+
+
 def _suggested_min_daily_rate(
     settings: Settings,
     market_analysis_rates: MarketAnalysisRateRepository,
@@ -1385,6 +1460,9 @@ def _strategy_decisions(
                 "max_active_amount": strategy.max_active_amount,
                 "offer_count": len(decision.offers),
                 "offers": [offer.__dict__ for offer in decision.offers],
+                "rate_candidates": [
+                    candidate.__dict__ for candidate in decision.rate_candidates
+                ],
                 "reason": errors.get(currency, errors.get("*", decision.reason)),
             }
         )

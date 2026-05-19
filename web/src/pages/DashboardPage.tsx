@@ -28,6 +28,7 @@ import type {
   MarketAnalysisRate,
   MarketAnalysisStatus,
   MarketRate,
+  RunPreviewResponse,
   SafeActionName,
   SafeActionResponse,
   StrategyDecision,
@@ -44,6 +45,7 @@ export function DashboardPage() {
   const [latestResult, setLatestResult] = useState<SafeActionResponse | null>(null)
   const [latestError, setLatestError] = useState<string | null>(null)
   const [runOnceFlow, setRunOnceFlow] = useState<RunOnceFlowState | null>(null)
+  const [runPreview, setRunPreview] = useState<RunPreviewResponse | null>(null)
   const [pendingLiveAction, setPendingLiveAction] = useState<SafeActionName | null>(null)
   const [pendingCancelOffer, setPendingCancelOffer] = useState<LoanOffer | null>(null)
   const [pendingResetDryRun, setPendingResetDryRun] = useState(false)
@@ -60,10 +62,13 @@ export function DashboardPage() {
     mutationFn: ({ action, confirmLive }: { action: SafeActionName; confirmLive?: boolean }) =>
       runSafeAction(action, { adminToken, confirmLive }),
     onSuccess: (result) => {
-      setLatestResult(result)
+      setLatestResult(result.action === 'run-preview' ? null : result)
       setLatestError(null)
       if (result.action === 'run-once') {
         setRunOnceFlow({ status: 'success', message: '執行一次完成，Dashboard 資料已重新整理。', result })
+      }
+      if (result.action === 'run-preview') {
+        setRunPreview(result as unknown as RunPreviewResponse)
       }
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
@@ -391,6 +396,12 @@ export function DashboardPage() {
           decisions={data.strategyDecisions}
           flow={runOnceFlow}
           onClose={() => setRunOnceFlow(null)}
+        />
+      ) : null}
+      {runPreview ? (
+        <RunPreviewModal
+          preview={runPreview}
+          onClose={() => setRunPreview(null)}
         />
       ) : null}
       {selectedHistoryRun ? (
@@ -767,6 +778,104 @@ function RunOnceFlowModal({
         <p className="run-flow-note">
           後端會在本輪完成後回傳實際步驟紀錄；逐幣別策略決策使用本次 run 的快照。
         </p>
+      </section>
+    </div>
+  )
+}
+
+function RunPreviewModal({ preview, onClose }: { preview: RunPreviewResponse; onClose: () => void }) {
+  const summary = preview.summary
+
+  return (
+    <div
+      className="modal-backdrop run-flow-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="run-preview-title"
+    >
+      <section className="run-flow-modal">
+        <div className="modal-heading">
+          <div>
+            <p className="eyebrow">執行預覽</p>
+            <h2 id="run-preview-title">本輪策略會建立 {summary.total_offer_count} 筆委託</h2>
+            <p>預覽只讀取交易所與本地資料，不建立 run、不寫入委託，也不送出 Bitfinex 下單。</p>
+          </div>
+          <button type="button" className="modal-close-button" onClick={onClose}>
+            關閉
+          </button>
+        </div>
+
+        {preview.warnings.length > 0 ? (
+          <section className="live-warning-panel run-preview-warning">
+            <strong>{preview.ok ? '預覽提醒' : '目前不可直接執行'}</strong>
+            <ul>
+              {preview.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section className="run-flow-result-panel">
+          <h3>預覽摘要</h3>
+          <dl>
+            <HistoryMetric label="模式" value={preview.mode === 'live' ? 'Live 模式' : '模擬模式'} />
+            <HistoryMetric label="交易所" value={preview.exchange} />
+            <HistoryMetric label="Profile" value={preview.profile.name} />
+            <HistoryMetric label="決策幣種" value={`${summary.decision_count} 個`} />
+            <HistoryMetric label="預計委託" value={`${summary.total_offer_count} 筆`} />
+            <HistoryMetric label="預計總額" value={amount(summary.total_offer_amount)} />
+            <HistoryMetric label="會下單幣種" value={summary.currencies_with_offers.join(', ') || '-'} />
+            <HistoryMetric label="Live 確認" value={preview.requires_live_confirmation ? '需要' : '不需要'} />
+          </dl>
+        </section>
+
+        <section className="run-flow-result-panel">
+          <h3>Live 就緒狀態</h3>
+          <dl>
+            <HistoryMetric label="狀態" value={preview.live_readiness.ready ? '已就緒' : '尚未就緒'} />
+            <HistoryMetric
+              label="缺少項目"
+              value={preview.live_readiness.missing.length ? `${preview.live_readiness.missing.length} 項` : '0 項'}
+            />
+            <HistoryMetric label="安全錯誤" value={preview.safety_error ?? '-'} />
+          </dl>
+          {preview.live_readiness.missing.length > 0 ? (
+            <ul className="preview-readiness-list">
+              {preview.live_readiness.missing.map((item) => (
+                <li key={item}>{readinessLabel(item)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+
+        <section className="run-flow-decision-panel">
+          <h3>逐幣別預覽</h3>
+          {preview.decisions.length === 0 ? (
+            <p className="decision-offer-empty">沒有策略決策資料。</p>
+          ) : (
+            <div className="run-flow-decision-list">
+              {preview.decisions.map((decision) => (
+                <article key={decision.currency}>
+                  <div>
+                    <strong>{decision.currency}</strong>
+                    <span>{decision.offer_count > 0 ? `預計 ${decision.offer_count} 筆委託` : '本輪不建立委託'}</span>
+                  </div>
+                  <dl>
+                    <HistoryMetric label="可用餘額" value={amount(decision.balance)} />
+                    <HistoryMetric label="放貸中" value={amount(decision.active_amount)} />
+                    <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
+                    <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
+                    <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                    <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
+                  </dl>
+                  <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
+                  <DecisionRateCandidateList candidates={decision.rate_candidates} />
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     </div>
   )

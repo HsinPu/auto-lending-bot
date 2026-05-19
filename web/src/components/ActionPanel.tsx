@@ -187,8 +187,8 @@ const actionGroups: Array<{
 }> = [
   {
     title: '開始放貸',
-    description: '先用執行一次確認策略；開始持續執行會固定使用當下設定快照。',
-    actions: ['run-once', 'start-loop'],
+    description: '先用執行預覽確認策略；開始持續執行會固定使用當下設定快照。',
+    actions: ['run-preview', 'run-once', 'start-loop'],
     tone: 'primary',
   },
   {

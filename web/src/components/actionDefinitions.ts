@@ -57,6 +57,11 @@ export const actions: Array<{ action: SafeActionName; label: string; description
     description: '刪除本地 dry-run run、決策、步驟與模擬委託，不碰 Live 紀錄。',
   },
   {
+    action: 'run-preview',
+    label: '執行預覽',
+    description: '先看本輪會建立哪些委託，不寫入 run，也不送出交易所操作。',
+  },
+  {
     action: 'run-once',
     label: '執行一次',
     description: '觸發一次 bot run；Live 模式需要二次確認。',

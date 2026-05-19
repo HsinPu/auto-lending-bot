@@ -350,6 +350,28 @@ export type RunDecisionHistory = {
   steps: BotRunStep[]
 }
 
+export type RunPreviewSummary = {
+  decision_count: number
+  total_offer_count: number
+  total_offer_amount: number
+  currencies_with_offers: string[]
+  blocked_currency_count: number
+}
+
+export type RunPreviewResponse = {
+  action: 'run-preview'
+  ok: boolean
+  mode: 'dry_run' | 'live'
+  exchange: string
+  profile: BotProfile
+  requires_live_confirmation: boolean
+  safety_error: string | null
+  live_readiness: LiveReadinessSection
+  summary: RunPreviewSummary
+  decisions: StrategyDecision[]
+  warnings: string[]
+}
+
 export type DashboardData = {
   status: StatusResponse
   liveReadiness: LiveReadiness
@@ -379,6 +401,7 @@ export type SafeActionName =
   | 'cancel-open-offer'
   | 'cancel-open-offers'
   | 'record-market-analysis'
+  | 'run-preview'
   | 'start-market-analysis'
   | 'stop-market-analysis'
   | 'cleanup'

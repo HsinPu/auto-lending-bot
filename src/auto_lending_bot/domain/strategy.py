@@ -32,6 +32,7 @@ class StrategyConfig:
     hide_coins: bool
     allow_above_market_offers: bool
     min_offer_value_usd: float = 150.0
+    lending_risk_level: str = "balanced"
 
 
 def build_lending_decision(

@@ -128,6 +128,13 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("MIN_OFFER_REMAINDER", "Strategy", "float", "100"),
     SettingDefinition("MIN_OFFER_VALUE_USD", "Strategy", "float", "150"),
     SettingDefinition(
+        "LENDING_RISK_LEVEL",
+        "Strategy",
+        "enum",
+        "balanced",
+        choices=("fast", "balanced", "yield"),
+    ),
+    SettingDefinition(
         "GAP_MODE",
         "Strategy",
         "enum",

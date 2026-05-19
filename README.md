@@ -287,6 +287,7 @@ Profile strategy settings:
 - `MAX_OFFER_AMOUNT`
 - `MIN_OFFER_REMAINDER`
 - `MIN_OFFER_VALUE_USD`
+- `LENDING_RISK_LEVEL`
 - `GAP_MODE`
 - `GAP_BOTTOM`
 - `GAP_TOP`
@@ -323,6 +324,7 @@ BTC_SPREAD_LEND=0
 BTC_MAX_OFFER_AMOUNT=500
 BTC_MIN_OFFER_REMAINDER=100
 BTC_MIN_OFFER_VALUE_USD=150
+BTC_LENDING_RISK_LEVEL=balanced
 BTC_MAX_PERCENT_TO_LEND=80
 BTC_MAX_TO_LEND=0.1
 BTC_MAX_TO_LEND_RATE=0.00008
@@ -351,6 +353,8 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=50
 `MAX_OFFER_AMOUNT=500` is enabled by default and makes the strategy split lendable balance by maximum offer size instead of a fixed number of offers. `MIN_OFFER_REMAINDER=100` keeps the final remainder unoffered when it is less than or equal to that amount. Set `MAX_OFFER_AMOUNT=` to disable amount-based splitting and fall back to `SPREAD_LEND`.
 
 `MIN_OFFER_VALUE_USD=150` is enabled by default to match Bitfinex's minimum funding offer value. Offers below the USD-equivalent threshold are skipped before submission.
+
+`LENDING_RISK_LEVEL=balanced` controls the fill-speed/yield tradeoff for rate optimization. Use `fast` to prefer faster fills, `balanced` for the default middle ground, or `yield` to accept more waiting for higher rates.
 
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 

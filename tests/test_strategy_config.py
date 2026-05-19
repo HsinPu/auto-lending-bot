@@ -28,6 +28,8 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     monkeypatch.delenv("LENDING_RISK_LEVEL", raising=False)
     monkeypatch.delenv("MAX_TOTAL_LEND_AMOUNT", raising=False)
     monkeypatch.delenv("MAX_SINGLE_OFFER_AMOUNT", raising=False)
+    monkeypatch.delenv("AUTO_REBALANCE_OPEN_OFFERS", raising=False)
+    monkeypatch.delenv("AUTO_CANCEL_OPEN_OFFERS", raising=False)
     monkeypatch.delenv("STALE_OFFER_REPRICE_DEBOUNCE_MINUTES", raising=False)
     monkeypatch.delenv("STALE_OFFER_REPRICE_MAX_CANCELS_PER_RUN", raising=False)
 
@@ -62,6 +64,8 @@ def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     assert strategy.lending_risk_level == "balanced"
     assert settings.max_total_lend_amount == 0
     assert settings.max_single_offer_amount == 0
+    assert settings.auto_rebalance_open_offers is True
+    assert settings.auto_cancel_open_offers is True
     assert settings.stale_offer_reprice_debounce_minutes == 10
     assert settings.stale_offer_reprice_max_cancels_per_run == 3
 

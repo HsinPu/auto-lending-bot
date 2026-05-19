@@ -285,6 +285,17 @@ export type StrategyDecisionOffer = {
   external_offer_id: string
 }
 
+export type StrategyRateCandidate = {
+  daily_rate: number
+  annual_rate: number
+  fill_probability: number
+  expected_score: number
+  meets_min_probability: boolean
+  selected: boolean
+  selection_role: string
+  source: string
+}
+
 export type StrategyDecision = {
   currency: string
   balance: number
@@ -300,6 +311,7 @@ export type StrategyDecision = {
   max_active_amount: number | null
   offer_count: number
   offers: StrategyDecisionOffer[]
+  rate_candidates: StrategyRateCandidate[]
   reason: string
 }
 

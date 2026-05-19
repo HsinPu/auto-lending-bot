@@ -1516,6 +1516,43 @@ h1 {
   color: #93c5fd;
 }
 
+.rate-candidate-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rate-candidate-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 10px 11px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.rate-candidate-list li.selected {
+  border-color: rgba(34, 197, 94, 0.34);
+  background: rgba(20, 83, 45, 0.2);
+}
+
+.rate-candidate-list li strong {
+  min-width: 110px;
+  color: #f8fafc;
+}
+
+.rate-candidate-list li span {
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #dbeafe;
+  background: rgba(147, 197, 253, 0.1);
+  font-size: 12px;
+}
+
 .run-flow-note {
   margin-top: 16px;
   border-radius: 16px;

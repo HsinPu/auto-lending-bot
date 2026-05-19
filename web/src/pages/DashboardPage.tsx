@@ -32,6 +32,7 @@ import type {
   SafeActionResponse,
   StrategyDecision,
   StrategyDecisionOffer,
+  StrategyRateCandidate,
 } from '../types/api'
 import { formatAmount, formatRate } from '../utils/number'
 import { formatTimestamp } from '../utils/time'
@@ -754,6 +755,7 @@ function RunOnceFlowModal({
                     <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
+                  <DecisionRateCandidateList candidates={decision.rate_candidates} />
                 </article>
               ))}
             </div>
@@ -852,6 +854,7 @@ function RunDecisionHistoryModal({ run, timeZone, onClose }: { run: BotRun; time
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
                   <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
+                  <DecisionRateCandidateList candidates={decision.rate_candidates} />
                 </article>
               ))}
             </div>
@@ -887,6 +890,31 @@ function DecisionOfferList({ offers, offerCount }: { offers: StrategyDecisionOff
           <span>日利率 {rate(offer.daily_rate)}</span>
           <span>年化 {rate(offer.daily_rate * 365)}</span>
           <span>{offer.duration_days} 天</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function DecisionRateCandidateList({ candidates }: { candidates?: StrategyRateCandidate[] }) {
+  if (!candidates?.length) {
+    return <p className="decision-offer-empty">沒有候選利率資料</p>
+  }
+
+  return (
+    <ul className="rate-candidate-list">
+      {candidates.map((candidate) => (
+        <li
+          key={`${candidate.daily_rate}-${candidate.fill_probability}-${candidate.selection_role}`}
+          className={candidate.selected ? 'selected' : undefined}
+        >
+          <strong>{rate(candidate.daily_rate * 365)} 年化</strong>
+          <span>日利率 {rate(candidate.daily_rate)}</span>
+          <span>成交率 {rate(candidate.fill_probability)}</span>
+          <span>期望分數 {amount(candidate.expected_score)}</span>
+          <span>{candidate.meets_min_probability ? '通過門檻' : '未達門檻'}</span>
+          {candidate.selection_role ? <span>分層 {candidate.selection_role}</span> : null}
+          {candidate.source ? <span>來源 {candidate.source}</span> : null}
         </li>
       ))}
     </ul>
@@ -2111,6 +2139,10 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                             <div className="strategy-offer-panel">
                               <strong>預計委託</strong>
                               <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
+                            </div>
+                            <div className="strategy-offer-panel">
+                              <strong>候選利率與期望分數</strong>
+                              <DecisionRateCandidateList candidates={decision.rate_candidates} />
                             </div>
                           </div>
                         </td>

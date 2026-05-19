@@ -578,6 +578,32 @@ def test_strategy_duration_policy_extends_falling_market_terms() -> None:
     assert _regime_adjusted_duration_days(30, 0.00042, strategy, volatile_falling) == 60
 
 
+def test_strategy_caps_offer_duration_when_market_regime_is_rising() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00069)],
+        strategy=_strategy(dynamic_duration_enabled=True),
+        market_regime_daily_rates=[0.0005, 0.0004, 0.00025, 0.0001, 0.00008, 0.00005],
+    )
+
+    assert decision.market_regime is not None
+    assert decision.market_regime.label == "volatile_rising"
+    assert {offer.duration_days for offer in decision.offers} == {7}
+
+
+def test_strategy_extends_offer_duration_when_market_regime_is_falling() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[LoanOrder(currency="BTC", amount=1.0, daily_rate=0.00042)],
+        strategy=_strategy(dynamic_duration_enabled=True),
+        market_regime_daily_rates=[0.00005, 0.00008, 0.0001, 0.00025, 0.0004, 0.0005],
+    )
+
+    assert decision.market_regime is not None
+    assert decision.market_regime.label == "volatile_falling"
+    assert {offer.duration_days for offer in decision.offers} == {60}
+
+
 def test_strategy_linearly_increases_duration_with_xday_spread() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

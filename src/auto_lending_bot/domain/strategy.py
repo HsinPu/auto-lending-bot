@@ -155,7 +155,7 @@ def build_lending_decision(
             currency=balance.currency,
             amount=amount,
             daily_rate=rate,
-            duration_days=_duration_days(rate, strategy),
+            duration_days=_duration_days(rate, strategy, market_regime),
         )
         for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
@@ -705,10 +705,18 @@ def _strategy_with_suggested_minimum(
     return replace(strategy, min_daily_rate=suggested_min_daily_rate)
 
 
-def _duration_days(rate: float, strategy: StrategyConfig) -> int:
+def _duration_days(
+    rate: float,
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None = None,
+) -> int:
     max_end_date_days = _days_until_end(strategy)
     if strategy.dynamic_duration_enabled:
-        return _dynamic_duration_days(rate, strategy, max_end_date_days)
+        days = _dynamic_duration_days(rate, strategy, max_end_date_days)
+        days = _regime_adjusted_duration_days(days, rate, strategy, market_regime)
+        if max_end_date_days > 0:
+            days = min(days, max_end_date_days)
+        return days
 
     if strategy.xday_threshold <= 0:
         return min(2, max_end_date_days) if max_end_date_days > 0 else 2

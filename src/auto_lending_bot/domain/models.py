@@ -44,6 +44,7 @@ class LoanOffer:
     daily_rate: float
     duration_days: int
     external_offer_id: str = ""
+    created_at: str = ""
 
 
 @dataclass(frozen=True)

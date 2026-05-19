@@ -1479,8 +1479,9 @@ class OpenLoanOfferRepository:
                     amount,
                     daily_rate,
                     duration_days,
-                    external_offer_id
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    external_offer_id,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -1490,6 +1491,7 @@ class OpenLoanOfferRepository:
                         offer.daily_rate,
                         offer.duration_days,
                         offer.external_offer_id,
+                        offer.created_at or None,
                     )
                     for offer in offers
                 ],
@@ -1514,7 +1516,7 @@ class OpenLoanOfferRepository:
             rows = connection.execute(
                 """
                 SELECT id, profile_id, currency, amount, daily_rate, duration_days,
-                       external_offer_id, captured_at
+                       external_offer_id, created_at, captured_at
                 FROM open_loan_offers
                 WHERE profile_id = ?
                 ORDER BY id DESC
@@ -1534,7 +1536,7 @@ class OpenLoanOfferRepository:
             row = connection.execute(
                 """
                 SELECT id, profile_id, currency, amount, daily_rate, duration_days,
-                       external_offer_id, captured_at
+                       external_offer_id, created_at, captured_at
                 FROM open_loan_offers
                 WHERE profile_id = ? AND external_offer_id = ?
                 """,

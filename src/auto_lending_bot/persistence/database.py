@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS open_loan_offers (
     daily_rate REAL NOT NULL,
     duration_days INTEGER NOT NULL,
     external_offer_id TEXT,
+    created_at TEXT,
     captured_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -238,6 +239,7 @@ def initialize_database(database_url: str) -> None:
         _ensure_column(connection, "lending_history", "dry_run", "INTEGER NOT NULL DEFAULT 0")
         _ensure_column(connection, "lending_history", "source", "TEXT NOT NULL DEFAULT 'exchange'")
         _ensure_profile_column(connection, "open_loan_offers")
+        _ensure_column(connection, "open_loan_offers", "created_at", "TEXT")
         _ensure_profile_column(connection, "market_analysis_rates")
         _ensure_profile_column(connection, "notification_state")
         _ensure_runtime_indexes(connection)

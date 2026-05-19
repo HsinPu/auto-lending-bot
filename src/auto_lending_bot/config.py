@@ -100,6 +100,10 @@ class Settings:
     duration_high_days: int = 30
     duration_extreme_daily_rate: float = 0.0006849315068493151
     duration_extreme_days: int = 120
+    stale_offer_reprice_enabled: bool = True
+    stale_offer_reprice_minutes_fast: int = 15
+    stale_offer_reprice_minutes_balanced: int = 60
+    stale_offer_reprice_minutes_yield: int = 240
 
 
 def load_settings() -> Settings:
@@ -120,6 +124,10 @@ def load_settings() -> Settings:
         bot_inactive_sleep_seconds=_get_int("BOT_INACTIVE_SLEEP_SECONDS", default=300),
         auto_rebalance_open_offers=_get_bool("AUTO_REBALANCE_OPEN_OFFERS", default=False),
         auto_cancel_open_offers=_get_bool("AUTO_CANCEL_OPEN_OFFERS", default=False),
+        stale_offer_reprice_enabled=_get_bool("STALE_OFFER_REPRICE_ENABLED", default=True),
+        stale_offer_reprice_minutes_fast=_get_int("STALE_OFFER_REPRICE_MINUTES_FAST", default=15),
+        stale_offer_reprice_minutes_balanced=_get_int("STALE_OFFER_REPRICE_MINUTES_BALANCED", default=60),
+        stale_offer_reprice_minutes_yield=_get_int("STALE_OFFER_REPRICE_MINUTES_YIELD", default=240),
         keep_stuck_orders=_get_bool("KEEP_STUCK_ORDERS", default=True),
         dry_run=_get_bool("BOT_DRY_RUN", default=True),
         exchange=os.getenv("EXCHANGE", "mock"),

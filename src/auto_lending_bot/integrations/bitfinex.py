@@ -132,6 +132,7 @@ class BitfinexClient:
                     daily_rate=rate,
                     duration_days=duration_days,
                     external_offer_id=str(item.get("id", "")),
+                    created_at=_format_bitfinex_timestamp(item.get("timestamp", item.get("mts_create"))),
                 )
             )
 

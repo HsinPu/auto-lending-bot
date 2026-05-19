@@ -413,7 +413,7 @@ Managed settings writes and live actions use backend/admin authorization. Local 
 - The current API runtime supports one active loop. If multiple `running` jobs exist in SQLite, startup restores the newest one and marks the older running jobs as `failed` with a single-loop runtime message.
 - Use `GET /api/jobs` or the dashboard job history to review recent loop jobs and their safe snapshot summaries.
 - Set `BOT_INACTIVE_SLEEP_SECONDS` to use a longer delay when a run creates no offers.
-- Set `AUTO_REBALANCE_OPEN_OFFERS=true` to sync open offers before each run. `AUTO_CANCEL_OPEN_OFFERS=true` additionally cancels them, but only when live mode is explicitly enabled.
+- Set `AUTO_REBALANCE_OPEN_OFFERS=true` to sync open offers before each run. `AUTO_CANCEL_OPEN_OFFERS=true` additionally cancels stale offers, but only when live mode is explicitly enabled. With `STALE_OFFER_REPRICE_ENABLED=true`, the bot waits roughly 15 minutes for `fast`, 60 minutes for `balanced`, or 240 minutes for `yield` before canceling an unfilled offer for repricing.
 - Keep `KEEP_STUCK_ORDERS=true` to avoid canceling tiny partially-filled offers that would fall below `MIN_LOAN_SIZE` after cancellation.
 - Use `RETRY_ATTEMPTS` and `RETRY_BACKOFF_SECONDS` for transient failure retries.
 - Authentication failures are not retried; fix the key/secret or permissions before restarting.

@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -799,6 +800,88 @@ def test_runner_records_live_offer_submission_steps(tmp_path) -> None:
     assert "update-offer-result" in step_keys
 
 
+def test_runner_cancels_stale_open_offers_for_repricing(tmp_path) -> None:
+    old_created_at = (datetime.now(UTC) - timedelta(minutes=90)).strftime("%Y-%m-%d %H:%M:%S")
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="stale-offer",
+                created_at=old_created_at,
+            )
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == ["stale-offer"]
+
+
+def test_runner_keeps_fresh_open_offers_until_reprice_threshold(tmp_path) -> None:
+    fresh_created_at = (datetime.now(UTC) - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="fresh-offer",
+                created_at=fresh_created_at,
+            )
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=MarketAnalysisRateRepository(database_url),
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == []
+
+
 def _settings(
     database_url: str,
     strategy_debug: bool = False,
@@ -940,6 +1023,25 @@ class PermissionFailingOfferExchange(MockExchangeClient):
             status_code=403,
             response_body='{"message":"permission denied"}',
         )
+
+
+class OpenOfferExchange(MockExchangeClient):
+    def __init__(self, open_offers: list[LoanOffer]) -> None:
+        super().__init__()
+        self._open_offers = open_offers
+        self.cancelled_offer_ids: list[str] = []
+
+    def get_lending_balances(self) -> list[CurrencyBalance]:
+        return []
+
+    def get_active_loans(self) -> list[ActiveLoan]:
+        return []
+
+    def get_open_loan_offers(self) -> list[LoanOffer]:
+        return list(self._open_offers)
+
+    def cancel_loan_offer(self, offer_id: str):
+        self.cancelled_offer_ids.append(offer_id)
 
 
 class SpyNotifier:

@@ -1,6 +1,7 @@
 import logging
 import time
 from dataclasses import replace
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from auto_lending_bot.bot.run_steps import run_step_label
@@ -719,6 +720,16 @@ class BotRunner:
                 kept_offers.append(offer)
                 self._finish_step(step_id, message=f"保留 {offer.currency} 舊委託，避免低於最小放貸量。")
                 continue
+            if self._settings.stale_offer_reprice_enabled and not self._is_stale_offer(offer):
+                kept_offers.append(offer)
+                self._finish_step(
+                    step_id,
+                    message=(
+                        f"保留 {offer.currency} 舊委託，尚未超過 "
+                        f"{self._stale_offer_reprice_minutes()} 分鐘重掛門檻。"
+                    ),
+                )
+                continue
             if offer.external_offer_id:
                 self._finish_step(step_id, message=f"{offer.currency} 舊委託可取消。")
                 step_id = self._start_step(
@@ -747,6 +758,24 @@ class BotRunner:
         ) + sum(open_offer.amount for open_offer in offers if open_offer.currency.upper() == currency)
         strategy = strategy_config_for(self._settings, currency)
         return total_available_after_cancel < strategy.min_loan_size
+
+    def _is_stale_offer(self, offer: LoanOffer) -> bool:
+        if not offer.created_at:
+            return False
+        try:
+            created_at = datetime.strptime(offer.created_at, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+        except ValueError:
+            return False
+        age_minutes = (datetime.now(UTC) - created_at).total_seconds() / 60
+        return age_minutes >= self._stale_offer_reprice_minutes()
+
+    def _stale_offer_reprice_minutes(self) -> int:
+        risk_level = self._settings.lending_risk_level.lower()
+        if risk_level == "fast":
+            return max(self._settings.stale_offer_reprice_minutes_fast, 1)
+        if risk_level == "yield":
+            return max(self._settings.stale_offer_reprice_minutes_yield, 1)
+        return max(self._settings.stale_offer_reprice_minutes_balanced, 1)
 
     def _frr_daily_rate(self, currency: str, frr_as_min: bool) -> float | None:
         if not frr_as_min:

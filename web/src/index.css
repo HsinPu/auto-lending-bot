@@ -1697,6 +1697,7 @@ h1 {
 .table-section,
 .action-panel,
 .currency-overview,
+.strategy-performance-panel,
 .strategy-decision-panel,
 .forecast-panel,
 .activity-panel,
@@ -2386,6 +2387,95 @@ h1 {
   min-width: 900px;
 }
 
+.strategy-performance-hero,
+.strategy-performance-grid {
+  padding: 0 24px 24px;
+}
+
+.strategy-performance-hero {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.strategy-performance-hero > div,
+.strategy-performance-hero dl,
+.performance-group-table {
+  border: 1px solid rgba(147, 197, 253, 0.14);
+  border-radius: 20px;
+  background: rgba(2, 6, 23, 0.28);
+}
+
+.strategy-performance-hero > div {
+  padding: 18px;
+}
+
+.strategy-performance-hero h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(26px, 5vw, 42px);
+}
+
+.strategy-performance-hero p:not(.eyebrow) {
+  margin: 10px 0 0;
+  color: #bfdbfe;
+  line-height: 1.6;
+}
+
+.strategy-performance-hero dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+}
+
+.strategy-performance-hero dl div {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.strategy-performance-hero dt {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.strategy-performance-hero dd {
+  margin: 7px 0 0;
+  color: #f8fafc;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.strategy-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.performance-group-table {
+  overflow: hidden;
+}
+
+.performance-group-table h3 {
+  margin: 0;
+  padding: 16px 18px;
+  color: #f8fafc;
+}
+
+.performance-group-table .strategy-table-scroll {
+  padding: 0;
+}
+
+.strategy-table.compact {
+  min-width: 900px;
+  border: 0;
+  border-radius: 0;
+}
+
 .strategy-table {
   min-width: 1220px;
 }
@@ -3008,6 +3098,7 @@ td {
   .market-overview-grid,
   .market-data-grid,
   .market-status-row,
+  .strategy-performance-hero,
   .offers-summary-panel {
     grid-template-columns: 1fr;
   }

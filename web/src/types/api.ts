@@ -315,6 +315,36 @@ export type StrategyDecision = {
   reason: string
 }
 
+export type StrategyPerformanceGroup = {
+  label: string
+  total_offers: number
+  filled_offers: number
+  canceled_offers: number
+  open_offers: number
+  pending_offers: number
+  failed_offers: number
+  total_amount: number
+  filled_amount: number
+  canceled_amount: number
+  open_amount: number
+  fill_rate: number
+  amount_fill_rate: number
+  cancel_rate: number
+  average_daily_rate: number | null
+  average_annual_rate: number | null
+  average_time_to_fill_seconds: number | null
+  average_reprice_count: number | null
+  average_expected_fill_probability: number | null
+  average_expected_score: number | null
+  actual_vs_expected_fill_delta: number | null
+}
+
+export type StrategyPerformanceSummary = {
+  overall: StrategyPerformanceGroup
+  by_currency: StrategyPerformanceGroup[]
+  by_risk_level: StrategyPerformanceGroup[]
+}
+
 export type RunDecisionHistory = {
   decisions: StrategyDecision[]
   steps: BotRunStep[]
@@ -337,6 +367,7 @@ export type DashboardData = {
   settings: SettingsResponse
   currencyDetails: CurrencyDetail[]
   strategyDecisions: StrategyDecision[]
+  strategyPerformance: StrategyPerformanceSummary
 }
 
 export type SafeActionName =

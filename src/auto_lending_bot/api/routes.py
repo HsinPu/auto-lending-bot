@@ -372,6 +372,10 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
             runtime.profile_context,
         )
 
+    @router.get("/strategy-performance")
+    def strategy_performance() -> dict[str, object]:
+        return dashboard_reads.offer_performance_summary()
+
     @router.post("/actions/smoke-exchange")
     def smoke_exchange() -> dict[str, object]:
         _validate_safe_action_settings(settings)

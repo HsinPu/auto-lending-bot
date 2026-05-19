@@ -1057,6 +1057,242 @@ class LoanOfferRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def performance_summary(
+        self,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> dict[str, object]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT currency, amount, daily_rate, status, dry_run, filled_at, canceled_at,
+                           time_to_fill_seconds, final_status, reprice_count,
+                           strategy_snapshot_json, rate_candidate_snapshot_json
+                    FROM loan_offers
+                    WHERE profile_id = ? AND dry_run = 0
+                    ORDER BY id DESC
+                    """,
+                    (profile_context.id,),
+                ).fetchall()
+            ]
+
+        return {
+            "overall": _offer_performance_group(rows, "all"),
+            "by_currency": _offer_performance_groups(rows, "currency"),
+            "by_risk_level": _offer_performance_groups(rows, "risk_level"),
+        }
+
+
+def _offer_performance_groups(
+    rows: list[dict[str, object]],
+    group_key: str,
+) -> list[dict[str, object]]:
+    grouped_rows: dict[str, list[dict[str, object]]] = {}
+    for row in rows:
+        label = _offer_group_label(row, group_key)
+        grouped_rows.setdefault(label, []).append(row)
+
+    return [
+        _offer_performance_group(group_rows, label)
+        for label, group_rows in sorted(grouped_rows.items())
+    ]
+
+
+def _offer_performance_group(
+    rows: list[dict[str, object]],
+    label: str,
+) -> dict[str, object]:
+    total_offers = len(rows)
+    filled_rows = [row for row in rows if _offer_lifecycle_status(row) == "filled"]
+    canceled_rows = [row for row in rows if _offer_lifecycle_status(row) == "canceled"]
+    open_rows = [row for row in rows if _offer_lifecycle_status(row) == "open"]
+    pending_rows = [row for row in rows if _offer_lifecycle_status(row) == "pending"]
+    failed_rows = [row for row in rows if _offer_lifecycle_status(row) == "failed"]
+    total_amount = sum(_float_value(row.get("amount")) for row in rows)
+    filled_amount = sum(_float_value(row.get("amount")) for row in filled_rows)
+    canceled_amount = sum(_float_value(row.get("amount")) for row in canceled_rows)
+    open_amount = sum(_float_value(row.get("amount")) for row in open_rows)
+    average_expected_fill_probability = _weighted_average(
+        rows,
+        _expected_fill_probability,
+    )
+
+    return {
+        "label": label,
+        "total_offers": total_offers,
+        "filled_offers": len(filled_rows),
+        "canceled_offers": len(canceled_rows),
+        "open_offers": len(open_rows),
+        "pending_offers": len(pending_rows),
+        "failed_offers": len(failed_rows),
+        "total_amount": total_amount,
+        "filled_amount": filled_amount,
+        "canceled_amount": canceled_amount,
+        "open_amount": open_amount,
+        "fill_rate": _ratio(len(filled_rows), total_offers),
+        "amount_fill_rate": _ratio(filled_amount, total_amount),
+        "cancel_rate": _ratio(len(canceled_rows), total_offers),
+        "average_daily_rate": _weighted_average(
+            rows,
+            lambda row: _float_value(row.get("daily_rate")),
+        ),
+        "average_annual_rate": _annualized_rate(rows),
+        "average_time_to_fill_seconds": _average(
+            _float_value(row.get("time_to_fill_seconds"))
+            for row in filled_rows
+            if row.get("time_to_fill_seconds") is not None
+        ),
+        "average_reprice_count": _average(
+            _float_value(row.get("reprice_count")) for row in rows
+        ),
+        "average_expected_fill_probability": average_expected_fill_probability,
+        "average_expected_score": _weighted_average(rows, _expected_score),
+        "actual_vs_expected_fill_delta": _actual_vs_expected_fill_delta(
+            filled_amount,
+            total_amount,
+            average_expected_fill_probability,
+        ),
+    }
+
+
+def _offer_group_label(row: dict[str, object], group_key: str) -> str:
+    if group_key == "currency":
+        return str(row.get("currency") or "unknown").upper()
+    if group_key == "risk_level":
+        strategy_snapshot = _json_object(row.get("strategy_snapshot_json"))
+        return str(strategy_snapshot.get("lending_risk_level") or "unknown")
+    return "all"
+
+
+def _offer_lifecycle_status(row: dict[str, object]) -> str:
+    status = str(row.get("final_status") or row.get("status") or "").lower()
+    if row.get("filled_at") or status == "filled":
+        return "filled"
+    if row.get("canceled_at") or status == "canceled":
+        return "canceled"
+    if status in {"failed", "error", "rejected"}:
+        return "failed"
+    if status == "created":
+        return "open"
+    return "pending"
+
+
+def _annualized_rate(rows: list[dict[str, object]]) -> float | None:
+    average_daily_rate = _weighted_average(
+        rows,
+        lambda row: _float_value(row.get("daily_rate")),
+    )
+    if average_daily_rate is None:
+        return None
+    return average_daily_rate * 365
+
+
+def _actual_vs_expected_fill_delta(
+    filled_amount: float,
+    total_amount: float,
+    average_expected_fill_probability: float | None,
+) -> float | None:
+    if average_expected_fill_probability is None:
+        return None
+    return _ratio(filled_amount, total_amount) - average_expected_fill_probability
+
+
+def _expected_fill_probability(row: dict[str, object]) -> float | None:
+    candidate = _offer_matching_candidate(row)
+    if candidate is None:
+        return None
+    return _optional_float_value(candidate.get("fill_probability"))
+
+
+def _expected_score(row: dict[str, object]) -> float | None:
+    candidate = _offer_matching_candidate(row)
+    if candidate is None:
+        return None
+    return _optional_float_value(candidate.get("expected_score"))
+
+
+def _offer_matching_candidate(row: dict[str, object]) -> dict[str, object] | None:
+    row_rate = _float_value(row.get("daily_rate"))
+    candidates = [
+        candidate
+        for candidate in _json_list(row.get("rate_candidate_snapshot_json"))
+        if isinstance(candidate, dict)
+    ]
+    selected_candidates = [candidate for candidate in candidates if candidate.get("selected")]
+    for candidate in selected_candidates:
+        if abs(_float_value(candidate.get("daily_rate")) - row_rate) < 0.0000000001:
+            return candidate
+    return selected_candidates[0] if selected_candidates else None
+
+
+def _weighted_average(
+    rows: list[dict[str, object]],
+    value_getter,
+) -> float | None:
+    weighted_total = 0.0
+    weight_total = 0.0
+    for row in rows:
+        value = value_getter(row)
+        if value is None:
+            continue
+        weight = _float_value(row.get("amount"))
+        if weight <= 0:
+            continue
+        weighted_total += value * weight
+        weight_total += weight
+    if weight_total <= 0:
+        return None
+    return weighted_total / weight_total
+
+
+def _average(values) -> float | None:
+    finite_values = [value for value in values if value is not None]
+    if not finite_values:
+        return None
+    return sum(finite_values) / len(finite_values)
+
+
+def _ratio(numerator: float, denominator: float) -> float:
+    if denominator <= 0:
+        return 0.0
+    return numerator / denominator
+
+
+def _json_object(value: object) -> dict[str, object]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(str(value))
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _json_list(value: object) -> list[object]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(str(value))
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _optional_float_value(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _float_value(value: object) -> float:
+    return _optional_float_value(value) or 0.0
+
+
 class MarketRateRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

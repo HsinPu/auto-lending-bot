@@ -32,6 +32,8 @@ import type {
   SafeActionResponse,
   StrategyDecision,
   StrategyDecisionOffer,
+  StrategyPerformanceGroup,
+  StrategyPerformanceSummary,
   StrategyRateCandidate,
 } from '../types/api'
 import { formatAmount, formatRate } from '../utils/number'
@@ -247,6 +249,7 @@ export function DashboardPage() {
       {data && activePage === 'currencies' ? (
         <div className="page-stack">
           <CurrencyOverview details={data.currencyDetails} />
+          <StrategyPerformancePanel summary={data.strategyPerformance} />
           <StrategyDecisionPanel decisions={data.strategyDecisions} />
           <EarningsForecast details={data.currencyDetails} />
         </div>
@@ -2073,6 +2076,119 @@ function PaginationControls({
   )
 }
 
+function StrategyPerformancePanel({ summary }: { summary: StrategyPerformanceSummary }) {
+  const overall = summary.overall
+
+  return (
+    <section className="strategy-performance-panel">
+      <div className="section-heading">
+        <div>
+          <h2>策略績效報告</h2>
+          <p>只統計 Live 委託生命週期；模擬委託不納入成交率與實際績效。</p>
+        </div>
+        <span>{overall.total_offers} 筆</span>
+      </div>
+
+      {overall.total_offers === 0 ? (
+        <p className="strategy-empty">
+          目前沒有 Live 委託績效資料。開始 Live 後，成交、取消與重掛會累積在這裡。
+        </p>
+      ) : (
+        <>
+          <div className="strategy-performance-hero">
+            <div>
+              <p className="eyebrow">整體表現</p>
+              <h3>{rate(overall.amount_fill_rate)} 本金成交率</h3>
+              <p>
+                實際成交本金與下單時的預期成交率差距：
+                {performanceDelta(overall.actual_vs_expected_fill_delta)}
+              </p>
+            </div>
+            <dl>
+              <HistoryMetric label="Live 委託" value={`${overall.total_offers} 筆`} />
+              <HistoryMetric label="已成交" value={`${overall.filled_offers} 筆`} />
+              <HistoryMetric label="未成交" value={`${overall.open_offers} 筆`} />
+              <HistoryMetric label="已取消" value={`${overall.canceled_offers} 筆`} />
+              <HistoryMetric label="平均日利率" value={rate(overall.average_daily_rate)} />
+              <HistoryMetric label="平均年化" value={rate(overall.average_annual_rate)} />
+              <HistoryMetric label="預期成交率" value={rate(overall.average_expected_fill_probability)} />
+              <HistoryMetric label="平均成交時間" value={durationLabel(overall.average_time_to_fill_seconds)} />
+            </dl>
+          </div>
+
+          <div className="strategy-performance-grid">
+            <PerformanceGroupTable
+              title="依幣種"
+              emptyText="尚無幣種績效資料。"
+              groups={summary.by_currency}
+            />
+            <PerformanceGroupTable
+              title="依風險層級"
+              emptyText="尚無風險層級資料。"
+              groups={summary.by_risk_level}
+              formatLabel={riskLevelLabel}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function PerformanceGroupTable({
+  title,
+  emptyText,
+  groups,
+  formatLabel = (value: string) => value,
+}: {
+  title: string
+  emptyText: string
+  groups: StrategyPerformanceGroup[]
+  formatLabel?: (value: string) => string
+}) {
+  return (
+    <section className="performance-group-table">
+      <h3>{title}</h3>
+      {groups.length === 0 ? (
+        <p className="empty-hint padded">{emptyText}</p>
+      ) : (
+        <div className="strategy-table-scroll">
+          <table className="strategy-table compact">
+            <thead>
+              <tr>
+                <th>群組</th>
+                <th>委託</th>
+                <th>成交</th>
+                <th>未成交</th>
+                <th>取消</th>
+                <th>本金成交率</th>
+                <th>預期成交率</th>
+                <th>平均年化</th>
+                <th>成交時間</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group) => (
+                <tr key={group.label}>
+                  <td>{formatLabel(group.label)}</td>
+                  <td>{group.total_offers}</td>
+                  <td>{group.filled_offers}</td>
+                  <td>{group.open_offers}</td>
+                  <td>{group.canceled_offers}</td>
+                  <td>{rate(group.amount_fill_rate)}</td>
+                  <td>{rate(group.average_expected_fill_probability)}</td>
+                  <td>{rate(group.average_annual_rate)}</td>
+                  <td>{durationLabel(group.average_time_to_fill_seconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] }) {
   const [expandedCurrency, setExpandedCurrency] = useState<string | null>(null)
 
@@ -2332,7 +2448,16 @@ const statusLabels: Record<string, string> = {
   dry_run: '模擬',
   intent: '準備建立',
   created: '已建立',
+  filled: '已成交',
+  canceled: '已取消',
   recorded: '已記錄',
+}
+
+const riskLevelLabels: Record<string, string> = {
+  fast: '快速成交',
+  balanced: '平衡',
+  yield: '收益優先',
+  unknown: '未記錄',
 }
 
 function strategyLabel(key: string): string {
@@ -2365,6 +2490,36 @@ function statusLabel(value: unknown): string {
   }
 
   return statusLabels[value] ?? value
+}
+
+function riskLevelLabel(value: string): string {
+  return riskLevelLabels[value] ?? value
+}
+
+function performanceDelta(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '-'
+  }
+
+  const formatted = formatRate(value)
+  return value > 0 ? `+${formatted}` : formatted
+}
+
+function durationLabel(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '-'
+  }
+  if (value < 60) {
+    return `${formatAmount(value, 0)} 秒`
+  }
+  if (value < 3600) {
+    return `${formatAmount(value / 60, 1)} 分`
+  }
+  if (value < 86400) {
+    return `${formatAmount(value / 3600, 1)} 小時`
+  }
+
+  return `${formatAmount(value / 86400, 1)} 天`
 }
 
 function dryRunLabel(value: unknown): string {

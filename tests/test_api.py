@@ -149,6 +149,49 @@ def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
     assert btc["offers"][0]["currency"] == "BTC"
 
 
+def test_api_strategy_performance_returns_live_offer_summary(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    loan_offers = LoanOfferRepository(database_url)
+    offer_id = loan_offers.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=100, daily_rate=0.0002, duration_days=2),
+        status="intent",
+        dry_run=False,
+        strategy_snapshot={"lending_risk_level": "balanced"},
+        rate_candidate_snapshot=[
+            {
+                "daily_rate": 0.0002,
+                "fill_probability": 0.6,
+                "expected_score": 0.00012,
+                "selected": True,
+            }
+        ],
+    )
+    loan_offers.update_status(offer_id, status="created", external_offer_id="offer-1")
+    loan_offers.mark_filled_by_active_loan(
+        ActiveLoan(
+            currency="BTC",
+            amount=100,
+            daily_rate=0.0002,
+            duration_days=2,
+            external_loan_id="loan-1",
+        )
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/strategy-performance")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["overall"]["total_offers"] == 1
+    assert body["overall"]["filled_offers"] == 1
+    assert body["by_currency"][0]["label"] == "BTC"
+    assert body["by_risk_level"][0]["label"] == "balanced"
+
+
 def test_api_settings_returns_strategy_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

@@ -71,6 +71,9 @@ class DashboardReadService:
     def recent_offers(self) -> list[dict[str, object]]:
         return self._repositories.loan_offers.recent(profile_context=self._profile_context)
 
+    def offer_performance_summary(self) -> dict[str, object]:
+        return self._repositories.loan_offers.performance_summary(self._profile_context)
+
     def recent_open_offers(self, limit: int | None = None) -> list[dict[str, object]]:
         if limit is None:
             return self._repositories.open_offers.recent(profile_context=self._profile_context)

@@ -267,6 +267,104 @@ def test_loan_offer_repository_marks_canceled_offer(tmp_path) -> None:
     assert rows[0]["reprice_count"] == 1
 
 
+def test_loan_offer_repository_summarizes_live_offer_performance(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    repository = LoanOfferRepository(database_url)
+
+    filled_offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=100, daily_rate=0.0002, duration_days=2),
+        status="intent",
+        dry_run=False,
+        strategy_snapshot={"lending_risk_level": "balanced"},
+        rate_candidate_snapshot=[
+            {
+                "daily_rate": 0.0002,
+                "fill_probability": 0.6,
+                "expected_score": 0.00012,
+                "selected": True,
+            }
+        ],
+    )
+    repository.update_status(filled_offer_id, status="created", external_offer_id="filled-1")
+    repository.mark_filled_by_active_loan(
+        ActiveLoan(
+            currency="BTC",
+            amount=100,
+            daily_rate=0.0002,
+            duration_days=2,
+            external_loan_id="loan-1",
+        )
+    )
+    canceled_offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=50, daily_rate=0.0003, duration_days=7),
+        status="intent",
+        dry_run=False,
+        strategy_snapshot={"lending_risk_level": "balanced"},
+        rate_candidate_snapshot=[
+            {
+                "daily_rate": 0.0003,
+                "fill_probability": 0.2,
+                "expected_score": 0.00006,
+                "selected": True,
+            }
+        ],
+    )
+    repository.update_status(canceled_offer_id, status="created", external_offer_id="canceled-1")
+    repository.mark_canceled_by_external_offer_id("canceled-1")
+    open_offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="ETH", amount=25, daily_rate=0.0001, duration_days=2),
+        status="intent",
+        dry_run=False,
+        strategy_snapshot={"lending_risk_level": "yield"},
+        rate_candidate_snapshot=[
+            {
+                "daily_rate": 0.0001,
+                "fill_probability": 0.1,
+                "expected_score": 0.00001,
+                "selected": True,
+            }
+        ],
+    )
+    repository.update_status(open_offer_id, status="created", external_offer_id="open-1")
+    repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=999, daily_rate=0.001, duration_days=2),
+        status="dry_run",
+        dry_run=True,
+    )
+    with connect(database_url) as connection:
+        connection.execute(
+            "UPDATE loan_offers SET time_to_fill_seconds = 120 WHERE id = ?",
+            (filled_offer_id,),
+        )
+
+    summary = repository.performance_summary()
+    overall = summary["overall"]
+    by_currency = {row["label"]: row for row in summary["by_currency"]}
+    by_risk_level = {row["label"]: row for row in summary["by_risk_level"]}
+
+    assert overall["total_offers"] == 3
+    assert overall["filled_offers"] == 1
+    assert overall["canceled_offers"] == 1
+    assert overall["open_offers"] == 1
+    assert overall["total_amount"] == 175
+    assert overall["amount_fill_rate"] == pytest.approx(100 / 175)
+    assert overall["average_daily_rate"] == pytest.approx(0.00021428571428571427)
+    assert overall["average_expected_fill_probability"] == pytest.approx(72.5 / 175)
+    assert overall["actual_vs_expected_fill_delta"] == pytest.approx(
+        (100 / 175) - (72.5 / 175)
+    )
+    assert overall["average_time_to_fill_seconds"] == 120
+    assert by_currency["BTC"]["total_offers"] == 2
+    assert by_risk_level["balanced"]["total_offers"] == 2
+    assert by_risk_level["yield"]["open_offers"] == 1
+
+
 def test_bot_job_repository_stores_settings_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     initialize_database(database_url)

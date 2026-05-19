@@ -328,7 +328,7 @@ BTC_MAX_TO_LEND=0.1
 BTC_MAX_TO_LEND_RATE=0.00008
 BTC_MAX_AMOUNT_TO_LEND=0.1
 BTC_MAX_ACTIVE_AMOUNT=0.5
-BTC_ALLOW_ABOVE_MARKET_OFFERS=true
+BTC_ALLOW_ABOVE_MARKET_OFFERS=false
 BTC_HIDE_COINS=true
 BTC_GAP_MODE=raw_btc
 BTC_GAP_BOTTOM=20
@@ -337,16 +337,16 @@ BTC_XDAY_THRESHOLD=0.0005479452054794521
 BTC_XDAYS=120
 BTC_XDAY_SPREAD=0
 BTC_END_DATE=2027-01-15
-BTC_FRR_AS_MIN=true
+BTC_FRR_AS_MIN=false
 BTC_FRR_DELTA=0.00001
 BTC_RATE_OPTIMIZATION_MODE=fill_probability
 BTC_RATE_OPTIMIZATION_MIN_PROBABILITY=0.10
 BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=50
 ```
 
-`FRR_AS_MIN=true` is the default Bitfinex strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency.
+`FRR_AS_MIN=false` is the default Bitfinex strategy calibration. When enabled, the bot reads Bitfinex FRR and uses `max(MIN_DAILY_RATE, FRR + FRR_DELTA)` as the effective minimum daily rate for that currency. This may improve quoted rates but can reduce fill speed when FRR is above the immediately fillable market.
 
-`ALLOW_ABOVE_MARKET_OFFERS=true` is enabled by default. When the best market rate is below the effective minimum rate, the bot may still create offers at the effective minimum rate instead of skipping the currency. Set it to `false` to keep the older behavior where below-minimum markets are hidden when `HIDE_COINS=true`.
+`ALLOW_ABOVE_MARKET_OFFERS=false` is the default. When the best market rate is below the effective minimum rate and `HIDE_COINS=true`, the bot skips that currency instead of forcing high-rate offers that may not fill. Set it to `true` only when you are willing to wait for above-market offers.
 
 `MAX_OFFER_AMOUNT=500` is enabled by default and makes the strategy split lendable balance by maximum offer size instead of a fixed number of offers. `MIN_OFFER_REMAINDER=100` keeps the final remainder unoffered when it is less than or equal to that amount. Set `MAX_OFFER_AMOUNT=` to disable amount-based splitting and fall back to `SPREAD_LEND`.
 

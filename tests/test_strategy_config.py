@@ -5,7 +5,7 @@ from auto_lending_bot.profiles import DEFAULT_PROFILE_CONTEXT
 from auto_lending_bot.settings_registry import setting_scope
 
 
-def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
+def test_strategy_config_defaults_prioritize_fill_speed(monkeypatch) -> None:
     monkeypatch.delenv("FRR_AS_MIN", raising=False)
     monkeypatch.delenv("GAP_MODE", raising=False)
     monkeypatch.delenv("GAP_BOTTOM", raising=False)
@@ -27,8 +27,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     settings = load_settings()
     strategy = strategy_config_for(settings, "BTC")
 
-    assert settings.frr_as_min is True
-    assert strategy.frr_as_min is True
+    assert settings.frr_as_min is False
+    assert strategy.frr_as_min is False
     assert strategy.gap_mode == "raw_btc"
     assert strategy.gap_bottom == 40
     assert strategy.gap_top == 200
@@ -38,8 +38,8 @@ def test_strategy_config_defaults_frr_as_min_enabled(monkeypatch) -> None:
     assert strategy.rate_optimization_mode == "fill_probability"
     assert strategy.rate_optimization_min_probability == 0.10
     assert strategy.rate_optimization_sample_size == 50
-    assert settings.allow_above_market_offers is True
-    assert strategy.allow_above_market_offers is True
+    assert settings.allow_above_market_offers is False
+    assert strategy.allow_above_market_offers is False
     assert strategy.spread_lend == 0
     assert strategy.max_offer_amount == 500
     assert strategy.min_offer_remainder == 100

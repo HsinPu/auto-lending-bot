@@ -122,7 +122,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
         scope=PROFILE_SAFETY_SETTING_SCOPE,
     ),
     SettingDefinition("HIDE_COINS", "Strategy", "bool", "true"),
-    SettingDefinition("ALLOW_ABOVE_MARKET_OFFERS", "Strategy", "bool", "true"),
+    SettingDefinition("ALLOW_ABOVE_MARKET_OFFERS", "Strategy", "bool", "false"),
     SettingDefinition("SPREAD_LEND", "Strategy", "int", "0"),
     SettingDefinition("MAX_OFFER_AMOUNT", "Strategy", "optional_float", "500"),
     SettingDefinition("MIN_OFFER_REMAINDER", "Strategy", "float", "100"),
@@ -140,7 +140,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
     SettingDefinition("XDAYS", "Strategy", "int", "120"),
     SettingDefinition("XDAY_SPREAD", "Strategy", "float", "0"),
     SettingDefinition("END_DATE", "Strategy", "date", ""),
-    SettingDefinition("FRR_AS_MIN", "Strategy", "bool", "true"),
+    SettingDefinition("FRR_AS_MIN", "Strategy", "bool", "false"),
     SettingDefinition("FRR_DELTA", "Strategy", "float", "0"),
     SettingDefinition(
         "RATE_OPTIMIZATION_MODE",

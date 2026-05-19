@@ -87,7 +87,7 @@ class Settings:
     log_level: str
     market_analysis_interval_seconds: int = 60
     display_timezone: str = "UTC"
-    allow_above_market_offers: bool = True
+    allow_above_market_offers: bool = False
     max_offer_amount: float | None = None
     min_offer_remainder: float = 0.0
     min_offer_value_usd: float = 150.0
@@ -157,7 +157,7 @@ def load_settings() -> Settings:
         xday_threshold=_get_float("XDAY_THRESHOLD", default=0.0005479452054794521),
         xdays=_get_int("XDAYS", default=120),
         xday_spread=_get_float("XDAY_SPREAD", default=0.0),
-        frr_as_min=_get_bool("FRR_AS_MIN", default=True),
+        frr_as_min=_get_bool("FRR_AS_MIN", default=False),
         frr_delta=_get_float("FRR_DELTA", default=0.0),
         rate_optimization_mode=os.getenv("RATE_OPTIMIZATION_MODE", "fill_probability").lower(),
         rate_optimization_min_probability=_get_float("RATE_OPTIMIZATION_MIN_PROBABILITY", default=0.10),
@@ -182,7 +182,7 @@ def load_settings() -> Settings:
         else 500.0,
         min_offer_remainder=_get_float("MIN_OFFER_REMAINDER", default=100.0),
         min_offer_value_usd=_get_float("MIN_OFFER_VALUE_USD", default=150.0),
-        allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=True),
+        allow_above_market_offers=_get_bool("ALLOW_ABOVE_MARKET_OFFERS", default=False),
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/auto_lending_bot.db"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         display_timezone=os.getenv("DISPLAY_TIMEZONE", "UTC"),

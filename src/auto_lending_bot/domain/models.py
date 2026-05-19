@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 
@@ -47,6 +47,17 @@ class LoanOffer:
 
 
 @dataclass(frozen=True)
+class RateCandidate:
+    daily_rate: float
+    annual_rate: float
+    fill_probability: float
+    expected_score: float
+    meets_min_probability: bool
+    selected: bool = False
+    source: str = ""
+
+
+@dataclass(frozen=True)
 class ActiveLoan:
     currency: str
     amount: float
@@ -74,6 +85,7 @@ class LendingDecision:
     currency: str
     offers: list[LoanOffer]
     reason: str
+    rate_candidates: list[RateCandidate] = field(default_factory=list)
 
     @property
     def should_lend(self) -> bool:

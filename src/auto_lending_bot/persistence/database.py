@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS bot_run_decisions (
     max_active_amount REAL,
     offer_count INTEGER NOT NULL,
     offers_json TEXT NOT NULL,
+    rate_candidates_json TEXT NOT NULL DEFAULT '[]',
     reason TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
@@ -229,6 +230,7 @@ def initialize_database(database_url: str) -> None:
         _ensure_column(connection, "loan_offers", "external_offer_id", "TEXT")
         _ensure_column(connection, "loan_offers", "message", "TEXT")
         _ensure_profile_column(connection, "bot_run_decisions")
+        _ensure_column(connection, "bot_run_decisions", "rate_candidates_json", "TEXT NOT NULL DEFAULT '[]'")
         _ensure_profile_column(connection, "bot_run_steps")
         _ensure_profile_column(connection, "market_rates")
         _ensure_profile_column(connection, "active_loans")

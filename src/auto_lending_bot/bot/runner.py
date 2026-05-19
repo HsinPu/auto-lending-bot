@@ -902,6 +902,7 @@ class BotRunner:
                 "max_active_amount": strategy.max_active_amount,
                 "offer_count": len(decision.offers),
                 "offers": [offer.__dict__ for offer in decision.offers],
+                "rate_candidates": [candidate.__dict__ for candidate in decision.rate_candidates],
                 "reason": decision.reason,
             },
             profile_context=self._profile_context,
@@ -1152,6 +1153,8 @@ def _decision_calculation_summary(
             f"年化 {_offer_annualized_rate_summary(decision.offers)}；"
             f"天期 {_offer_duration_summary(decision.offers)}。"
         )
+    if decision.rate_candidates:
+        lines.append(f"候選利率：{_rate_candidate_summary(decision.rate_candidates)}。")
     lines.append(
         "金額："
         f"可用 {_format_decimal_amount(balance.amount)}，"
@@ -1245,6 +1248,18 @@ def _offer_rate_summary(offers: list[LoanOffer]) -> str:
     if not offers:
         return "無委託利率"
     return "、".join(_format_decimal_amount(offer.daily_rate) for offer in offers)
+
+
+def _rate_candidate_summary(candidates) -> str:
+    return "、".join(
+        (
+            f"{_format_rate_percent(candidate.daily_rate * 365)} "
+            f"成交率 {_format_rate_percent(candidate.fill_probability)} "
+            f"分數 {_format_decimal_amount(candidate.expected_score)}"
+            f"{'（入選）' if candidate.selected else ''}"
+        )
+        for candidate in candidates[:5]
+    )
 
 
 def _offer_duration_summary(offers: list[LoanOffer]) -> str:

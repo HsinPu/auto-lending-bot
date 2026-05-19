@@ -274,6 +274,14 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
             "max_active_amount": None,
             "offer_count": 1,
             "offers": [{"currency": "BTC", "amount": 0.1}],
+            "rate_candidates": [
+                {
+                    "daily_rate": 0.00008,
+                    "fill_probability": 0.8,
+                    "expected_score": 0.000064,
+                    "selected": True,
+                }
+            ],
             "reason": "Created lending offers from available balance.",
         }
     )
@@ -284,6 +292,14 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
     assert rows[0]["profile_id"] == "default"
     assert rows[0]["offer_count"] == 1
     assert rows[0]["offers"] == [{"currency": "BTC", "amount": 0.1}]
+    assert rows[0]["rate_candidates"] == [
+        {
+            "daily_rate": 0.00008,
+            "fill_probability": 0.8,
+            "expected_score": 0.000064,
+            "selected": True,
+        }
+    ]
 
 
 def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:

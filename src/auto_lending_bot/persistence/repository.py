@@ -683,8 +683,9 @@ class BotRunDecisionRepository:
                     max_active_amount,
                     offer_count,
                     offers_json,
+                    rate_candidates_json,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -703,6 +704,7 @@ class BotRunDecisionRepository:
                     decision["max_active_amount"],
                     decision["offer_count"],
                     json.dumps(decision["offers"], separators=(",", ":")),
+                    json.dumps(decision.get("rate_candidates", []), separators=(",", ":")),
                     decision["reason"],
                 ),
             )
@@ -735,6 +737,7 @@ class BotRunDecisionRepository:
                     max_active_amount,
                     offer_count,
                     offers_json,
+                    rate_candidates_json,
                     reason,
                     created_at
                 FROM bot_run_decisions
@@ -747,6 +750,7 @@ class BotRunDecisionRepository:
             for row in rows:
                 decision = dict(row)
                 decision["offers"] = json.loads(str(decision.pop("offers_json")))
+                decision["rate_candidates"] = json.loads(str(decision.pop("rate_candidates_json", "[]")))
                 decisions.append(decision)
             return decisions
 

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import replace
 from datetime import date
 
-from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder, RateCandidate
 
 
 @dataclass(frozen=True)
@@ -98,10 +98,11 @@ def build_lending_decision(
             reason="Available balance is below the minimum loan size.",
         )
 
+    rate_candidates: list[RateCandidate] = []
     if best_order.daily_rate < strategy.min_daily_rate:
         offer_rates = [_clamp_rate(strategy.min_daily_rate, strategy) for _ in offer_amounts]
     else:
-        offer_rates = _offer_rates(
+        offer_rates, rate_candidates = _offer_rates(
             order_book,
             strategy,
             lendable_amount,
@@ -127,6 +128,7 @@ def build_lending_decision(
         currency=balance.currency,
         offers=offers,
         reason=reason,
+        rate_candidates=rate_candidates,
     )
 
 
@@ -229,10 +231,10 @@ def _offer_rates(
     split_count: int,
     btc_price: float | None,
     historical_daily_rates: list[float],
-) -> list[float]:
-    optimized_rates = _optimized_offer_rates(order_book, strategy, split_count, historical_daily_rates)
+) -> tuple[list[float], list[RateCandidate]]:
+    optimized_rates, rate_candidates = _optimized_offer_rates(order_book, strategy, split_count, historical_daily_rates)
     if optimized_rates:
-        return optimized_rates
+        return optimized_rates, rate_candidates
 
     gap_mode = strategy.gap_mode.lower().replace("-", "_")
     if gap_mode == "rawbtc":
@@ -240,17 +242,20 @@ def _offer_rates(
     if gap_mode not in {"raw", "relative", "raw_btc"}:
         best_order = _best_order(order_book)
         rate = _clamp_rate(best_order.daily_rate if best_order else 0, strategy)
-        return [rate for _ in range(split_count)]
+        return [rate for _ in range(split_count)], rate_candidates
 
     bottom_rate = _gap_rate(
         order_book, strategy.gap_bottom, lendable_amount, gap_mode, strategy, btc_price
     )
     top_rate = _gap_rate(order_book, strategy.gap_top, lendable_amount, gap_mode, strategy, btc_price)
     if split_count == 1:
-        return [_clamp_rate(bottom_rate, strategy)]
+        return [_clamp_rate(bottom_rate, strategy)], rate_candidates
 
     rate_step = (top_rate - bottom_rate) / (split_count - 1)
-    return [_clamp_rate(bottom_rate + (rate_step * index), strategy) for index in range(split_count)]
+    return [
+        _clamp_rate(bottom_rate + (rate_step * index), strategy)
+        for index in range(split_count)
+    ], rate_candidates
 
 
 def _optimized_offer_rates(
@@ -258,41 +263,57 @@ def _optimized_offer_rates(
     strategy: StrategyConfig,
     split_count: int,
     historical_daily_rates: list[float],
-) -> list[float]:
+) -> tuple[list[float], list[RateCandidate]]:
     if strategy.rate_optimization_mode.lower() != "fill_probability":
-        return []
+        return [], []
 
     sample_size = max(strategy.rate_optimization_sample_size, 1)
     samples = [rate for rate in historical_daily_rates[:sample_size] if rate > 0]
     if not samples:
-        return []
+        return [], []
 
-    candidates = sorted(
-        {
-            _clamp_rate(order.daily_rate, strategy)
-            for order in order_book
-            if order.daily_rate > 0
-        }
-        | {_clamp_rate(rate, strategy) for rate in samples},
-    )
-    if not candidates:
-        return []
+    candidate_sources: dict[float, set[str]] = {}
+    for order in order_book:
+        if order.daily_rate <= 0:
+            continue
+        candidate_sources.setdefault(_clamp_rate(order.daily_rate, strategy), set()).add("order_book")
+    for rate in samples:
+        candidate_sources.setdefault(_clamp_rate(rate, strategy), set()).add("history")
+    if not candidate_sources:
+        return [], []
 
     minimum_probability = _risk_minimum_probability(strategy)
     scored_rates = []
-    for candidate in candidates:
+    rate_candidates: list[RateCandidate] = []
+    for candidate in sorted(candidate_sources):
         probability = sum(1 for sample in samples if sample >= candidate) / len(samples)
-        if probability >= minimum_probability:
-            scored_rates.append((candidate * probability, candidate))
+        expected_score = candidate * probability
+        meets_min_probability = probability >= minimum_probability
+        rate_candidates.append(
+            RateCandidate(
+                daily_rate=candidate,
+                annual_rate=round(candidate * 365, 10),
+                fill_probability=round(probability, 10),
+                expected_score=round(expected_score, 12),
+                meets_min_probability=meets_min_probability,
+                source="+".join(sorted(candidate_sources[candidate])),
+            )
+        )
+        if meets_min_probability:
+            scored_rates.append((expected_score, candidate))
 
     if not scored_rates:
-        return []
+        return [], rate_candidates
 
     selected_rates = [rate for _, rate in sorted(scored_rates, reverse=True)[:split_count]]
     selected_rates.sort()
     while len(selected_rates) < split_count:
         selected_rates.append(selected_rates[-1])
-    return selected_rates
+    selected_rate_set = set(selected_rates)
+    return selected_rates, [
+        replace(candidate, selected=candidate.daily_rate in selected_rate_set)
+        for candidate in rate_candidates
+    ]
 
 
 def _risk_minimum_probability(strategy: StrategyConfig) -> float:

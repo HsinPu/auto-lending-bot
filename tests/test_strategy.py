@@ -321,6 +321,9 @@ def test_strategy_optimizes_rate_by_fill_probability() -> None:
     )
 
     assert [offer.daily_rate for offer in decision.offers] == [0.0003]
+    assert [candidate.daily_rate for candidate in decision.rate_candidates] == [0.0001, 0.0002, 0.0003]
+    assert [candidate.fill_probability for candidate in decision.rate_candidates] == [1.0, 0.6, 0.6]
+    assert [candidate.selected for candidate in decision.rate_candidates] == [False, False, True]
 
 
 def test_strategy_fast_risk_level_prefers_higher_fill_probability() -> None:

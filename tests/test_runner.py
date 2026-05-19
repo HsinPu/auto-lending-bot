@@ -995,6 +995,102 @@ def test_runner_keeps_fresh_open_offers_until_reprice_threshold(tmp_path) -> Non
     assert exchange.cancelled_offer_ids == []
 
 
+def test_runner_reprices_sooner_when_market_regime_is_rising(tmp_path) -> None:
+    recent_created_at = (datetime.now(UTC) - timedelta(minutes=20)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0001,
+                duration_days=2,
+                external_offer_id="rising-offer",
+                created_at=recent_created_at,
+            )
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    for daily_rate in (0.0001, 0.0001, 0.0001, 0.0003, 0.0003, 0.0003):
+        market_analysis_rates.add_many(
+            [LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)]
+        )
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == ["rising-offer"]
+
+
+def test_runner_waits_longer_when_market_regime_is_falling(tmp_path) -> None:
+    old_created_at = (datetime.now(UTC) - timedelta(minutes=100)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    exchange = OpenOfferExchange(
+        [
+            LoanOffer(
+                currency="BTC",
+                amount=0.1,
+                daily_rate=0.0003,
+                duration_days=2,
+                external_offer_id="falling-offer",
+                created_at=old_created_at,
+            )
+        ]
+    )
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    for daily_rate in (0.0003, 0.0003, 0.0003, 0.0001, 0.0001, 0.0001):
+        market_analysis_rates.add_many(
+            [LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)]
+        )
+
+    runner = BotRunner(
+        settings=_settings(
+            database_url,
+            auto_rebalance_open_offers=True,
+            auto_cancel_open_offers=True,
+            dry_run=False,
+        ),
+        exchange=exchange,
+        bot_runs=BotRunRepository(database_url),
+        loan_offers=LoanOfferRepository(database_url),
+        active_loans=ActiveLoanRepository(database_url),
+        open_offers=OpenLoanOfferRepository(database_url),
+        lending_history=LendingHistoryRepository(database_url),
+        notification_state=NotificationStateRepository(database_url),
+        market_analysis_rates=market_analysis_rates,
+        market_recorder=MarketRecorder(MarketRateRepository(database_url)),
+        notifier=SpyNotifier(),
+    )
+
+    runner.run_once()
+
+    assert exchange.cancelled_offer_ids == []
+
+
 def _settings(
     database_url: str,
     strategy_debug: bool = False,

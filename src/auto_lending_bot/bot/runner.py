@@ -14,7 +14,7 @@ from auto_lending_bot.domain.models import (
     LoanOffer,
     LoanOrder,
 )
-from auto_lending_bot.domain.strategy import build_lending_decision
+from auto_lending_bot.domain.strategy import build_lending_decision, detect_market_regime
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.exchange import ExchangeClient
 from auto_lending_bot.market.recorder import MarketRecorder
@@ -738,13 +738,14 @@ class BotRunner:
                 kept_offers.append(offer)
                 self._finish_step(step_id, message=f"保留 {offer.currency} 舊委託，避免低於最小放貸量。")
                 continue
+            stale_reprice_minutes = self._stale_offer_reprice_minutes(offer.currency)
             if self._settings.stale_offer_reprice_enabled and not self._is_stale_offer(offer):
                 kept_offers.append(offer)
                 self._finish_step(
                     step_id,
                     message=(
                         f"保留 {offer.currency} 舊委託，尚未超過 "
-                        f"{self._stale_offer_reprice_minutes()} 分鐘重掛門檻。"
+                        f"{stale_reprice_minutes} 分鐘重掛門檻。"
                     ),
                 )
                 continue
@@ -818,15 +819,33 @@ class BotRunner:
         except ValueError:
             return False
         age_minutes = (datetime.now(UTC) - created_at).total_seconds() / 60
-        return age_minutes >= self._stale_offer_reprice_minutes()
+        return age_minutes >= self._stale_offer_reprice_minutes(offer.currency)
 
-    def _stale_offer_reprice_minutes(self) -> int:
+    def _stale_offer_reprice_minutes(self, currency: str | None = None) -> int:
+        if currency:
+            regime_minutes = self._market_regime_stale_reprice_minutes(currency)
+            if regime_minutes is not None:
+                return regime_minutes
+
         risk_level = self._settings.lending_risk_level.lower()
         if risk_level == "fast":
             return max(self._settings.stale_offer_reprice_minutes_fast, 1)
         if risk_level == "yield":
             return max(self._settings.stale_offer_reprice_minutes_yield, 1)
         return max(self._settings.stale_offer_reprice_minutes_balanced, 1)
+
+    def _market_regime_stale_reprice_minutes(self, currency: str) -> int | None:
+        rates = self._market_regime_daily_rates(currency)
+        if not rates:
+            return None
+
+        regime = detect_market_regime(rates[0], rates)
+        return {
+            "volatile_rising": 15,
+            "rising": 30,
+            "falling": 90,
+            "volatile_falling": 120,
+        }.get(regime.label)
 
     def _reprice_cancel_limit_reached(self, repriced_count: int) -> bool:
         limit = self._settings.stale_offer_reprice_max_cancels_per_run

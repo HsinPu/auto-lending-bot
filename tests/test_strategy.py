@@ -6,6 +6,7 @@ from auto_lending_bot.domain.strategy import (
     _regime_adjusted_duration_days,
     build_lending_decision,
     detect_market_regime,
+    detect_market_signal,
 )
 
 
@@ -523,6 +524,28 @@ def test_strategy_detects_stable_market_regime() -> None:
     assert regime.label == "stable"
     assert regime.trend == "stable"
     assert regime.volatility == "calm"
+
+
+def test_strategy_detects_rising_market_signal() -> None:
+    signal = detect_market_signal(
+        current_daily_rate=0.00024,
+        historical_daily_rates=[0.00024, 0.00022, 0.0002, 0.0001, 0.0001, 0.0001],
+    )
+
+    assert signal.prediction_label == "strong_rise"
+    assert signal.trend_score > 0
+    assert signal.confidence > 0
+    assert signal.sample_count == 6
+
+
+def test_strategy_marks_market_signal_uncertain_without_samples() -> None:
+    signal = detect_market_signal(
+        current_daily_rate=0.0001,
+        historical_daily_rates=[0.0001, 0.00011],
+    )
+
+    assert signal.prediction_label == "uncertain"
+    assert signal.confidence == 0.0
 
 
 def test_strategy_uses_long_duration_above_xday_threshold() -> None:

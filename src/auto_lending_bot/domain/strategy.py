@@ -9,6 +9,7 @@ from auto_lending_bot.domain.models import (
     LoanOffer,
     LoanOrder,
     MarketRegime,
+    MarketSignal,
     RateCandidate,
 )
 
@@ -54,6 +55,8 @@ class StrategyConfig:
 MARKET_REGIME_MIN_SAMPLES = 4
 MARKET_REGIME_TREND_THRESHOLD = 0.10
 MARKET_REGIME_VOLATILITY_THRESHOLD = 0.50
+MARKET_SIGNAL_STRONG_TREND_THRESHOLD = 0.35
+MARKET_SIGNAL_TREND_THRESHOLD = 0.12
 RISING_DURATION_CAP_DAYS = 14
 VOLATILE_RISING_DURATION_CAP_DAYS = 7
 FALLING_MEDIUM_DURATION_FLOOR_DAYS = 14
@@ -224,6 +227,62 @@ def detect_market_regime(
     )
 
 
+def detect_market_signal(
+    current_daily_rate: float,
+    historical_daily_rates: list[float],
+) -> MarketSignal:
+    samples = [rate for rate in historical_daily_rates if rate > 0]
+    if len(samples) < MARKET_REGIME_MIN_SAMPLES:
+        return MarketSignal(
+            prediction_label="uncertain",
+            trend_score=0.0,
+            volatility_score=0.0,
+            depth_score=0.0,
+            rate_momentum=0.0,
+            confidence=0.0,
+            sample_count=len(samples),
+            reason="Not enough market-analysis samples to build a signal.",
+        )
+
+    short_count = max(2, min(5, len(samples) // 3))
+    short_average = _mean(samples[:short_count]) or 0.0
+    long_average = _mean(samples) or 0.0
+    trend_ratio = _safe_ratio(short_average - long_average, long_average)
+    volatility_ratio = _safe_ratio(max(samples) - min(samples), long_average)
+    trend_score = _clamp(trend_ratio / MARKET_SIGNAL_STRONG_TREND_THRESHOLD, -1.0, 1.0)
+    volatility_score = _clamp(volatility_ratio / MARKET_REGIME_VOLATILITY_THRESHOLD, 0.0, 1.0)
+    rate_momentum = _safe_ratio(max(current_daily_rate, 0.0) - long_average, long_average)
+    confidence = _clamp(abs(trend_score) * (1.0 - volatility_score * 0.35), 0.0, 1.0)
+
+    return MarketSignal(
+        prediction_label=_market_signal_prediction_label(trend_score, confidence),
+        trend_score=round(trend_score, 4),
+        volatility_score=round(volatility_score, 4),
+        depth_score=0.0,
+        rate_momentum=round(rate_momentum, 4),
+        confidence=round(confidence, 4),
+        sample_count=len(samples),
+        reason=(
+            f"Short average is {trend_ratio:.2%} versus the long average; "
+            f"volatility score is {volatility_score:.2f}."
+        ),
+    )
+
+
+def _market_signal_prediction_label(trend_score: float, confidence: float) -> str:
+    if confidence < 0.15:
+        return "uncertain"
+    if trend_score >= MARKET_SIGNAL_STRONG_TREND_THRESHOLD:
+        return "strong_rise"
+    if trend_score >= MARKET_SIGNAL_TREND_THRESHOLD:
+        return "rise"
+    if trend_score <= -MARKET_SIGNAL_STRONG_TREND_THRESHOLD:
+        return "strong_fall"
+    if trend_score <= -MARKET_SIGNAL_TREND_THRESHOLD:
+        return "fall"
+    return "flat"
+
+
 def _market_regime_trend(trend_ratio: float) -> str:
     if trend_ratio >= MARKET_REGIME_TREND_THRESHOLD:
         return "rising"
@@ -245,6 +304,10 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
     if denominator <= 0:
         return 0.0
     return numerator / denominator
+
+
+def _clamp(value: float, minimum: float, maximum: float) -> float:
+    return min(max(value, minimum), maximum)
 
 
 def _mean(values: list[float]) -> float | None:

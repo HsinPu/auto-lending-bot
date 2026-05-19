@@ -78,6 +78,18 @@ class MarketRegime:
 
 
 @dataclass(frozen=True)
+class MarketSignal:
+    prediction_label: str
+    trend_score: float
+    volatility_score: float
+    depth_score: float
+    rate_momentum: float
+    confidence: float
+    sample_count: int
+    reason: str
+
+
+@dataclass(frozen=True)
 class ActiveLoan:
     currency: str
     amount: float

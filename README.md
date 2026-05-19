@@ -354,7 +354,7 @@ BTC_RATE_OPTIMIZATION_SAMPLE_SIZE=50
 
 `MIN_OFFER_VALUE_USD=150` is enabled by default to match Bitfinex's minimum funding offer value. Offers below the USD-equivalent threshold are skipped before submission.
 
-`LENDING_RISK_LEVEL=balanced` controls the fill-speed/yield tradeoff for rate optimization. Use `fast` to prefer faster fills, `balanced` for the default middle ground, or `yield` to accept more waiting for higher rates.
+`LENDING_RISK_LEVEL=balanced` controls the fill-speed/yield tradeoff for `RATE_OPTIMIZATION_MODE=fill_probability`. Use `fast` to require roughly 70% historical fill probability, `balanced` to require roughly 40%, or `yield` to accept roughly 15% while waiting for higher rates. `RATE_OPTIMIZATION_MIN_PROBABILITY` can raise these minimums but does not lower the risk-level floor.
 
 `MAX_TO_LEND` and `MAX_PERCENT_TO_LEND` restrict lendable balance when the best market rate is at or below `MAX_TO_LEND_RATE`. Keep `MAX_TO_LEND_RATE=0` to apply the limit whenever there is a positive market rate. `MAX_AMOUNT_TO_LEND` is retained as an alias for existing env files.
 

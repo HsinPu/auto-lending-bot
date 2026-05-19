@@ -270,7 +270,7 @@ def _optimized_offer_rates(
     if not candidates:
         return []
 
-    minimum_probability = min(max(strategy.rate_optimization_min_probability, 0), 1)
+    minimum_probability = _risk_minimum_probability(strategy)
     scored_rates = []
     for candidate in candidates:
         probability = sum(1 for sample in samples if sample >= candidate) / len(samples)
@@ -285,6 +285,17 @@ def _optimized_offer_rates(
     while len(selected_rates) < split_count:
         selected_rates.append(selected_rates[-1])
     return selected_rates
+
+
+def _risk_minimum_probability(strategy: StrategyConfig) -> float:
+    risk_level = strategy.lending_risk_level.lower()
+    default_probability = {
+        "fast": 0.70,
+        "balanced": 0.40,
+        "yield": 0.15,
+    }.get(risk_level, 0.40)
+    configured_probability = min(max(strategy.rate_optimization_min_probability, 0), 1)
+    return max(configured_probability, default_probability)
 
 
 def _gap_rate(

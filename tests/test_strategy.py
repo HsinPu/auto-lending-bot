@@ -323,6 +323,46 @@ def test_strategy_optimizes_rate_by_fill_probability() -> None:
     assert [offer.daily_rate for offer in decision.offers] == [0.0003]
 
 
+def test_strategy_fast_risk_level_prefers_higher_fill_probability() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=1,
+            rate_optimization_mode="fill_probability",
+            rate_optimization_min_probability=0.10,
+            lending_risk_level="fast",
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001]
+
+
+def test_strategy_yield_risk_level_accepts_lower_fill_probability() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=1,
+            rate_optimization_mode="fill_probability",
+            rate_optimization_min_probability=0.10,
+            lending_risk_level="yield",
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0003]
+
+
 def test_strategy_falls_back_to_gap_rates_without_probability_samples() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=2.0),
@@ -403,6 +443,7 @@ def _strategy(
     end_date: date | None = None,
     hide_coins: bool = True,
     allow_above_market_offers: bool = True,
+    lending_risk_level: str = "balanced",
 ) -> StrategyConfig:
     return StrategyConfig(
         min_daily_rate=min_daily_rate,
@@ -429,4 +470,5 @@ def _strategy(
         end_date=end_date,
         hide_coins=hide_coins,
         allow_above_market_offers=allow_above_market_offers,
+        lending_risk_level=lending_risk_level,
     )

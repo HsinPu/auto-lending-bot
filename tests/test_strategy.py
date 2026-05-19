@@ -534,6 +534,8 @@ def test_strategy_detects_rising_market_signal() -> None:
 
     assert signal.prediction_label == "strong_rise"
     assert signal.trend_score > 0
+    assert signal.short_momentum > 0
+    assert signal.medium_momentum > 0
     assert signal.confidence > 0
     assert signal.sample_count == 6
 

@@ -84,6 +84,8 @@ class MarketSignal:
     volatility_score: float
     depth_score: float
     rate_momentum: float
+    short_momentum: float
+    medium_momentum: float
     confidence: float
     sample_count: int
     reason: str

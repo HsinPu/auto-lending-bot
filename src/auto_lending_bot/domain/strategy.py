@@ -240,22 +240,33 @@ def detect_market_signal(
             volatility_score=0.0,
             depth_score=_order_book_depth_score(order_book or [], current_daily_rate),
             rate_momentum=0.0,
+            short_momentum=0.0,
+            medium_momentum=0.0,
             confidence=0.0,
             sample_count=len(samples),
             reason="Not enough market-analysis samples to build a signal.",
         )
 
     short_count = max(2, min(5, len(samples) // 3))
+    medium_count = max(short_count + 1, min(10, max(short_count + 1, len(samples) // 2)))
     short_average = _mean(samples[:short_count]) or 0.0
+    medium_average = _mean(samples[:medium_count]) or short_average
     long_average = _mean(samples) or 0.0
-    trend_ratio = _safe_ratio(short_average - long_average, long_average)
+    short_momentum = _safe_ratio(short_average - medium_average, medium_average)
+    medium_momentum = _safe_ratio(medium_average - long_average, long_average)
+    trend_ratio = (short_momentum + medium_momentum) / 2
     volatility_ratio = _safe_ratio(max(samples) - min(samples), long_average)
     trend_score = _clamp(trend_ratio / MARKET_SIGNAL_STRONG_TREND_THRESHOLD, -1.0, 1.0)
     volatility_score = _clamp(volatility_ratio / MARKET_REGIME_VOLATILITY_THRESHOLD, 0.0, 1.0)
     rate_momentum = _safe_ratio(max(current_daily_rate, 0.0) - long_average, long_average)
     depth_score = _order_book_depth_score(order_book or [], current_daily_rate)
     depth_factor = 0.75 + depth_score * 0.25
-    confidence = _clamp(abs(trend_score) * (1.0 - volatility_score * 0.35) * depth_factor, 0.0, 1.0)
+    momentum_alignment = 1.0 if short_momentum * medium_momentum >= 0 else 0.65
+    confidence = _clamp(
+        abs(trend_score) * (1.0 - volatility_score * 0.35) * depth_factor * momentum_alignment,
+        0.0,
+        1.0,
+    )
 
     return MarketSignal(
         prediction_label=_market_signal_prediction_label(trend_score, confidence),
@@ -263,10 +274,13 @@ def detect_market_signal(
         volatility_score=round(volatility_score, 4),
         depth_score=round(depth_score, 4),
         rate_momentum=round(rate_momentum, 4),
+        short_momentum=round(short_momentum, 4),
+        medium_momentum=round(medium_momentum, 4),
         confidence=round(confidence, 4),
         sample_count=len(samples),
         reason=(
-            f"Short average is {trend_ratio:.2%} versus the long average; "
+            f"Short momentum is {short_momentum:.2%}; "
+            f"medium momentum is {medium_momentum:.2%}; "
             f"volatility score is {volatility_score:.2f}; "
             f"depth score is {depth_score:.2f}."
         ),

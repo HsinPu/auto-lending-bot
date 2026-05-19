@@ -296,6 +296,17 @@ export type StrategyRateCandidate = {
   source: string
 }
 
+export type MarketRegime = {
+  label?: string
+  trend?: string
+  volatility?: string
+  current_daily_rate?: number
+  short_average_daily_rate?: number | null
+  long_average_daily_rate?: number | null
+  sample_count?: number
+  reason?: string
+}
+
 export type StrategyDecision = {
   currency: string
   balance: number
@@ -312,6 +323,7 @@ export type StrategyDecision = {
   offer_count: number
   offers: StrategyDecisionOffer[]
   rate_candidates: StrategyRateCandidate[]
+  market_regime: MarketRegime | null
   reason: string
 }
 

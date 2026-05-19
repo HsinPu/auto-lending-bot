@@ -322,6 +322,7 @@ def test_runner_records_duration_and_annualized_rate_calculation(tmp_path) -> No
     assert "利率比較" in calculation["message"]
     assert "最低要求來源" in calculation["message"]
     assert "定價方式" in calculation["message"]
+    assert "市場狀態" in calculation["message"]
     assert "預計掛單" in calculation["message"]
     assert "天期 30 天" in calculation["message"]
 

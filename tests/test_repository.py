@@ -504,6 +504,12 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
                     "selected": True,
                 }
             ],
+            "market_regime": {
+                "label": "rising",
+                "trend": "rising",
+                "volatility": "calm",
+                "sample_count": 6,
+            },
             "reason": "Created lending offers from available balance.",
         }
     )
@@ -522,6 +528,12 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
             "selected": True,
         }
     ]
+    assert rows[0]["market_regime"] == {
+        "label": "rising",
+        "trend": "rising",
+        "volatility": "calm",
+        "sample_count": 6,
+    }
 
 
 def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:

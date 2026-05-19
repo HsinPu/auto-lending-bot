@@ -208,6 +208,7 @@ class BotRunner:
                 suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
                 historical_daily_rates = self._historical_daily_rates(balance.currency)
                 fill_outcomes = self._fill_outcomes(balance.currency)
+                market_regime_rates = self._market_regime_daily_rates(balance.currency)
                 self._finish_step(
                     current_step_id,
                     message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。{_market_order_summary(orders)}",
@@ -262,7 +263,8 @@ class BotRunner:
                     message=(
                         f"{balance.currency}：市場分析建議最低日利率 {suggested_min_daily_rate}；"
                         f"最佳化樣本 {len(historical_daily_rates)} 筆；"
-                        f"實際成交回饋 {len(fill_outcomes)} 筆。"
+                        f"實際成交回饋 {len(fill_outcomes)} 筆；"
+                        f"市場狀態樣本 {len(market_regime_rates)} 筆。"
                     ),
                 )
                 current_step_id = None
@@ -305,6 +307,7 @@ class BotRunner:
                     active_amount=active_amount,
                     historical_daily_rates=historical_daily_rates,
                     fill_outcomes=fill_outcomes,
+                    market_regime_daily_rates=market_regime_rates,
                 )
                 decision, min_value_message = self._filter_min_offer_value(
                     decision,
@@ -966,6 +969,14 @@ class BotRunner:
             profile_context=self._profile_context,
         )
 
+    def _market_regime_daily_rates(self, currency: str) -> list[float]:
+        return self._market_analysis_rates.recent_top_level_rates(
+            currency,
+            self._settings.rate_optimization_sample_size,
+            self._settings.market_analysis_max_age_seconds,
+            profile_context=self._profile_context,
+        )
+
     @staticmethod
     def _active_amount(active_loans: list[ActiveLoan], currency: str) -> float:
         return sum(
@@ -1021,6 +1032,7 @@ class BotRunner:
                 "offer_count": len(decision.offers),
                 "offers": [offer.__dict__ for offer in decision.offers],
                 "rate_candidates": [candidate.__dict__ for candidate in decision.rate_candidates],
+                "market_regime": _market_regime_snapshot(decision),
                 "reason": decision.reason,
             },
             profile_context=self._profile_context,
@@ -1277,6 +1289,8 @@ def _decision_calculation_summary(
         )
     if decision.rate_candidates:
         lines.append(f"候選利率：{_rate_candidate_summary(decision.rate_candidates)}。")
+    if decision.market_regime:
+        lines.append(f"市場狀態：{_market_regime_summary(decision.market_regime)}。")
     lines.append(
         "金額："
         f"可用 {_format_decimal_amount(balance.amount)}，"
@@ -1382,6 +1396,26 @@ def _rate_candidate_summary(candidates) -> str:
         )
         for candidate in candidates[:5]
     )
+
+
+def _market_regime_snapshot(decision) -> dict[str, object]:
+    if not decision.market_regime:
+        return {}
+    return decision.market_regime.__dict__
+
+
+def _market_regime_summary(regime) -> str:
+    label = {
+        "rising": "升溫",
+        "falling": "降溫",
+        "stable": "穩定",
+        "volatile_rising": "高波動升溫",
+        "volatile_falling": "高波動降溫",
+        "volatile_range": "高波動盤整",
+        "insufficient_data": "樣本不足",
+        "unknown": "未知",
+    }.get(regime.label, regime.label)
+    return f"{label}，樣本 {regime.sample_count} 筆"
 
 
 def _offer_strategy_snapshot(strategy) -> dict[str, object]:

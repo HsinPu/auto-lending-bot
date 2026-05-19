@@ -1447,6 +1447,12 @@ def _strategy_decisions(
                 currency,
                 profile_context,
             ),
+            market_regime_daily_rates=_market_regime_daily_rates(
+                settings,
+                market_analysis_rates,
+                currency,
+                profile_context,
+            ),
         )
 
         rows.append(
@@ -1472,6 +1478,7 @@ def _strategy_decisions(
                 "rate_candidates": [
                     candidate.__dict__ for candidate in decision.rate_candidates
                 ],
+                "market_regime": _market_regime_snapshot(decision),
                 "reason": errors.get(currency, errors.get("*", decision.reason)),
             }
         )
@@ -1564,6 +1571,26 @@ def _fill_outcomes(
         settings.rate_optimization_sample_size,
         profile_context=profile_context,
     )
+
+
+def _market_regime_daily_rates(
+    settings: Settings,
+    market_analysis_rates: MarketAnalysisRateRepository,
+    currency: str,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> list[float]:
+    return market_analysis_rates.recent_top_level_rates(
+        currency,
+        settings.rate_optimization_sample_size,
+        settings.market_analysis_max_age_seconds,
+        profile_context=profile_context,
+    )
+
+
+def _market_regime_snapshot(decision) -> dict[str, object]:
+    if not decision.market_regime:
+        return {}
+    return decision.market_regime.__dict__
 
 
 def _strategy_decision_currencies(

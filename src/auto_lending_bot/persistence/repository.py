@@ -685,8 +685,9 @@ class BotRunDecisionRepository:
                     offer_count,
                     offers_json,
                     rate_candidates_json,
+                    market_regime_json,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -706,6 +707,7 @@ class BotRunDecisionRepository:
                     decision["offer_count"],
                     json.dumps(decision["offers"], separators=(",", ":")),
                     json.dumps(decision.get("rate_candidates", []), separators=(",", ":")),
+                    json.dumps(decision.get("market_regime", {}), separators=(",", ":")),
                     decision["reason"],
                 ),
             )
@@ -739,6 +741,7 @@ class BotRunDecisionRepository:
                     offer_count,
                     offers_json,
                     rate_candidates_json,
+                    market_regime_json,
                     reason,
                     created_at
                 FROM bot_run_decisions
@@ -751,7 +754,12 @@ class BotRunDecisionRepository:
             for row in rows:
                 decision = dict(row)
                 decision["offers"] = json.loads(str(decision.pop("offers_json")))
-                decision["rate_candidates"] = json.loads(str(decision.pop("rate_candidates_json", "[]")))
+                decision["rate_candidates"] = json.loads(
+                    str(decision.pop("rate_candidates_json", "[]"))
+                )
+                decision["market_regime"] = json.loads(
+                    str(decision.pop("market_regime_json", "{}"))
+                )
                 decisions.append(decision)
             return decisions
 

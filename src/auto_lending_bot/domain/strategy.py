@@ -8,6 +8,7 @@ from auto_lending_bot.domain.models import (
     LendingDecision,
     LoanOffer,
     LoanOrder,
+    MarketRegime,
     RateCandidate,
 )
 
@@ -50,6 +51,11 @@ class StrategyConfig:
     duration_extreme_days: int = 120
 
 
+MARKET_REGIME_MIN_SAMPLES = 4
+MARKET_REGIME_TREND_THRESHOLD = 0.10
+MARKET_REGIME_VOLATILITY_THRESHOLD = 0.50
+
+
 def build_lending_decision(
     balance: CurrencyBalance,
     order_book: list[LoanOrder],
@@ -60,15 +66,21 @@ def build_lending_decision(
     active_amount: float = 0.0,
     historical_daily_rates: list[float] | None = None,
     fill_outcomes: list[FillOutcome] | None = None,
+    market_regime_daily_rates: list[float] | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     strategy = _strategy_with_suggested_minimum(strategy, suggested_min_daily_rate)
     best_order = _best_order(order_book)
+    market_regime = detect_market_regime(
+        current_daily_rate=best_order.daily_rate if best_order else 0.0,
+        historical_daily_rates=market_regime_daily_rates or historical_daily_rates or [],
+    )
     if best_order is None:
         return LendingDecision(
             currency=balance.currency,
             offers=[],
             reason="No loan orders are available.",
+            market_regime=market_regime,
         )
 
     lendable_amount = _lendable_amount(balance.amount, best_order.daily_rate, strategy)
@@ -78,6 +90,7 @@ def build_lending_decision(
             currency=balance.currency,
             offers=[],
             reason=_below_minimum_reason(active_amount, strategy),
+            market_regime=market_regime,
         )
 
     if (
@@ -89,6 +102,7 @@ def build_lending_decision(
             currency=balance.currency,
             offers=[],
             reason="Best daily rate is below the configured minimum.",
+            market_regime=market_regime,
         )
 
     if strategy.end_date is not None and _days_until_end(strategy) <= 2:
@@ -96,6 +110,7 @@ def build_lending_decision(
             currency=balance.currency,
             offers=[],
             reason="End date is too close to create new lending offers.",
+            market_regime=market_regime,
         )
 
     offer_amounts = _offer_amounts(lendable_amount, strategy)
@@ -104,6 +119,7 @@ def build_lending_decision(
             currency=balance.currency,
             offers=[],
             reason="Available balance is below the minimum loan size.",
+            market_regime=market_regime,
         )
 
     rate_candidates: list[RateCandidate] = []
@@ -138,7 +154,83 @@ def build_lending_decision(
         offers=offers,
         reason=reason,
         rate_candidates=rate_candidates,
+        market_regime=market_regime,
     )
+
+
+def detect_market_regime(
+    current_daily_rate: float,
+    historical_daily_rates: list[float],
+) -> MarketRegime:
+    samples = [rate for rate in historical_daily_rates if rate > 0]
+    current_rate = round(max(current_daily_rate, 0.0), 10)
+    if len(samples) < MARKET_REGIME_MIN_SAMPLES:
+        average = _mean(samples)
+        return MarketRegime(
+            label="insufficient_data" if samples else "unknown",
+            trend="unknown",
+            volatility="unknown",
+            current_daily_rate=current_rate,
+            short_average_daily_rate=average,
+            long_average_daily_rate=average,
+            sample_count=len(samples),
+            reason="Not enough market-analysis samples to detect a regime.",
+        )
+
+    short_count = max(2, min(5, len(samples) // 3))
+    short_average = _mean(samples[:short_count]) or 0.0
+    long_average = _mean(samples) or 0.0
+    trend_ratio = _safe_ratio(short_average - long_average, long_average)
+    volatility_ratio = _safe_ratio(max(samples) - min(samples), long_average)
+    trend = _market_regime_trend(trend_ratio)
+    volatility = (
+        "volatile"
+        if volatility_ratio >= MARKET_REGIME_VOLATILITY_THRESHOLD
+        else "calm"
+    )
+
+    return MarketRegime(
+        label=_market_regime_label(trend, volatility),
+        trend=trend,
+        volatility=volatility,
+        current_daily_rate=current_rate,
+        short_average_daily_rate=round(short_average, 10),
+        long_average_daily_rate=round(long_average, 10),
+        sample_count=len(samples),
+        reason=(
+            f"Short average is {trend_ratio:.2%} versus the long average; "
+            f"sample range is {volatility_ratio:.2%}."
+        ),
+    )
+
+
+def _market_regime_trend(trend_ratio: float) -> str:
+    if trend_ratio >= MARKET_REGIME_TREND_THRESHOLD:
+        return "rising"
+    if trend_ratio <= -MARKET_REGIME_TREND_THRESHOLD:
+        return "falling"
+    return "stable"
+
+
+def _market_regime_label(trend: str, volatility: str) -> str:
+    if volatility == "volatile":
+        return {
+            "rising": "volatile_rising",
+            "falling": "volatile_falling",
+        }.get(trend, "volatile_range")
+    return trend
+
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    if denominator <= 0:
+        return 0.0
+    return numerator / denominator
+
+
+def _mean(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return round(sum(values) / len(values), 10)
 
 
 def _best_order(order_book: list[LoanOrder]) -> LoanOrder | None:

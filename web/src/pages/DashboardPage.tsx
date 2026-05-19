@@ -25,6 +25,7 @@ import type {
   LiveReadiness,
   LiveReadinessSection,
   LoanOffer,
+  MarketRegime,
   MarketAnalysisRate,
   MarketAnalysisStatus,
   MarketRate,
@@ -767,6 +768,7 @@ function RunOnceFlowModal({
                     <HistoryMetric label="放貸中" value={amount(decision.active_amount)} />
                     <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
                     <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                    <HistoryMetric label="市場狀態" value={marketRegimeLabel(decision.market_regime)} />
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
                   <DecisionRateCandidateList candidates={decision.rate_candidates} />
@@ -867,6 +869,7 @@ function RunPreviewModal({ preview, onClose }: { preview: RunPreviewResponse; on
                     <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
                     <HistoryMetric label="最佳市場日利率" value={rate(decision.best_market_rate)} />
                     <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
+                    <HistoryMetric label="市場狀態" value={marketRegimeLabel(decision.market_regime)} />
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
                   <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
@@ -963,6 +966,7 @@ function RunDecisionHistoryModal({ run, timeZone, onClose }: { run: BotRun; time
                     <HistoryMetric label="有效最低日利率" value={rate(decision.effective_min_daily_rate)} />
                     <HistoryMetric label="最佳市場年化" value={rate(decision.best_market_rate * 365)} />
                     <HistoryMetric label="有效最低年化" value={rate(decision.effective_min_daily_rate * 365)} />
+                    <HistoryMetric label="市場狀態" value={marketRegimeLabel(decision.market_regime)} />
                     <HistoryMetric label="原因" value={reasonLabel(decision.reason)} />
                   </dl>
                   <DecisionOfferList offers={decision.offers} offerCount={decision.offer_count} />
@@ -2322,6 +2326,7 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                 <th>可用餘額</th>
                 <th>放貸中</th>
                 <th>最佳市場日利率</th>
+                <th>市場狀態</th>
                 <th>有效最低日利率</th>
                 <th>預計</th>
                 <th>原因</th>
@@ -2338,6 +2343,7 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                       <td>{amount(decision.balance)}</td>
                       <td>{amount(decision.active_amount)}</td>
                       <td>{rate(decision.best_market_rate)}</td>
+                      <td>{marketRegimeLabel(decision.market_regime)}</td>
                       <td>{rate(decision.effective_min_daily_rate)}</td>
                       <td>{decision.offer_count > 0 ? `${decision.offer_count} 筆` : '-'}</td>
                       <td>{reasonLabel(decision.reason)}</td>
@@ -2353,13 +2359,21 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                     </tr>
                     {isExpanded ? (
                       <tr className="strategy-detail-row" key={`${decision.currency}-details`}>
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <div className="strategy-detail-stack">
                             <div className="strategy-detail-grid">
                               <HistoryMetric label="未成交委託" value={amount(decision.open_offer_amount)} />
                               <HistoryMetric label="最高日利率" value={rate(decision.max_daily_rate)} />
                               <HistoryMetric label="最大可放貸" value={amount(decision.max_to_lend)} />
                               <HistoryMetric label="最大放貸中" value={amount(decision.max_active_amount)} />
+                              <HistoryMetric
+                                label="市場短期均值"
+                                value={rate(decision.market_regime?.short_average_daily_rate)}
+                              />
+                              <HistoryMetric
+                                label="市場長期均值"
+                                value={rate(decision.market_regime?.long_average_daily_rate)}
+                              />
                             </div>
                             <div className="strategy-offer-panel">
                               <strong>預計委託</strong>
@@ -2569,6 +2583,17 @@ const riskLevelLabels: Record<string, string> = {
   unknown: '未記錄',
 }
 
+const marketRegimeLabels: Record<string, string> = {
+  rising: '升溫',
+  falling: '降溫',
+  stable: '穩定',
+  volatile_rising: '高波動升溫',
+  volatile_falling: '高波動降溫',
+  volatile_range: '高波動盤整',
+  insufficient_data: '樣本不足',
+  unknown: '未知',
+}
+
 function strategyLabel(key: string): string {
   return strategyLabels[key] ?? key
 }
@@ -2603,6 +2628,16 @@ function statusLabel(value: unknown): string {
 
 function riskLevelLabel(value: string): string {
   return riskLevelLabels[value] ?? value
+}
+
+function marketRegimeLabel(regime?: MarketRegime | null): string {
+  if (!regime?.label) {
+    return '-'
+  }
+
+  const label = marketRegimeLabels[regime.label] ?? regime.label
+  const sampleCount = regime.sample_count ?? 0
+  return sampleCount > 0 ? `${label}（${sampleCount} 筆）` : label
 }
 
 function performanceDelta(value: unknown): string {

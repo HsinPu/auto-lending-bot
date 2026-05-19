@@ -1,7 +1,11 @@
 from datetime import date, timedelta
 
 from auto_lending_bot.domain.models import CurrencyBalance, FillOutcome, LoanOrder
-from auto_lending_bot.domain.strategy import StrategyConfig, build_lending_decision
+from auto_lending_bot.domain.strategy import (
+    StrategyConfig,
+    build_lending_decision,
+    detect_market_regime,
+)
 
 
 def test_strategy_rejects_balance_below_minimum() -> None:
@@ -451,6 +455,31 @@ def test_strategy_falls_back_to_gap_rates_without_probability_samples() -> None:
     )
 
     assert [offer.daily_rate for offer in decision.offers] == [0.00005, 0.00009]
+
+
+def test_strategy_detects_volatile_rising_market_regime() -> None:
+    regime = detect_market_regime(
+        current_daily_rate=0.00022,
+        historical_daily_rates=[0.00022, 0.00021, 0.0002, 0.0001, 0.0001, 0.0001],
+    )
+
+    assert regime.label == "volatile_rising"
+    assert regime.trend == "rising"
+    assert regime.volatility == "volatile"
+    assert regime.sample_count == 6
+    assert regime.short_average_daily_rate == 0.000215
+    assert regime.long_average_daily_rate == 0.000155
+
+
+def test_strategy_detects_stable_market_regime() -> None:
+    regime = detect_market_regime(
+        current_daily_rate=0.0001,
+        historical_daily_rates=[0.0001, 0.000101, 0.000099, 0.0001],
+    )
+
+    assert regime.label == "stable"
+    assert regime.trend == "stable"
+    assert regime.volatility == "calm"
 
 
 def test_strategy_uses_long_duration_above_xday_threshold() -> None:

@@ -66,6 +66,18 @@ class FillOutcome:
 
 
 @dataclass(frozen=True)
+class MarketRegime:
+    label: str
+    trend: str
+    volatility: str
+    current_daily_rate: float
+    short_average_daily_rate: float | None
+    long_average_daily_rate: float | None
+    sample_count: int
+    reason: str
+
+
+@dataclass(frozen=True)
 class ActiveLoan:
     currency: str
     amount: float
@@ -94,6 +106,7 @@ class LendingDecision:
     offers: list[LoanOffer]
     reason: str
     rate_candidates: list[RateCandidate] = field(default_factory=list)
+    market_regime: MarketRegime | None = None
 
     @property
     def should_lend(self) -> bool:

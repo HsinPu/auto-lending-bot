@@ -132,6 +132,11 @@ def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
     settings = _settings(database_url)
     initialize_database(database_url)
     _seed_database(database_url)
+    market_analysis_rates = MarketAnalysisRateRepository(database_url)
+    for daily_rate in (0.0001, 0.0001, 0.0001, 0.0002, 0.00021, 0.00022):
+        market_analysis_rates.add_many(
+            [LoanOrder(currency="BTC", amount=1.0, daily_rate=daily_rate)]
+        )
 
     client = TestClient(create_app(settings))
 
@@ -147,6 +152,8 @@ def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
     assert btc["effective_min_daily_rate"] == 0.00005
     assert btc["offer_count"] == 3
     assert btc["offers"][0]["currency"] == "BTC"
+    assert btc["market_regime"]["label"] == "volatile_rising"
+    assert btc["market_regime"]["sample_count"] == 6
 
 
 def test_api_strategy_decisions_use_live_fill_feedback(tmp_path) -> None:
@@ -255,6 +262,7 @@ def test_api_run_preview_returns_decisions_without_creating_records(tmp_path) ->
     assert body["ok"] is True
     assert body["summary"]["total_offer_count"] > 0
     assert "rate_candidates" in body["decisions"][0]
+    assert "market_regime" in body["decisions"][0]
     assert BotRunRepository(database_url).count() == 0
     assert LoanOfferRepository(database_url).count() == 0
 

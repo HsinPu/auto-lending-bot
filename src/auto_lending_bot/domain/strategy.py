@@ -134,6 +134,7 @@ def build_lending_decision(
             btc_price,
             historical_daily_rates or [],
             fill_outcomes or [],
+            market_regime,
         )
     offers = [
         LoanOffer(
@@ -333,6 +334,7 @@ def _offer_rates(
     btc_price: float | None,
     historical_daily_rates: list[float],
     fill_outcomes: list[FillOutcome],
+    market_regime: MarketRegime,
 ) -> tuple[list[float], list[RateCandidate]]:
     optimized_rates, rate_candidates = _optimized_offer_rates(
         order_book,
@@ -340,6 +342,7 @@ def _offer_rates(
         split_count,
         historical_daily_rates,
         fill_outcomes,
+        market_regime,
     )
     if optimized_rates:
         return optimized_rates, rate_candidates
@@ -372,6 +375,7 @@ def _optimized_offer_rates(
     split_count: int,
     historical_daily_rates: list[float],
     fill_outcomes: list[FillOutcome],
+    market_regime: MarketRegime,
 ) -> tuple[list[float], list[RateCandidate]]:
     if strategy.rate_optimization_mode.lower() != "fill_probability":
         return [], []
@@ -424,7 +428,12 @@ def _optimized_offer_rates(
         return [], rate_candidates
 
     eligible_candidates = [candidate for candidate in rate_candidates if candidate.meets_min_probability]
-    selected_rates, selected_roles = _allocated_candidate_rates(eligible_candidates, strategy, split_count)
+    selected_rates, selected_roles = _allocated_candidate_rates(
+        eligible_candidates,
+        strategy,
+        split_count,
+        market_regime,
+    )
     selected_rate_set = set(selected_rates)
     return selected_rates, [
         replace(
@@ -440,17 +449,18 @@ def _allocated_candidate_rates(
     candidates: list[RateCandidate],
     strategy: StrategyConfig,
     split_count: int,
+    market_regime: MarketRegime | None = None,
 ) -> tuple[list[float], dict[float, set[str]]]:
     if not candidates:
         return [], {}
 
     selected: list[tuple[float, str]] = []
     if split_count == 1:
-        role = _single_allocation_role(strategy)
+        role = _single_allocation_role(strategy, market_regime)
         candidate = _candidate_for_role(candidates, role)
         selected.append((candidate.daily_rate, role))
     else:
-        for role, count in _allocation_role_counts(strategy, split_count):
+        for role, count in _allocation_role_counts(strategy, split_count, market_regime):
             candidate = _candidate_for_role(candidates, role)
             selected.extend((candidate.daily_rate, role) for _ in range(count))
 
@@ -461,7 +471,14 @@ def _allocated_candidate_rates(
     return selected_rates, selected_roles
 
 
-def _single_allocation_role(strategy: StrategyConfig) -> str:
+def _single_allocation_role(
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None = None,
+) -> str:
+    regime_role = _regime_single_allocation_role(market_regime)
+    if regime_role is not None:
+        return regime_role
+
     return {
         "fast": "fast",
         "balanced": "expected",
@@ -469,8 +486,12 @@ def _single_allocation_role(strategy: StrategyConfig) -> str:
     }.get(strategy.lending_risk_level.lower(), "expected")
 
 
-def _allocation_role_counts(strategy: StrategyConfig, split_count: int) -> list[tuple[str, int]]:
-    plan = _allocation_plan(strategy)
+def _allocation_role_counts(
+    strategy: StrategyConfig,
+    split_count: int,
+    market_regime: MarketRegime | None = None,
+) -> list[tuple[str, int]]:
+    plan = _allocation_plan(strategy, market_regime)
     if split_count < len(plan):
         return [(role, 1) for role, _ in plan[:split_count]]
 
@@ -489,12 +510,47 @@ def _allocation_role_counts(strategy: StrategyConfig, split_count: int) -> list[
     return [(role, counts[role]) for role, _ in plan if counts[role] > 0]
 
 
-def _allocation_plan(strategy: StrategyConfig) -> list[tuple[str, float]]:
-    return {
+def _allocation_plan(
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None = None,
+) -> list[tuple[str, float]]:
+    base_plan = {
         "fast": [("fast", 0.90), ("expected", 0.10)],
         "balanced": [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)],
         "yield": [("fast", 0.50), ("expected", 0.30), ("yield", 0.20)],
     }.get(strategy.lending_risk_level.lower(), [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)])
+    regime_plan = _regime_allocation_plan(strategy, market_regime)
+    return regime_plan or base_plan
+
+
+def _regime_single_allocation_role(market_regime: MarketRegime | None) -> str | None:
+    label = _market_regime_label_value(market_regime)
+    if label in {"rising", "volatile_rising"}:
+        return "expected"
+    if label in {"falling", "volatile_falling"}:
+        return "fast"
+    return None
+
+
+def _regime_allocation_plan(
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None,
+) -> list[tuple[str, float]] | None:
+    if strategy.lending_risk_level.lower() != "balanced":
+        return None
+
+    return {
+        "volatile_rising": [("fast", 0.30), ("expected", 0.50), ("yield", 0.20)],
+        "rising": [("fast", 0.45), ("expected", 0.40), ("yield", 0.15)],
+        "falling": [("fast", 0.85), ("expected", 0.15)],
+        "volatile_falling": [("fast", 0.95), ("expected", 0.05)],
+    }.get(_market_regime_label_value(market_regime))
+
+
+def _market_regime_label_value(market_regime: MarketRegime | None) -> str:
+    if market_regime is None:
+        return ""
+    return market_regime.label.lower()
 
 
 def _fill_probability(

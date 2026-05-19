@@ -403,6 +403,48 @@ def test_strategy_allocates_rates_across_fast_expected_and_yield_tiers() -> None
     assert [candidate.selection_role for candidate in decision.rate_candidates] == ["fast", "", "expected+yield"]
 
 
+def test_strategy_uses_market_regime_to_reduce_fast_allocation_when_rates_rise() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=4.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=4,
+            rate_optimization_mode="fill_probability",
+            lending_risk_level="balanced",
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+        market_regime_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001, 0.0001],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001, 0.0003, 0.0003, 0.0003]
+    assert [candidate.selection_role for candidate in decision.rate_candidates] == ["fast", "", "expected+yield"]
+
+
+def test_strategy_uses_market_regime_to_prefer_fast_allocation_when_rates_fall() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=4.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0002),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=4,
+            rate_optimization_mode="fill_probability",
+            lending_risk_level="balanced",
+        ),
+        historical_daily_rates=[0.0003, 0.0003, 0.0003, 0.0001, 0.0001],
+        market_regime_daily_rates=[0.0001, 0.0001, 0.0001, 0.0003, 0.0003, 0.0003],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001, 0.0001, 0.0001, 0.0003]
+    assert [candidate.selection_role for candidate in decision.rate_candidates] == ["fast", "", "expected"]
+
+
 def test_strategy_fast_risk_level_prefers_higher_fill_probability() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

@@ -510,6 +510,9 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
                 "volatility": "calm",
                 "sample_count": 6,
             },
+            "allocation_mode": "market_regime_rising",
+            "allocation_reason": "Rising market uses more expected-rate offers.",
+            "stale_reprice_minutes": 30,
             "reason": "Created lending offers from available balance.",
         }
     )
@@ -534,6 +537,9 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
         "volatility": "calm",
         "sample_count": 6,
     }
+    assert rows[0]["allocation_mode"] == "market_regime_rising"
+    assert rows[0]["allocation_reason"] == "Rising market uses more expected-rate offers."
+    assert rows[0]["stale_reprice_minutes"] == 30
 
 
 def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:

@@ -125,6 +125,11 @@ def build_lending_decision(
     rate_candidates: list[RateCandidate] = []
     if best_order.daily_rate < strategy.min_daily_rate:
         offer_rates = [_clamp_rate(strategy.min_daily_rate, strategy) for _ in offer_amounts]
+        allocation_mode = "minimum_rate"
+        allocation_reason = (
+            "Market best rate is below the effective minimum, "
+            "so all offers use the minimum rate."
+        )
     else:
         offer_rates, rate_candidates = _offer_rates(
             order_book,
@@ -135,6 +140,11 @@ def build_lending_decision(
             historical_daily_rates or [],
             fill_outcomes or [],
             market_regime,
+        )
+        allocation_mode, allocation_reason = _allocation_explanation(
+            strategy,
+            market_regime,
+            len(offer_amounts),
         )
     offers = [
         LoanOffer(
@@ -156,6 +166,8 @@ def build_lending_decision(
         reason=reason,
         rate_candidates=rate_candidates,
         market_regime=market_regime,
+        allocation_mode=allocation_mode,
+        allocation_reason=allocation_reason,
     )
 
 
@@ -551,6 +563,34 @@ def _market_regime_label_value(market_regime: MarketRegime | None) -> str:
     if market_regime is None:
         return ""
     return market_regime.label.lower()
+
+
+def _allocation_explanation(
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None,
+    split_count: int,
+) -> tuple[str, str]:
+    label = _market_regime_label_value(market_regime)
+    risk_level = strategy.lending_risk_level.lower()
+    if split_count == 1 and _regime_single_allocation_role(market_regime) is not None:
+        role = _regime_single_allocation_role(market_regime)
+        return (
+            f"market_regime_{label}",
+            f"Market regime {label} adjusted the single offer role to {role}.",
+        )
+    if _regime_allocation_plan(strategy, market_regime) is not None:
+        plan = ", ".join(
+            f"{role} {weight:.0%}"
+            for role, weight in _regime_allocation_plan(strategy, market_regime) or []
+        )
+        return (
+            f"market_regime_{label}",
+            f"Balanced risk uses market-regime allocation for {label}: {plan}.",
+        )
+    return (
+        f"risk_{risk_level}",
+        f"Using the base {risk_level} risk allocation because market regime {label or 'unknown'} does not override it.",
+    )
 
 
 def _fill_probability(

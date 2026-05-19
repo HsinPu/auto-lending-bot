@@ -1479,6 +1479,9 @@ def _strategy_decisions(
                     candidate.__dict__ for candidate in decision.rate_candidates
                 ],
                 "market_regime": _market_regime_snapshot(decision),
+                "allocation_mode": decision.allocation_mode,
+                "allocation_reason": decision.allocation_reason,
+                "stale_reprice_minutes": _stale_reprice_minutes(settings, decision),
                 "reason": errors.get(currency, errors.get("*", decision.reason)),
             }
         )
@@ -1591,6 +1594,25 @@ def _market_regime_snapshot(decision) -> dict[str, object]:
     if not decision.market_regime:
         return {}
     return decision.market_regime.__dict__
+
+
+def _stale_reprice_minutes(settings: Settings, decision) -> int:
+    if decision.market_regime:
+        regime_minutes = {
+            "volatile_rising": 15,
+            "rising": 30,
+            "falling": 90,
+            "volatile_falling": 120,
+        }.get(decision.market_regime.label.lower())
+        if regime_minutes is not None:
+            return regime_minutes
+
+    risk_level = settings.lending_risk_level.lower()
+    if risk_level == "fast":
+        return max(settings.stale_offer_reprice_minutes_fast, 1)
+    if risk_level == "yield":
+        return max(settings.stale_offer_reprice_minutes_yield, 1)
+    return max(settings.stale_offer_reprice_minutes_balanced, 1)
 
 
 def _strategy_decision_currencies(

@@ -686,8 +686,11 @@ class BotRunDecisionRepository:
                     offers_json,
                     rate_candidates_json,
                     market_regime_json,
+                    allocation_mode,
+                    allocation_reason,
+                    stale_reprice_minutes,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -708,6 +711,9 @@ class BotRunDecisionRepository:
                     json.dumps(decision["offers"], separators=(",", ":")),
                     json.dumps(decision.get("rate_candidates", []), separators=(",", ":")),
                     json.dumps(decision.get("market_regime", {}), separators=(",", ":")),
+                    decision.get("allocation_mode", ""),
+                    decision.get("allocation_reason", ""),
+                    decision.get("stale_reprice_minutes"),
                     decision["reason"],
                 ),
             )
@@ -742,6 +748,9 @@ class BotRunDecisionRepository:
                     offers_json,
                     rate_candidates_json,
                     market_regime_json,
+                    allocation_mode,
+                    allocation_reason,
+                    stale_reprice_minutes,
                     reason,
                     created_at
                 FROM bot_run_decisions

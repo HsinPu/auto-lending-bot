@@ -2374,6 +2374,15 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                                 label="市場長期均值"
                                 value={rate(decision.market_regime?.long_average_daily_rate)}
                               />
+                              <HistoryMetric label="利率配置" value={allocationModeLabel(decision.allocation_mode)} />
+                              <HistoryMetric
+                                label="舊委託重掛門檻"
+                                value={minutesLabel(decision.stale_reprice_minutes)}
+                              />
+                            </div>
+                            <div className="strategy-offer-panel">
+                              <strong>市場狀態調整</strong>
+                              <p>{allocationReasonLabel(decision.allocation_reason, decision.allocation_mode)}</p>
                             </div>
                             <div className="strategy-offer-panel">
                               <strong>預計委託</strong>
@@ -2638,6 +2647,44 @@ function marketRegimeLabel(regime?: MarketRegime | null): string {
   const label = marketRegimeLabels[regime.label] ?? regime.label
   const sampleCount = regime.sample_count ?? 0
   return sampleCount > 0 ? `${label}（${sampleCount} 筆）` : label
+}
+
+function allocationModeLabel(mode?: string): string {
+  if (!mode) {
+    return '-'
+  }
+  if (mode === 'none') {
+    return '未配置'
+  }
+  if (mode === 'minimum_rate') {
+    return '最低利率保護'
+  }
+  if (mode.startsWith('market_regime_')) {
+    const regime = mode.replace('market_regime_', '')
+    return `市場狀態調整：${marketRegimeLabels[regime] ?? regime}`
+  }
+  if (mode.startsWith('risk_')) {
+    return `風險層級配置：${mode.replace('risk_', '')}`
+  }
+  return mode
+}
+
+function allocationReasonLabel(reason?: string, mode?: string): string {
+  if (mode === 'minimum_rate') {
+    return '市場最佳利率低於有效最低利率，本輪全部使用最低利率保護。'
+  }
+  if (mode?.startsWith('market_regime_')) {
+    const regime = mode.replace('market_regime_', '')
+    return `目前市場狀態為${marketRegimeLabels[regime] ?? regime}，系統已調整快成交、期望值與高收益利率的配置比例。`
+  }
+  if (mode?.startsWith('risk_')) {
+    return `目前市場狀態沒有覆蓋配置，沿用 ${mode.replace('risk_', '')} 風險層級的基本配置。`
+  }
+  return reason || '目前沒有額外的市場狀態調整。'
+}
+
+function minutesLabel(minutes?: number | null): string {
+  return minutes == null ? '-' : `${minutes} 分鐘`
 }
 
 function performanceDelta(value: unknown): string {

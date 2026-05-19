@@ -107,6 +107,8 @@ class LendingDecision:
     reason: str
     rate_candidates: list[RateCandidate] = field(default_factory=list)
     market_regime: MarketRegime | None = None
+    allocation_mode: str = "none"
+    allocation_reason: str = "No offers were allocated."
 
     @property
     def should_lend(self) -> bool:

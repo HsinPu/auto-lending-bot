@@ -324,6 +324,9 @@ export type StrategyDecision = {
   offers: StrategyDecisionOffer[]
   rate_candidates: StrategyRateCandidate[]
   market_regime: MarketRegime | null
+  allocation_mode?: string
+  allocation_reason?: string
+  stale_reprice_minutes?: number | null
   reason: string
 }
 

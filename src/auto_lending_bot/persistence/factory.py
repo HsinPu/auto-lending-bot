@@ -4,6 +4,7 @@ from auto_lending_bot.config import Settings
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
+    BotProfileRepository,
     BotRunDecisionRepository,
     BotJobRepository,
     BotRunRepository,
@@ -25,6 +26,7 @@ from auto_lending_bot.profiles import (
 
 @dataclass(frozen=True)
 class RepositoryBundle:
+    bot_profiles: BotProfileRepository
     bot_jobs: BotJobRepository
     bot_runs: BotRunRepository
     loan_offers: LoanOfferRepository
@@ -48,6 +50,7 @@ def create_repository_bundle(
     ensure_default_profile(profile_context)
     database_url = settings.database_url
     return RepositoryBundle(
+        bot_profiles=BotProfileRepository(database_url),
         bot_jobs=BotJobRepository(database_url),
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),

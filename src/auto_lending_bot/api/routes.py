@@ -75,6 +75,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
         settings,
         settings_encryption_key=settings_encryption_key(),
     )
+    bot_profiles = repositories.bot_profiles
     bot_jobs = repositories.bot_jobs
     bot_runs = repositories.bot_runs
     loan_offers = repositories.loan_offers
@@ -136,6 +137,43 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     @router.get("/settings/schema")
     def settings_schema() -> list[dict[str, object]]:
         return setting_schema()
+
+    @router.get("/internal/profiles")
+    def internal_profiles(
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> list[dict[str, object]]:
+        _require_backend_admin(authorization, request)
+        return bot_profiles.list()
+
+    @router.post("/internal/profiles")
+    def create_internal_profile(
+        payload: dict[str, object],
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_backend_admin(authorization, request)
+        profile_id = str(payload.get("id", "")).strip()
+        name = str(payload.get("name", "")).strip()
+        if not _is_valid_profile_id(profile_id):
+            raise HTTPException(status_code=400, detail="Profile id must use letters, numbers, underscores, or hyphens.")
+        if not name:
+            raise HTTPException(status_code=400, detail="Profile name is required.")
+        if bot_profiles.get(profile_id) is not None:
+            raise HTTPException(status_code=409, detail="Profile already exists.")
+        return bot_profiles.create(profile_id, name)
+
+    @router.get("/internal/profiles/{profile_id}")
+    def internal_profile(
+        profile_id: str,
+        request: Request,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        _require_backend_admin(authorization, request)
+        profile = bot_profiles.get(profile_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="Profile was not found.")
+        return profile
 
     @router.get("/settings/effective")
     def settings_effective() -> dict[str, object]:
@@ -1009,6 +1047,12 @@ def _is_local_request(request: Request) -> bool:
 
     host = request.headers.get("host", "").split(":", 1)[0].lower()
     return client_ip.is_private and host in {"127.0.0.1", "localhost", "::1"}
+
+
+def _is_valid_profile_id(profile_id: str) -> bool:
+    if not profile_id or len(profile_id) > 64:
+        return False
+    return all(character.isalnum() or character in {"_", "-"} for character in profile_id)
 
 
 def _validate_transfer_action_settings(settings: Settings) -> None:

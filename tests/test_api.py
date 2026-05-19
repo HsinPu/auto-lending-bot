@@ -101,6 +101,27 @@ def test_api_read_only_resource_endpoints(tmp_path) -> None:
         assert isinstance(response.json(), list)
 
 
+def test_api_internal_profiles_create_and_read_profile(tmp_path, monkeypatch) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("ADMIN_AUTH_TOKEN", "admin-token")
+    settings = _settings(database_url)
+    initialize_database(database_url)
+    client = TestClient(create_app(settings))
+
+    create_response = client.post(
+        "/api/internal/profiles",
+        json={"id": "site-user-1", "name": "Site User 1"},
+        headers=_admin_headers(),
+    )
+    list_response = client.get("/api/internal/profiles", headers=_admin_headers())
+    get_response = client.get("/api/internal/profiles/site-user-1", headers=_admin_headers())
+
+    assert create_response.status_code == 200
+    assert create_response.json()["id"] == "site-user-1"
+    assert {profile["id"] for profile in list_response.json()} == {"default", "site-user-1"}
+    assert get_response.json()["name"] == "Site User 1"
+
+
 def test_api_currency_details_returns_aggregated_currency_snapshot(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)

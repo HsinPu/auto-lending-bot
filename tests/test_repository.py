@@ -12,6 +12,7 @@ from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
     AppSettingRepository,
     BotJobRepository,
+    BotProfileRepository,
     BotRunDecisionRepository,
     BotRunRepository,
     BotRunStepRepository,
@@ -42,6 +43,19 @@ def test_initialize_database_seeds_default_profile_tables(tmp_path) -> None:
 
     assert dict(profile) == {"id": "default", "name": "Default"}
     assert {column[1] for column in setting_columns} >= {"profile_id", "key", "value"}
+
+
+def test_bot_profile_repository_creates_and_lists_profiles(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    profiles = BotProfileRepository(database_url)
+
+    created = profiles.create("site-user-1", "Site User 1")
+
+    assert created["id"] == "site-user-1"
+    assert created["name"] == "Site User 1"
+    assert profiles.get("site-user-1") == created
+    assert {profile["id"] for profile in profiles.list()} == {"default", "site-user-1"}
 
 
 def test_initialize_database_adds_profile_scope_to_runtime_tables(tmp_path) -> None:

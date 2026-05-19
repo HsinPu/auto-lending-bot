@@ -303,6 +303,49 @@ class ProfileAppSettingRepository:
         return row
 
 
+class BotProfileRepository:
+    def __init__(self, database_url: str) -> None:
+        self._database_url = database_url
+
+    def list(self) -> list[dict[str, object]]:
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT id, name, created_at, updated_at
+                FROM bot_profiles
+                ORDER BY id
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get(self, profile_id: str) -> dict[str, object] | None:
+        with connect(self._database_url) as connection:
+            row = connection.execute(
+                """
+                SELECT id, name, created_at, updated_at
+                FROM bot_profiles
+                WHERE id = ?
+                """,
+                (profile_id,),
+            ).fetchone()
+            return dict(row) if row is not None else None
+
+    def create(self, profile_id: str, name: str) -> dict[str, object]:
+        with connect(self._database_url) as connection:
+            connection.execute(
+                """
+                INSERT INTO bot_profiles (id, name)
+                VALUES (?, ?)
+                """,
+                (profile_id, name),
+            )
+        profile = self.get(profile_id)
+        if profile is None:
+            msg = f"Profile {profile_id} was not created."
+            raise RuntimeError(msg)
+        return profile
+
+
 class LoanApplicationRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url

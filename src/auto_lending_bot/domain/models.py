@@ -109,6 +109,8 @@ class LendingDecision:
     market_regime: MarketRegime | None = None
     allocation_mode: str = "none"
     allocation_reason: str = "No offers were allocated."
+    duration_mode: str = "none"
+    duration_reason: str = "No offer duration was selected."
 
     @property
     def should_lend(self) -> bool:

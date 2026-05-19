@@ -513,6 +513,8 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
             "allocation_mode": "market_regime_rising",
             "allocation_reason": "Rising market uses more expected-rate offers.",
             "stale_reprice_minutes": 30,
+            "duration_mode": "market_regime_rising",
+            "duration_reason": "Rising market caps duration at 14 days.",
             "reason": "Created lending offers from available balance.",
         }
     )
@@ -540,6 +542,8 @@ def test_bot_run_decision_repository_stores_run_snapshot(tmp_path) -> None:
     assert rows[0]["allocation_mode"] == "market_regime_rising"
     assert rows[0]["allocation_reason"] == "Rising market uses more expected-rate offers."
     assert rows[0]["stale_reprice_minutes"] == 30
+    assert rows[0]["duration_mode"] == "market_regime_rising"
+    assert rows[0]["duration_reason"] == "Rising market caps duration at 14 days."
 
 
 def test_bot_run_step_repository_stores_progress_steps(tmp_path) -> None:

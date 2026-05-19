@@ -1055,6 +1055,8 @@ class BotRunner:
                 "allocation_mode": decision.allocation_mode,
                 "allocation_reason": decision.allocation_reason,
                 "stale_reprice_minutes": self._stale_offer_reprice_minutes(balance.currency),
+                "duration_mode": decision.duration_mode,
+                "duration_reason": decision.duration_reason,
                 "reason": decision.reason,
             },
             profile_context=self._profile_context,

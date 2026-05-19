@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS bot_run_decisions (
     allocation_mode TEXT NOT NULL DEFAULT '',
     allocation_reason TEXT NOT NULL DEFAULT '',
     stale_reprice_minutes INTEGER,
+    duration_mode TEXT NOT NULL DEFAULT '',
+    duration_reason TEXT NOT NULL DEFAULT '',
     reason TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bot_run_id) REFERENCES bot_runs (id)
@@ -278,6 +280,18 @@ def initialize_database(database_url: str) -> None:
             "TEXT NOT NULL DEFAULT ''",
         )
         _ensure_column(connection, "bot_run_decisions", "stale_reprice_minutes", "INTEGER")
+        _ensure_column(
+            connection,
+            "bot_run_decisions",
+            "duration_mode",
+            "TEXT NOT NULL DEFAULT ''",
+        )
+        _ensure_column(
+            connection,
+            "bot_run_decisions",
+            "duration_reason",
+            "TEXT NOT NULL DEFAULT ''",
+        )
         _ensure_profile_column(connection, "bot_run_steps")
         _ensure_profile_column(connection, "market_rates")
         _ensure_profile_column(connection, "active_loans")

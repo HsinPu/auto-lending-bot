@@ -689,8 +689,10 @@ class BotRunDecisionRepository:
                     allocation_mode,
                     allocation_reason,
                     stale_reprice_minutes,
+                    duration_mode,
+                    duration_reason,
                     reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     profile_context.id,
@@ -714,6 +716,8 @@ class BotRunDecisionRepository:
                     decision.get("allocation_mode", ""),
                     decision.get("allocation_reason", ""),
                     decision.get("stale_reprice_minutes"),
+                    decision.get("duration_mode", ""),
+                    decision.get("duration_reason", ""),
                     decision["reason"],
                 ),
             )
@@ -751,6 +755,8 @@ class BotRunDecisionRepository:
                     allocation_mode,
                     allocation_reason,
                     stale_reprice_minutes,
+                    duration_mode,
+                    duration_reason,
                     reason,
                     created_at
                 FROM bot_run_decisions

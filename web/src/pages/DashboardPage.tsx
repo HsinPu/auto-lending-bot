@@ -2379,10 +2379,15 @@ function StrategyDecisionPanel({ decisions }: { decisions: StrategyDecision[] })
                                 label="舊委託重掛門檻"
                                 value={minutesLabel(decision.stale_reprice_minutes)}
                               />
+                              <HistoryMetric label="天期策略" value={durationModeLabel(decision.duration_mode)} />
                             </div>
                             <div className="strategy-offer-panel">
                               <strong>市場狀態調整</strong>
                               <p>{allocationReasonLabel(decision.allocation_reason, decision.allocation_mode)}</p>
+                            </div>
+                            <div className="strategy-offer-panel">
+                              <strong>天期調整</strong>
+                              <p>{durationReasonLabel(decision.duration_reason, decision.duration_mode)}</p>
                             </div>
                             <div className="strategy-offer-panel">
                               <strong>預計委託</strong>
@@ -2685,6 +2690,48 @@ function allocationReasonLabel(reason?: string, mode?: string): string {
 
 function minutesLabel(minutes?: number | null): string {
   return minutes == null ? '-' : `${minutes} 分鐘`
+}
+
+function durationModeLabel(mode?: string): string {
+  if (!mode) {
+    return '-'
+  }
+  if (mode === 'none') {
+    return '未選擇'
+  }
+  if (mode === 'legacy_xday') {
+    return '舊版 xday 規則'
+  }
+  if (mode === 'base_dynamic') {
+    return '基本動態天期'
+  }
+  if (mode.startsWith('market_regime_')) {
+    const regime = mode.replace('market_regime_', '')
+    return `市場狀態天期：${marketRegimeLabels[regime] ?? regime}`
+  }
+  return mode
+}
+
+function durationReasonLabel(reason?: string, mode?: string): string {
+  if (mode === 'market_regime_volatile_rising') {
+    return '市場劇烈上升，天期最多 7 天，保留資金等待更高利率。'
+  }
+  if (mode === 'market_regime_rising') {
+    return '市場上升，天期最多 14 天，避免太早長期鎖住資金。'
+  }
+  if (mode === 'market_regime_falling') {
+    return '市場下跌且利率達中等以上，天期至少 14 天，嘗試鎖住目前利率。'
+  }
+  if (mode === 'market_regime_volatile_falling') {
+    return '市場劇烈下跌且利率仍高，天期至少 60 天，優先鎖住較佳利率。'
+  }
+  if (mode === 'base_dynamic') {
+    return '市場狀態沒有覆蓋天期，沿用基本利率階梯。'
+  }
+  if (mode === 'legacy_xday') {
+    return '動態天期未啟用，沿用舊版 xday 門檻規則。'
+  }
+  return reason || '目前沒有額外的天期調整。'
 }
 
 function performanceDelta(value: unknown): string {

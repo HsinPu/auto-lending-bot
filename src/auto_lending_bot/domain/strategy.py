@@ -159,6 +159,7 @@ def build_lending_decision(
         )
         for amount, rate in zip(offer_amounts, offer_rates, strict=True)
     ]
+    duration_mode, duration_reason = _duration_explanation(strategy, market_regime, offers)
 
     reason = "Created lending offers from available balance."
     if best_order.daily_rate < strategy.min_daily_rate:
@@ -172,6 +173,8 @@ def build_lending_decision(
         market_regime=market_regime,
         allocation_mode=allocation_mode,
         allocation_reason=allocation_reason,
+        duration_mode=duration_mode,
+        duration_reason=duration_reason,
     )
 
 
@@ -770,6 +773,41 @@ def _regime_adjusted_duration_days(
     if label == "volatile_falling" and rate >= strategy.duration_high_daily_rate:
         return max(base_days, VOLATILE_FALLING_HIGH_DURATION_FLOOR_DAYS)
     return base_days
+
+
+def _duration_explanation(
+    strategy: StrategyConfig,
+    market_regime: MarketRegime | None,
+    offers: list[LoanOffer],
+) -> tuple[str, str]:
+    if not offers:
+        return "none", "No offer duration was selected."
+    if not strategy.dynamic_duration_enabled:
+        return "legacy_xday", "Dynamic duration is disabled, so xday threshold rules selected the term."
+
+    label = _market_regime_label_value(market_regime)
+    highest_rate = max(offer.daily_rate for offer in offers)
+    if label == "volatile_rising":
+        return (
+            "market_regime_volatile_rising",
+            "Volatile rising market caps duration at 7 days to keep funds available for higher rates.",
+        )
+    if label == "rising":
+        return (
+            "market_regime_rising",
+            "Rising market caps duration at 14 days to keep funds available for repricing.",
+        )
+    if label == "falling" and highest_rate >= strategy.duration_medium_daily_rate:
+        return (
+            "market_regime_falling",
+            "Falling market extends medium-or-better rates to at least 14 days.",
+        )
+    if label == "volatile_falling" and highest_rate >= strategy.duration_high_daily_rate:
+        return (
+            "market_regime_volatile_falling",
+            "Volatile falling market extends high rates to at least 60 days.",
+        )
+    return "base_dynamic", "Base dynamic duration tiers selected the term."
 
 
 def _days_until_end(strategy: StrategyConfig) -> int:

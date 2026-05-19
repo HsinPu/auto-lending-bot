@@ -1482,6 +1482,8 @@ def _strategy_decisions(
                 "allocation_mode": decision.allocation_mode,
                 "allocation_reason": decision.allocation_reason,
                 "stale_reprice_minutes": _stale_reprice_minutes(settings, decision),
+                "duration_mode": decision.duration_mode,
+                "duration_reason": decision.duration_reason,
                 "reason": errors.get(currency, errors.get("*", decision.reason)),
             }
         )

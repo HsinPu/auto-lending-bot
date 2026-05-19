@@ -327,6 +327,8 @@ export type StrategyDecision = {
   allocation_mode?: string
   allocation_reason?: string
   stale_reprice_minutes?: number | null
+  duration_mode?: string
+  duration_reason?: string
   reason: string
 }
 

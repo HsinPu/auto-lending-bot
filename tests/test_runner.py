@@ -47,7 +47,7 @@ def test_runner_records_dry_run_offers_without_creating_exchange_offers(tmp_path
 
     runner.run_once()
 
-    assert loan_offers.count() == 9
+    assert loan_offers.count() == 6
     assert active_loans.count() == 1
     assert exchange.get_open_loan_offers() == []
 
@@ -66,7 +66,7 @@ def test_runner_skips_offers_below_default_usd_value(tmp_path) -> None:
     loan_offers = LoanOfferRepository(database_url)
     run_steps = BotRunStepRepository(database_url)
     runner = BotRunner(
-        settings=_settings(database_url),
+        settings=_settings(database_url, allow_above_market_offers=True),
         exchange=LowValueExchange(),
         bot_runs=bot_runs,
         loan_offers=loan_offers,
@@ -290,7 +290,12 @@ def test_runner_records_duration_and_annualized_rate_calculation(tmp_path) -> No
     run_steps = BotRunStepRepository(database_url)
 
     runner = BotRunner(
-        settings=_settings(database_url, xday_threshold=0.00007, xdays=30),
+            settings=_settings(
+                database_url,
+                xday_threshold=0.00007,
+                xdays=30,
+                dynamic_duration_enabled=False,
+            ),
         exchange=MockExchangeClient(),
         bot_runs=bot_runs,
         loan_offers=LoanOfferRepository(database_url),
@@ -691,10 +696,11 @@ def test_runner_notifies_xday_offers_when_enabled(tmp_path) -> None:
     runner = BotRunner(
         settings=_settings(
             database_url,
-            notify_xday_threshold=True,
-            xday_threshold=0.00007,
-            xdays=30,
-        ),
+                notify_xday_threshold=True,
+                xday_threshold=0.00007,
+                xdays=30,
+                dynamic_duration_enabled=False,
+            ),
         exchange=MockExchangeClient(),
         bot_runs=BotRunRepository(database_url),
         loan_offers=LoanOfferRepository(database_url),
@@ -820,6 +826,8 @@ def _settings(
     max_loops: int = 1,
     bot_sleep_seconds: int = 60,
     bot_inactive_sleep_seconds: int = 300,
+    allow_above_market_offers: bool = False,
+    dynamic_duration_enabled: bool = True,
 ) -> Settings:
     return Settings(
         allow_live_trading=False,
@@ -890,6 +898,8 @@ def _settings(
         spread_lend=3,
         database_url=database_url,
         log_level="INFO",
+        allow_above_market_offers=allow_above_market_offers,
+        dynamic_duration_enabled=dynamic_duration_enabled,
     )
 
 

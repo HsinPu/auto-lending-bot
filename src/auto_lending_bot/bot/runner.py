@@ -6,7 +6,14 @@ from decimal import Decimal
 
 from auto_lending_bot.bot.run_steps import run_step_label
 from auto_lending_bot.config import Settings, strategy_config_for
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LendingDecision, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import (
+    ActiveLoan,
+    CurrencyBalance,
+    FillOutcome,
+    LendingDecision,
+    LoanOffer,
+    LoanOrder,
+)
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.errors import ExchangeAuthenticationError, ExchangePermissionError
 from auto_lending_bot.integrations.exchange import ExchangeClient
@@ -200,6 +207,7 @@ class BotRunner:
                 orders = self._exchange.get_loan_orders(balance.currency)
                 suggested_min_daily_rate = self._suggested_min_daily_rate(balance.currency)
                 historical_daily_rates = self._historical_daily_rates(balance.currency)
+                fill_outcomes = self._fill_outcomes(balance.currency)
                 self._finish_step(
                     current_step_id,
                     message=f"{balance.currency}：已讀取 {len(orders)} 筆市場利率。{_market_order_summary(orders)}",
@@ -253,7 +261,8 @@ class BotRunner:
                     current_step_id,
                     message=(
                         f"{balance.currency}：市場分析建議最低日利率 {suggested_min_daily_rate}；"
-                        f"最佳化樣本 {len(historical_daily_rates)} 筆。"
+                        f"最佳化樣本 {len(historical_daily_rates)} 筆；"
+                        f"實際成交回饋 {len(fill_outcomes)} 筆。"
                     ),
                 )
                 current_step_id = None
@@ -295,6 +304,7 @@ class BotRunner:
                     suggested_min_daily_rate=suggested_min_daily_rate,
                     active_amount=active_amount,
                     historical_daily_rates=historical_daily_rates,
+                    fill_outcomes=fill_outcomes,
                 )
                 decision, min_value_message = self._filter_min_offer_value(
                     decision,
@@ -943,6 +953,16 @@ class BotRunner:
             currency,
             self._settings.rate_optimization_sample_size,
             self._settings.market_analysis_max_age_seconds,
+            profile_context=self._profile_context,
+        )
+
+    def _fill_outcomes(self, currency: str) -> list[FillOutcome]:
+        if self._settings.rate_optimization_mode != "fill_probability":
+            return []
+
+        return self._loan_offers.recent_fill_outcomes(
+            currency,
+            self._settings.rate_optimization_sample_size,
             profile_context=self._profile_context,
         )
 

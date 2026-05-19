@@ -1,6 +1,12 @@
 import pytest
 
-from auto_lending_bot.domain.models import ActiveLoan, LendingHistoryEntry, LoanOffer, LoanOrder
+from auto_lending_bot.domain.models import (
+    ActiveLoan,
+    FillOutcome,
+    LendingHistoryEntry,
+    LoanOffer,
+    LoanOrder,
+)
 from auto_lending_bot.persistence.database import connect, initialize_database
 from auto_lending_bot.persistence.repository import (
     ActiveLoanRepository,
@@ -265,6 +271,63 @@ def test_loan_offer_repository_marks_canceled_offer(tmp_path) -> None:
     assert rows[0]["final_status"] == "canceled"
     assert rows[0]["canceled_at"] is not None
     assert rows[0]["reprice_count"] == 1
+
+
+def test_loan_offer_repository_returns_recent_fill_outcomes(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    repository = LoanOfferRepository(database_url)
+
+    filled_offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.0002, duration_days=2),
+        status="intent",
+        dry_run=False,
+    )
+    repository.update_status(
+        filled_offer_id,
+        status="created",
+        external_offer_id="filled-1",
+    )
+    repository.mark_filled_by_active_loan(
+        ActiveLoan(
+            currency="BTC",
+            amount=0.1,
+            daily_rate=0.0002,
+            duration_days=2,
+            external_loan_id="loan-1",
+        )
+    )
+    canceled_offer_id = repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.0003, duration_days=2),
+        status="intent",
+        dry_run=False,
+    )
+    repository.update_status(
+        canceled_offer_id,
+        status="created",
+        external_offer_id="canceled-1",
+    )
+    repository.mark_canceled_by_external_offer_id("canceled-1")
+    repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.0004, duration_days=2),
+        status="dry_run",
+        dry_run=True,
+    )
+    repository.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="ETH", amount=0.1, daily_rate=0.0005, duration_days=2),
+        status="created",
+        dry_run=False,
+    )
+
+    assert repository.recent_fill_outcomes("BTC") == [
+        FillOutcome(daily_rate=0.0003, filled=False),
+        FillOutcome(daily_rate=0.0002, filled=True),
+    ]
 
 
 def test_loan_offer_repository_summarizes_live_offer_performance(tmp_path) -> None:

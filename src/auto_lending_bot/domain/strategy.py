@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from dataclasses import replace
 from datetime import date
 
-from auto_lending_bot.domain.models import CurrencyBalance, LendingDecision, LoanOffer, LoanOrder, RateCandidate
+from auto_lending_bot.domain.models import (
+    CurrencyBalance,
+    FillOutcome,
+    LendingDecision,
+    LoanOffer,
+    LoanOrder,
+    RateCandidate,
+)
 
 
 @dataclass(frozen=True)
@@ -52,6 +59,7 @@ def build_lending_decision(
     suggested_min_daily_rate: float | None = None,
     active_amount: float = 0.0,
     historical_daily_rates: list[float] | None = None,
+    fill_outcomes: list[FillOutcome] | None = None,
 ) -> LendingDecision:
     strategy = _strategy_with_frr_minimum(strategy, frr_daily_rate)
     strategy = _strategy_with_suggested_minimum(strategy, suggested_min_daily_rate)
@@ -109,6 +117,7 @@ def build_lending_decision(
             len(offer_amounts),
             btc_price,
             historical_daily_rates or [],
+            fill_outcomes or [],
         )
     offers = [
         LoanOffer(
@@ -231,8 +240,15 @@ def _offer_rates(
     split_count: int,
     btc_price: float | None,
     historical_daily_rates: list[float],
+    fill_outcomes: list[FillOutcome],
 ) -> tuple[list[float], list[RateCandidate]]:
-    optimized_rates, rate_candidates = _optimized_offer_rates(order_book, strategy, split_count, historical_daily_rates)
+    optimized_rates, rate_candidates = _optimized_offer_rates(
+        order_book,
+        strategy,
+        split_count,
+        historical_daily_rates,
+        fill_outcomes,
+    )
     if optimized_rates:
         return optimized_rates, rate_candidates
 
@@ -263,22 +279,32 @@ def _optimized_offer_rates(
     strategy: StrategyConfig,
     split_count: int,
     historical_daily_rates: list[float],
+    fill_outcomes: list[FillOutcome],
 ) -> tuple[list[float], list[RateCandidate]]:
     if strategy.rate_optimization_mode.lower() != "fill_probability":
         return [], []
 
     sample_size = max(strategy.rate_optimization_sample_size, 1)
     samples = [rate for rate in historical_daily_rates[:sample_size] if rate > 0]
-    if not samples:
+    outcomes = [outcome for outcome in fill_outcomes[:sample_size] if outcome.daily_rate > 0]
+    if not samples and not outcomes:
         return [], []
 
     candidate_sources: dict[float, set[str]] = {}
     for order in order_book:
         if order.daily_rate <= 0:
             continue
-        candidate_sources.setdefault(_clamp_rate(order.daily_rate, strategy), set()).add("order_book")
+        candidate_sources.setdefault(
+            _clamp_rate(order.daily_rate, strategy),
+            set(),
+        ).add("order_book")
     for rate in samples:
         candidate_sources.setdefault(_clamp_rate(rate, strategy), set()).add("history")
+    for outcome in outcomes:
+        candidate_sources.setdefault(
+            _clamp_rate(outcome.daily_rate, strategy),
+            set(),
+        ).add("fill_outcome")
     if not candidate_sources:
         return [], []
 
@@ -286,7 +312,7 @@ def _optimized_offer_rates(
     scored_rates = []
     rate_candidates: list[RateCandidate] = []
     for candidate in sorted(candidate_sources):
-        probability = sum(1 for sample in samples if sample >= candidate) / len(samples)
+        probability = _fill_probability(candidate, samples, outcomes)
         expected_score = candidate * probability
         meets_min_probability = probability >= minimum_probability
         rate_candidates.append(
@@ -377,6 +403,29 @@ def _allocation_plan(strategy: StrategyConfig) -> list[tuple[str, float]]:
         "balanced": [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)],
         "yield": [("fast", 0.50), ("expected", 0.30), ("yield", 0.20)],
     }.get(strategy.lending_risk_level.lower(), [("fast", 0.70), ("expected", 0.20), ("yield", 0.10)])
+
+
+def _fill_probability(
+    candidate: float,
+    market_samples: list[float],
+    fill_outcomes: list[FillOutcome],
+) -> float:
+    market_successes = sum(1 for sample in market_samples if sample >= candidate)
+    outcome_successes = sum(
+        1
+        for outcome in fill_outcomes
+        if outcome.filled and outcome.daily_rate >= candidate
+    )
+    outcome_failures = sum(
+        1
+        for outcome in fill_outcomes
+        if not outcome.filled and outcome.daily_rate <= candidate
+    )
+    total_samples = len(market_samples) + outcome_successes + outcome_failures
+    if total_samples <= 0:
+        return 0.0
+
+    return (market_successes + outcome_successes) / total_samples
 
 
 def _candidate_for_role(candidates: list[RateCandidate], role: str) -> RateCandidate:

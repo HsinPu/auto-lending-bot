@@ -2,6 +2,7 @@ import json
 
 from auto_lending_bot.domain.models import (
     ActiveLoan,
+    FillOutcome,
     LendingHistoryEntry,
     LoanApplication,
     LoanOffer,
@@ -1083,6 +1084,41 @@ class LoanOfferRepository:
             "by_currency": _offer_performance_groups(rows, "currency"),
             "by_risk_level": _offer_performance_groups(rows, "risk_level"),
         }
+
+    def recent_fill_outcomes(
+        self,
+        currency: str,
+        limit: int = 200,
+        profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+    ) -> list[FillOutcome]:
+        ensure_default_profile(profile_context)
+        with connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT daily_rate, filled_at, final_status
+                FROM loan_offers
+                WHERE profile_id = ?
+                  AND dry_run = 0
+                  AND upper(currency) = upper(?)
+                  AND daily_rate > 0
+                  AND (
+                    filled_at IS NOT NULL
+                    OR canceled_at IS NOT NULL
+                    OR final_status IN ('filled', 'canceled')
+                  )
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (profile_context.id, currency, limit),
+            ).fetchall()
+
+        return [
+            FillOutcome(
+                daily_rate=float(row["daily_rate"]),
+                filled=bool(row["filled_at"] or row["final_status"] == "filled"),
+            )
+            for row in rows
+        ]
 
 
 def _offer_performance_groups(

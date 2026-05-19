@@ -17,7 +17,7 @@ from auto_lending_bot.config import (
     sqlite_path_from_url,
     strategy_config_for,
 )
-from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, LoanOrder
+from auto_lending_bot.domain.models import ActiveLoan, CurrencyBalance, FillOutcome, LoanOrder
 from auto_lending_bot.domain.strategy import build_lending_decision
 from auto_lending_bot.integrations.factory import create_exchange_client
 from auto_lending_bot.integrations.errors import (
@@ -366,6 +366,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def strategy_decisions() -> list[dict[str, object]]:
         return _strategy_decisions(
             settings,
+            loan_offers,
             active_loans,
             open_offers,
             market_analysis_rates,
@@ -448,6 +449,7 @@ def create_api_router(settings: Settings | Callable[[], Settings]) -> APIRouter:
     def run_preview() -> dict[str, object]:
         decisions = _strategy_decisions(
             settings,
+            loan_offers,
             active_loans,
             open_offers,
             market_analysis_rates,
@@ -1383,6 +1385,7 @@ def _currency_details(
 
 def _strategy_decisions(
     settings: Settings,
+    loan_offers: LoanOfferRepository,
     active_loans: ActiveLoanRepository,
     open_offers: OpenLoanOfferRepository,
     market_analysis_rates: MarketAnalysisRateRepository,
@@ -1435,6 +1438,12 @@ def _strategy_decisions(
             historical_daily_rates=_historical_daily_rates(
                 settings,
                 market_analysis_rates,
+                currency,
+                profile_context,
+            ),
+            fill_outcomes=_fill_outcomes(
+                settings,
+                loan_offers,
                 currency,
                 profile_context,
             ),
@@ -1537,6 +1546,22 @@ def _historical_daily_rates(
         currency,
         settings.rate_optimization_sample_size,
         settings.market_analysis_max_age_seconds,
+        profile_context=profile_context,
+    )
+
+
+def _fill_outcomes(
+    settings: Settings,
+    loan_offers: LoanOfferRepository,
+    currency: str,
+    profile_context: BotProfileContext = DEFAULT_PROFILE_CONTEXT,
+) -> list[FillOutcome]:
+    if settings.rate_optimization_mode != "fill_probability":
+        return []
+
+    return loan_offers.recent_fill_outcomes(
+        currency,
+        settings.rate_optimization_sample_size,
         profile_context=profile_context,
     )
 

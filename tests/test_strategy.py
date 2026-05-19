@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from auto_lending_bot.domain.models import CurrencyBalance, LoanOrder
+from auto_lending_bot.domain.models import CurrencyBalance, FillOutcome, LoanOrder
 from auto_lending_bot.domain.strategy import StrategyConfig, build_lending_decision
 
 
@@ -325,6 +325,58 @@ def test_strategy_optimizes_rate_by_fill_probability() -> None:
     assert [candidate.fill_probability for candidate in decision.rate_candidates] == [1.0, 0.6, 0.6]
     assert [candidate.selected for candidate in decision.rate_candidates] == [False, False, True]
     assert [candidate.selection_role for candidate in decision.rate_candidates] == ["", "", "expected"]
+
+
+def test_strategy_blends_actual_fill_outcomes_into_probability() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=1,
+            rate_optimization_mode="fill_probability",
+            rate_optimization_min_probability=0.10,
+        ),
+        historical_daily_rates=[0.0003, 0.0003],
+        fill_outcomes=[
+            *[FillOutcome(daily_rate=0.0001, filled=True) for _ in range(8)],
+            *[FillOutcome(daily_rate=0.0003, filled=False) for _ in range(8)],
+        ],
+    )
+
+    candidates = {candidate.daily_rate: candidate for candidate in decision.rate_candidates}
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001]
+    assert candidates[0.0001].fill_probability == 1.0
+    assert candidates[0.0003].fill_probability == 0.2
+    assert candidates[0.0003].meets_min_probability is False
+
+
+def test_strategy_can_optimize_from_fill_outcomes_without_market_samples() -> None:
+    decision = build_lending_decision(
+        balance=CurrencyBalance(currency="BTC", amount=1.0),
+        order_book=[
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0001),
+            LoanOrder(currency="BTC", amount=1.0, daily_rate=0.0003),
+        ],
+        strategy=_strategy(
+            spread_lend=1,
+            rate_optimization_mode="fill_probability",
+            rate_optimization_min_probability=0.10,
+        ),
+        historical_daily_rates=[],
+        fill_outcomes=[
+            FillOutcome(daily_rate=0.0001, filled=True),
+            FillOutcome(daily_rate=0.0003, filled=False),
+        ],
+    )
+
+    assert [offer.daily_rate for offer in decision.offers] == [0.0001]
+    assert [candidate.source for candidate in decision.rate_candidates] == [
+        "fill_outcome+order_book",
+        "fill_outcome+order_book",
+    ]
 
 
 def test_strategy_allocates_rates_across_fast_expected_and_yield_tiers() -> None:

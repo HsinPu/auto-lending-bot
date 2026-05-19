@@ -149,6 +149,55 @@ def test_api_strategy_decisions_returns_per_currency_preview(tmp_path) -> None:
     assert btc["offers"][0]["currency"] == "BTC"
 
 
+def test_api_strategy_decisions_use_live_fill_feedback(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'test.db'}"
+    settings = _settings(database_url, rate_optimization_mode="fill_probability")
+    initialize_database(database_url)
+    bot_run_id = BotRunRepository(database_url).start(dry_run=False)
+    loan_offers = LoanOfferRepository(database_url)
+    filled_offer_id = loan_offers.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00005, duration_days=2),
+        status="intent",
+        dry_run=False,
+    )
+    loan_offers.update_status(
+        filled_offer_id,
+        status="created",
+        external_offer_id="filled-1",
+    )
+    loan_offers.mark_filled_by_active_loan(
+        ActiveLoan(
+            currency="BTC",
+            amount=0.1,
+            daily_rate=0.00005,
+            duration_days=2,
+            external_loan_id="loan-1",
+        )
+    )
+    canceled_offer_id = loan_offers.add(
+        bot_run_id=bot_run_id,
+        offer=LoanOffer(currency="BTC", amount=0.1, daily_rate=0.00008, duration_days=2),
+        status="intent",
+        dry_run=False,
+    )
+    loan_offers.update_status(
+        canceled_offer_id,
+        status="created",
+        external_offer_id="canceled-1",
+    )
+    loan_offers.mark_canceled_by_external_offer_id("canceled-1")
+    client = TestClient(create_app(settings))
+
+    response = client.get("/api/strategy-decisions")
+
+    assert response.status_code == 200
+    btc = next(row for row in response.json() if row["currency"] == "BTC")
+    assert btc["offers"][0]["daily_rate"] == 0.00005
+    assert btc["rate_candidates"][0]["source"] == "fill_outcome"
+    assert btc["rate_candidates"][0]["selected"] is True
+
+
 def test_api_strategy_performance_returns_live_offer_summary(tmp_path) -> None:
     database_url = f"sqlite:///{tmp_path / 'test.db'}"
     settings = _settings(database_url)
@@ -1286,6 +1335,7 @@ def _settings(
     max_single_transfer_amount: float | None = None,
     market_analysis_currencies: tuple[str, ...] = (),
     market_analysis_method: str = "off",
+    rate_optimization_mode: str = "off",
 ) -> Settings:
     return Settings(
         allow_live_trading=allow_live_trading,
@@ -1338,7 +1388,7 @@ def _settings(
         xday_spread=0,
         frr_as_min=False,
         frr_delta=0,
-        rate_optimization_mode="off",
+        rate_optimization_mode=rate_optimization_mode,
         rate_optimization_min_probability=0.25,
         rate_optimization_sample_size=200,
         max_amount_to_lend=None,

@@ -60,6 +60,12 @@ class RateCandidate:
 
 
 @dataclass(frozen=True)
+class FillOutcome:
+    daily_rate: float
+    filled: bool
+
+
+@dataclass(frozen=True)
 class ActiveLoan:
     currency: str
     amount: float

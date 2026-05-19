@@ -548,6 +548,28 @@ def test_strategy_marks_market_signal_uncertain_without_samples() -> None:
     assert signal.confidence == 0.0
 
 
+def test_strategy_market_signal_scores_order_book_depth() -> None:
+    shallow_signal = detect_market_signal(
+        current_daily_rate=0.00024,
+        historical_daily_rates=[0.00024, 0.00022, 0.0002, 0.0001, 0.0001, 0.0001],
+        order_book=[
+            LoanOrder(currency="BTC", amount=0.1, daily_rate=0.00024),
+            LoanOrder(currency="BTC", amount=10.0, daily_rate=0.0001),
+        ],
+    )
+    deep_signal = detect_market_signal(
+        current_daily_rate=0.00024,
+        historical_daily_rates=[0.00024, 0.00022, 0.0002, 0.0001, 0.0001, 0.0001],
+        order_book=[
+            LoanOrder(currency="BTC", amount=10.0, daily_rate=0.00024),
+            LoanOrder(currency="BTC", amount=0.1, daily_rate=0.0001),
+        ],
+    )
+
+    assert shallow_signal.depth_score < deep_signal.depth_score
+    assert shallow_signal.confidence < deep_signal.confidence
+
+
 def test_strategy_uses_long_duration_above_xday_threshold() -> None:
     decision = build_lending_decision(
         balance=CurrencyBalance(currency="BTC", amount=1.0),

@@ -230,6 +230,7 @@ def detect_market_regime(
 def detect_market_signal(
     current_daily_rate: float,
     historical_daily_rates: list[float],
+    order_book: list[LoanOrder] | None = None,
 ) -> MarketSignal:
     samples = [rate for rate in historical_daily_rates if rate > 0]
     if len(samples) < MARKET_REGIME_MIN_SAMPLES:
@@ -237,7 +238,7 @@ def detect_market_signal(
             prediction_label="uncertain",
             trend_score=0.0,
             volatility_score=0.0,
-            depth_score=0.0,
+            depth_score=_order_book_depth_score(order_book or [], current_daily_rate),
             rate_momentum=0.0,
             confidence=0.0,
             sample_count=len(samples),
@@ -252,19 +253,22 @@ def detect_market_signal(
     trend_score = _clamp(trend_ratio / MARKET_SIGNAL_STRONG_TREND_THRESHOLD, -1.0, 1.0)
     volatility_score = _clamp(volatility_ratio / MARKET_REGIME_VOLATILITY_THRESHOLD, 0.0, 1.0)
     rate_momentum = _safe_ratio(max(current_daily_rate, 0.0) - long_average, long_average)
-    confidence = _clamp(abs(trend_score) * (1.0 - volatility_score * 0.35), 0.0, 1.0)
+    depth_score = _order_book_depth_score(order_book or [], current_daily_rate)
+    depth_factor = 0.75 + depth_score * 0.25
+    confidence = _clamp(abs(trend_score) * (1.0 - volatility_score * 0.35) * depth_factor, 0.0, 1.0)
 
     return MarketSignal(
         prediction_label=_market_signal_prediction_label(trend_score, confidence),
         trend_score=round(trend_score, 4),
         volatility_score=round(volatility_score, 4),
-        depth_score=0.0,
+        depth_score=round(depth_score, 4),
         rate_momentum=round(rate_momentum, 4),
         confidence=round(confidence, 4),
         sample_count=len(samples),
         reason=(
             f"Short average is {trend_ratio:.2%} versus the long average; "
-            f"volatility score is {volatility_score:.2f}."
+            f"volatility score is {volatility_score:.2f}; "
+            f"depth score is {depth_score:.2f}."
         ),
     )
 
@@ -281,6 +285,23 @@ def _market_signal_prediction_label(trend_score: float, confidence: float) -> st
     if trend_score <= -MARKET_SIGNAL_TREND_THRESHOLD:
         return "fall"
     return "flat"
+
+
+def _order_book_depth_score(order_book: list[LoanOrder], current_daily_rate: float) -> float:
+    valid_orders = [order for order in order_book if order.amount > 0 and order.daily_rate > 0]
+    if not valid_orders:
+        return 0.5
+
+    total_amount = sum(order.amount for order in valid_orders)
+    if total_amount <= 0:
+        return 0.5
+
+    top_rate = max(current_daily_rate, max(order.daily_rate for order in valid_orders))
+    threshold_rate = top_rate * 0.95
+    high_rate_amount = sum(
+        order.amount for order in valid_orders if order.daily_rate >= threshold_rate
+    )
+    return _clamp(high_rate_amount / total_amount, 0.0, 1.0)
 
 
 def _market_regime_trend(trend_ratio: float) -> str:
